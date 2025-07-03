@@ -66,6 +66,7 @@ Manuscript/google.R
 *.html
 *.log
 *.md
+!README.md
 *.lua
 *.tex
 results_files/*
