@@ -28,7 +28,7 @@ download_plan <- list(
   tar_target(
     name = download_traits_pe,
     command = get_file(node = "gs8u6",
-                       file = "PFTC3-Puna-PFTC5_Peru_2018-2020_LeafTraits_clean.csv",
+                       file = "PFTC3-Puna-PFTC5_Peru_2018-2020_FunctionalTraits_clean.csv",
                        path = "data/",
                        remote_path = "traits"),
     format = "file"
@@ -87,9 +87,8 @@ download_plan <- list(
   tar_target(
     name = download_community_no,
     command =  get_file(node = "pk4bg",
-                        file = "Three-D_clean_cover_2019-2022.csv",
-                        path = "data",
-                        remote_path = "Vegetation"),
+                        file = "7_Three-D_clean_cover_2019-2022.csv",
+                        path = "data"),
     format = "file"
   ),
   
@@ -107,9 +106,8 @@ download_plan <- list(
   tar_target(
     name = download_sp_no,
     command =  get_file(node = "pk4bg",
-                        file = "Three-D_clean_taxonomy.csv",
-                        path = "data",
-                        remote_path = "Vegetation"),
+                        file = "7_Three-D_clean_taxonomy.csv",
+                        path = "data"),
     format = "file"
   ),
   
@@ -117,9 +115,9 @@ download_plan <- list(
   tar_target(
     name = download_traits_no,
     command =  get_file(node = "fcbw4",
-                        file = "PFTC6_ThreeD_clean_leaf_traits_2022.csv",
+                        file = "PFTC6_clean_ElevationGradient_GlobalChangeExperiment_morphological_traits_2022.csv",
                         path = "data",
-                        remote_path = "trait_data"),
+                        remote_path = "i. trait_data"),
     format = "file"
   ),
   
