@@ -92,7 +92,7 @@ import_plan <- list(
     command = read_csv("data/rmbl_trait_data_master.csv")
   ),
 
-  # trait
+  # meta
   tar_target(
     name = coords_co,
     command = {
@@ -111,6 +111,25 @@ import_plan <- list(
           plot_id = paste0(site, "_", plot_id)
         )
     }
+  ),
+
+  # South Africa Data
+  # community data
+  tar_target(
+    name = raw_community_sa,
+    command = read_csv(download_community_sa)
+  ),
+
+  # trait data
+  tar_target(
+    name = raw_traits_sa,
+    command = read_csv(download_traits_sa)
+  ),
+
+  # meta data
+  tar_target(
+    name = raw_meta_sa,
+    command = read_csv(download_meta_sa)
   ),
 
 
