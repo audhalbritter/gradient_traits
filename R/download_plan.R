@@ -125,6 +125,31 @@ download_plan <- list(
   tar_target(
     name = metaTurfID_no,
     command = create_threed_meta_data()
+  ),
+  
+  # South Africa Data
+  # trait data
+  tar_target(
+    name = download_traits_sa,
+    command = get_file(
+      node = "hk2cy",
+      file = "iv_PFTC7_clean_elevationgradient_traits_2023.csv",
+      path = "data/",
+      remote_path = "iv_aboveground_traits"
+    ),
+    format = "file"
+  ),
+
+  # community data
+  tar_target(
+    name = download_community_sa,
+    command = get_file(
+      node = "hk2cy",
+      file = "i_PFTC7_clean_elevationgradient_community_2023.csv",
+      path = "data",
+      remote_path = "i_plant_community_composition"
+    ),
+    format = "file"
   )
   
 )
