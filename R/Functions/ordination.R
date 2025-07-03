@@ -61,7 +61,7 @@ make_pca_plot <- function(trait_pca){
   # eigenvalues
   e_B <- eigenvals(trait_pca[[3]])/sum(eigenvals(trait_pca[[3]]))
 
-  trait_pca[[1]] %>%
+  trait_pca[[1]] %>% 
     ggplot(aes(x = PC1, y = PC2, colour = annual_temperature)) +
     geom_point(size = 2) +
     coord_equal() +
