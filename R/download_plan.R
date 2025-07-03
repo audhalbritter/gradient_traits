@@ -169,5 +169,17 @@ download_plan <- list(
       remote_path = "iv_aboveground_traits"
     ),
     format = "file"
+  ),
+
+  # meta data
+  tar_target(
+    name = download_meta_sa,
+    command = get_file(
+      node = "hk2cy",
+      file = "0_PFCT7_clean_coordinates_2023.csv",
+      path = "data/",
+      remote_path = "0_coordinates"
+    ),
+    format = "file"
   )
 )
