@@ -44,6 +44,8 @@ vignettes/*.pdf
 # renv
 renv/library/
 renv/staging/
+renv/.gitignore
+renv/activate.R
 
 # quarto
 
