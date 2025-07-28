@@ -71,7 +71,7 @@ cleaning_plan <- list(
   # clean community
   tar_target(
     name = community_sa,
-    command = clean_sa_community(raw_community_sa)
+    command = clean_sa_community(raw_community_sa, raw_meta_sa)
   ),
 
   # clean traits
