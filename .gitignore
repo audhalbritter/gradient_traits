@@ -66,8 +66,10 @@ Manuscript/google.R
 *.html
 *.log
 *.md
+!README.md
 *.lua
 *.tex
+*.json
 results_files/*
 
 *.DS_Store

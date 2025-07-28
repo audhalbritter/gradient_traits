@@ -331,3 +331,22 @@ clean_colorado_trait <- function(raw_sp_co, raw_trait_co, coords_co){
    
   
 }  
+
+# clean South Africa community
+clean_sa_community <- function(raw_community_sa, raw_meta_sa) {
+  raw_community_sa |>
+    clean_names() |>
+    left_join(raw_meta_sa |>
+                clean_names(),
+              by = c("site_id", "plot_id", "aspect", "elevation_m_asl")) |>
+    mutate(
+      country = "sa",
+      ecosystem = "montane",
+      gradient = "C",
+      site = paste0(country, "_", site_id),
+      plot_id = paste0(site, "_", plot_id)
+    ) |>
+    select(
+      country, year = NA, date, gradient, site, plot_id, taxon = species, cover, aspect, fertility_all, elevation_m = elevation_m_asl, latitude_n = latitude, longitude_e = longitude, ecosystem
+    )
+}
