@@ -364,6 +364,17 @@ clean_sa_community <- function(raw_community_sa, raw_meta_sa) {
 clean_sa_traits <- function(raw_traits_sa){
   
   raw_traits_sa |> 
+    # remove some traits
+    filter(!traits %in% c("rep_height", "wet_mass")) |>
+    # rename traits
+    mutate(trait = case_when(
+      traits == "dry_mass" ~ "dry_mass_g",
+      traits == "leaf_area" ~ "leaf_area_cm2",
+      traits == "leaf_thickness" ~ "leaf_thickness_mm",
+      traits == "sla" ~ "sla_cm2_g",
+      traits == "veg_height" ~ "plant_height_cm",
+      TRUE ~ traits
+    )) |>
     # add variables
     mutate(year = year(date),
            country = "sa",
