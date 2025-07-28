@@ -41,6 +41,10 @@ vignettes/*.pdf
 # target
 *_targets/
 
+# renv
+renv/library/
+renv/staging/
+
 # quarto
 
 # data files
