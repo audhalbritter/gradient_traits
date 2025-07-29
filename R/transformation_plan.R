@@ -14,17 +14,64 @@ transformation_plan <- list(
   tar_target(
     name = diversity,
     command = {
-      c1 <- community |>
+      # First aggregate community data to plot level
+      community_agg <- community |>
         group_by(country, season, gradient, site, plot_id, ecosystem, elevation_m, longitude_e, latitude_n) |>
         summarise(
           richness = n(),
           diversity = diversity(cover),
           evenness = diversity / log(richness),
-          sum_abundance = sum(cover)
-        ) |>
+          sum_abundance = sum(cover),
+          .groups = "drop"
+        )
+      
+      # Then join with bioclim data
+      community_agg |>
         pivot_longer(cols = richness:sum_abundance, names_to = "diversity_index", values_to = "value") |>
-        left_join(bioclim, by = join_by(country, gradient, site, plot_id, elevation_m)) |>
+        tidylog::left_join(bioclim, by = join_by(country, gradient, site, plot_id, elevation_m)) |>
         rename(longitude_e = longitude_e.x, latitude_n = latitude_n.x)
+    }
+  ),
+
+  # diagnostic: rows only in bioclim
+  tar_target(
+    name = bioclim_only,
+    command = {
+      community_keys <- community |>
+        group_by(country, gradient, site, plot_id, elevation_m) |>
+        summarise(.groups = "drop") |>
+        mutate(in_community = TRUE)
+      
+      bioclim_keys <- bioclim |>
+        select(country, gradient, site, plot_id, elevation_m) |>
+        mutate(in_bioclim = TRUE)
+      
+      bioclim_keys |>
+        left_join(community_keys, by = c("country", "gradient", "site", "plot_id", "elevation_m")) |>
+        filter(is.na(in_community)) |>
+        select(-in_community, -in_bioclim)
+    }
+  ),
+
+  # diagnostic: duplicates in bioclim
+  tar_target(
+    name = bioclim_duplicates,
+    command = {
+      bioclim |>
+        group_by(country, gradient, site, plot_id, elevation_m) |>
+        filter(n() > 1) |>
+        arrange(country, gradient, site, plot_id, elevation_m)
+    }
+  ),
+
+  # diagnostic: duplicates in community
+  tar_target(
+    name = community_duplicates,
+    command = {
+      community |>
+        group_by(country, gradient, site, plot_id, elevation_m) |>
+        filter(n() > 1) |>
+        arrange(country, gradient, site, plot_id, elevation_m)
     }
   ),
 
