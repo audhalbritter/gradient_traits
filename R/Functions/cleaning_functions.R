@@ -351,7 +351,11 @@ clean_sa_community <- function(raw_community_sa, raw_meta_sa) {
       country = "sa",
       ecosystem = "grassland",
       year = year(date),
-      gradient = "C",
+      gradient = case_when(
+        aspect == "east" ~ "E",
+        aspect == "west" ~ "W",
+        TRUE ~ "C"
+      ),
       site = paste0(country, "_", site_id),
       plot_id = paste0(site, "_", plot_id)
     ) |>
@@ -378,7 +382,11 @@ clean_sa_traits <- function(raw_traits_sa){
     # add variables
     mutate(year = year(date),
            country = "sa",
-           gradient = "C",
+           gradient = case_when(
+             aspect == "east" ~ "E",
+             aspect == "west" ~ "W",
+             TRUE ~ "C"
+           ),
            ecosystem = "grassland",
            site = paste0(country, "_", site_id),
            plot_id = paste0(site, "_", plot_id)) |>

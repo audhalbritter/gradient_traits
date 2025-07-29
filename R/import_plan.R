@@ -206,58 +206,60 @@ import_plan <- list(
             precipitation_coldest_quarter = NA_real_
           )
       } else {
-        {
-          # join bioclim data to all rows in raw_meta_sa
-          raw_meta_sa |>
-            left_join(
-              bioclim_sa_extracted |>
-                rename(
-                  latitude = lat,
-                  longitude = lon,
-                  annual_temperature = wc2.1_30s_bio_1,
-                  diurnal_range = wc2.1_30s_bio_2,
-                  isothermality = wc2.1_30s_bio_3,
-                  temperature_seasonality = wc2.1_30s_bio_4,
-                  max_temperture_warmest_month = wc2.1_30s_bio_5,
-                  min_temperture_coldest_month = wc2.1_30s_bio_6,
-                  temperature_annual_range = wc2.1_30s_bio_7,
-                  mean_temperture_wettest_quarter = wc2.1_30s_bio_8,
-                  mean_temperture_driest_quarter = wc2.1_30s_bio_9,
-                  mean_temperture_warmest_quarter = wc2.1_30s_bio_10,
-                  mean_temperture_coldest_quarter = wc2.1_30s_bio_11,
-                  annual_precipitation = wc2.1_30s_bio_12,
-                  precipitation_wettest_month = wc2.1_30s_bio_13,
-                  precipitation_driest_month = wc2.1_30s_bio_14,
-                  precipitation_seasonality = wc2.1_30s_bio_15,
-                  precipitation_wettest_quarter = wc2.1_30s_bio_16,
-                  precipitation_driest_quarter = wc2.1_30s_bio_17,
-                  precipitation_warmest_quarter = wc2.1_30s_bio_18,
-                  precipitation_coldest_quarter = wc2.1_30s_bio_19
-                ) |>
-                select(-ID),
-              by = c("latitude", "longitude")
-            )
-        } |>
-          mutate(
-            country = "sa",
-            gradient = "C",
-            site = paste0(country, "_", site_id),
-            plot_id = paste0(site, "_", plot_id),
-            elevation_m = elevation_m_asl,
-            longitude_e = longitude,
-            latitude_n = latitude
-          ) |>
-          select(
-            country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n,
-            annual_temperature, diurnal_range, isothermality, temperature_seasonality,
-            max_temperture_warmest_month, min_temperture_coldest_month, temperature_annual_range,
-            mean_temperture_wettest_quarter, mean_temperture_driest_quarter,
-            mean_temperture_warmest_quarter, mean_temperture_coldest_quarter,
-            annual_precipitation, precipitation_wettest_month, precipitation_driest_month,
-            precipitation_seasonality, precipitation_wettest_quarter, precipitation_driest_quarter,
-            precipitation_warmest_quarter, precipitation_coldest_quarter
+        # join bioclim data to all rows in raw_meta_sa
+        raw_meta_sa |>
+          left_join(
+            bioclim_sa_extracted |>
+              rename(
+                latitude = lat,
+                longitude = lon,
+                annual_temperature = wc2.1_30s_bio_1,
+                diurnal_range = wc2.1_30s_bio_2,
+                isothermality = wc2.1_30s_bio_3,
+                temperature_seasonality = wc2.1_30s_bio_4,
+                max_temperture_warmest_month = wc2.1_30s_bio_5,
+                min_temperture_coldest_month = wc2.1_30s_bio_6,
+                temperature_annual_range = wc2.1_30s_bio_7,
+                mean_temperture_wettest_quarter = wc2.1_30s_bio_8,
+                mean_temperture_driest_quarter = wc2.1_30s_bio_9,
+                mean_temperture_warmest_quarter = wc2.1_30s_bio_10,
+                mean_temperture_coldest_quarter = wc2.1_30s_bio_11,
+                annual_precipitation = wc2.1_30s_bio_12,
+                precipitation_wettest_month = wc2.1_30s_bio_13,
+                precipitation_driest_month = wc2.1_30s_bio_14,
+                precipitation_seasonality = wc2.1_30s_bio_15,
+                precipitation_wettest_quarter = wc2.1_30s_bio_16,
+                precipitation_driest_quarter = wc2.1_30s_bio_17,
+                precipitation_warmest_quarter = wc2.1_30s_bio_18,
+                precipitation_coldest_quarter = wc2.1_30s_bio_19
+              ) |>
+              select(-ID),
+            by = c("latitude", "longitude")
           )
-      }
+      } |>
+        mutate(
+          country = "sa",
+          gradient = case_when(
+            aspect == "east" ~ "E",
+            aspect == "west" ~ "W",
+            TRUE ~ "C"
+          ),
+          site = paste0(country, "_", site_id),
+          plot_id = paste0(site, "_", plot_id),
+          elevation_m = elevation_m_asl,
+          longitude_e = longitude,
+          latitude_n = latitude
+        ) |>
+        select(
+          country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n,
+          annual_temperature, diurnal_range, isothermality, temperature_seasonality,
+          max_temperture_warmest_month, min_temperture_coldest_month, temperature_annual_range,
+          mean_temperture_wettest_quarter, mean_temperture_driest_quarter,
+          mean_temperture_warmest_quarter, mean_temperture_coldest_quarter,
+          annual_precipitation, precipitation_wettest_month, precipitation_driest_month,
+          precipitation_seasonality, precipitation_wettest_quarter, precipitation_driest_quarter,
+          precipitation_warmest_quarter, precipitation_coldest_quarter
+        )
     }
   ),
 
