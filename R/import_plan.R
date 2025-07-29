@@ -129,9 +129,54 @@ import_plan <- list(
   # meta data
   tar_target(
     name = raw_meta_sa,
-    command = read_csv(download_meta_sa)
+    command = read_csv(download_meta_sa) |>
+      filter(site_id != 6)
   ),
 
+  # download bioclim data for South Africa
+  tar_target(
+    name = bioclim_sa,
+    command = {
+      # get unique coordinates from South Africa metadata
+      coords_sa <- raw_meta_sa |>
+        distinct(latitude, longitude) |>
+        rename(lat = latitude, lon = longitude)
+      
+      # download bioclim data from WorldClim
+      bioclim_data <- geodata::worldclim_global(
+        var = "bio",
+        res = 0.5,
+        path = "WorldClimData"
+      )
+      
+      # extract bioclim values for South Africa coordinates
+      bioclim_sa <- terra::extract(bioclim_data, coords_sa) |>
+        bind_cols(coords_sa) |>
+        rename(
+          latitude = lat,
+          longitude = lon,
+          annual_temperature = bio_1,
+          diurnal_range = bio_2,
+          isothermality = bio_3,
+          temperature_seasonality = bio_4,
+          max_temperture_warmest_month = bio_5,
+          min_temperture_coldest_month = bio_6,
+          temperature_annual_range = bio_7,
+          mean_temperture_wettest_quarter = bio_8,
+          mean_temperture_driest_quarter = bio_9,
+          mean_temperture_warmest_quarter = bio_10,
+          mean_temperture_coldest_quarter = bio_11,
+          annual_precipitation = bio_12,
+          precipitation_wettest_month = bio_13,
+          precipitation_driest_month = bio_14,
+          precipitation_seasonality = bio_15,
+          precipitation_wettest_quarter = bio_16,
+          precipitation_driest_quarter = bio_17,
+          precipitation_warmest_quarter = bio_18,
+          precipitation_coldest_quarter = bio_19
+        )
+    }
+  ),
 
   # climate
   tar_target(
