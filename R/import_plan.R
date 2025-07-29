@@ -128,9 +128,9 @@ import_plan <- list(
       filter(site_id != 6)
   ),
 
-  # download WorldClim data
+  # download WorldClim data (file target - doesn't load into memory)
   tar_target(
-    name = worldclim_data,
+    name = worldclim_files,
     command = {
       tryCatch(
         {
@@ -140,19 +140,21 @@ import_plan <- list(
             path = "WorldClimData",
             download = TRUE
           )
-
+          
           if (is.null(bioclim_data)) {
             stop("WorldClim data download failed")
           }
-
-          return(bioclim_data)
+          
+          # Return the file paths instead of the data
+          list.files("WorldClimData/climate/wc2.1_30s", pattern = "wc2.1_30s_bio_.*tif$", full.names = TRUE)
         },
         error = function(e) {
           message("WorldClim download failed: ", e$message)
-          return(NULL)
+          return(character(0))
         }
       )
-    }
+    },
+    format = "file"
   ),
 
   # extract bioclim values for South Africa coordinates
@@ -162,20 +164,14 @@ import_plan <- list(
       coords_sa <- raw_meta_sa |>
         distinct(latitude, longitude) |>
         rename(lat = latitude, lon = longitude)
-
-      if (is.null(worldclim_data)) {
+      
+      if (length(worldclim_files) == 0) {
         return(NULL)
       }
-
-      bioclim_files <- list.files("WorldClimData/climate/wc2.1_30s", pattern = "wc2.1_30s_bio_.*tif$", full.names = TRUE)
-
-      if (length(bioclim_files) == 0) {
-        return(NULL)
-      }
-
-      bioclim_raster <- terra::rast(bioclim_files)
+      
+      bioclim_raster <- terra::rast(worldclim_files)
       coords_df <- data.frame(lon = coords_sa$lon, lat = coords_sa$lat)
-
+      
       terra::extract(bioclim_raster, coords_df) |>
         bind_cols(coords_sa)
     }
