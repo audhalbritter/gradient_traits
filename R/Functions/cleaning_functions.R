@@ -238,7 +238,7 @@ clean_no_traits <- function(raw_traits_no){
            ecosystem = "boreal",
            site = paste0(country, "_", siteID),
            plot_id = paste0(site, "_", turfID)) |>
-    select(country, year, date, gradient, site, plot_id, taxon = species, trait, value, elevation_m = elevation_m_asl, ecosystem)
+    select(country, year, date, gradient, site, plot_id, individual_nr, leaf_id = ID, taxon = species, trait, value, elevation_m = elevation_m_asl, ecosystem)
   
 }
 
@@ -334,19 +334,54 @@ clean_colorado_trait <- function(raw_sp_co, raw_trait_co, coords_co){
 
 # clean South Africa community
 clean_sa_community <- function(raw_community_sa, raw_meta_sa) {
-  raw_community_sa |>
+
+  raw_community_sa|>
     clean_names() |>
-    left_join(raw_meta_sa |>
+    # metadata has plot 1 and 5, but community has plot 1 - 5
+    mutate(plot_id2 = case_when(
+      plot_id %in% c(1, 2, 3) ~ 1,
+      plot_id == 4 ~ 4,
+      plot_id == 5 ~ 5,
+      TRUE ~ plot_id
+    )) |>
+    tidylog::left_join(raw_meta_sa |> 
                 clean_names(),
-              by = c("site_id", "plot_id", "aspect", "elevation_m_asl")) |>
+              by = c("site_id", "plot_id2" = "plot_id", "aspect", "elevation_m_asl")) |>
     mutate(
       country = "sa",
-      ecosystem = "montane",
+      ecosystem = "grassland",
+      year = year(date),
       gradient = "C",
       site = paste0(country, "_", site_id),
       plot_id = paste0(site, "_", plot_id)
     ) |>
     select(
-      country, year = NA, date, gradient, site, plot_id, taxon = species, cover, aspect, fertility_all, elevation_m = elevation_m_asl, latitude_n = latitude, longitude_e = longitude, ecosystem
+      country, year, date, gradient, site, plot_id, taxon = species, cover, aspect, fertility_all, elevation_m = elevation_m_asl, latitude_n = latitude, longitude_e = longitude, ecosystem
     )
+}
+
+# clean South Africa traits
+clean_sa_traits <- function(raw_traits_sa){
+  
+  raw_traits_sa |> 
+    # remove some traits
+    filter(!traits %in% c("rep_height", "wet_mass")) |>
+    # rename traits
+    mutate(trait = case_when(
+      traits == "dry_mass" ~ "dry_mass_g",
+      traits == "leaf_area" ~ "leaf_area_cm2",
+      traits == "leaf_thickness" ~ "leaf_thickness_mm",
+      traits == "sla" ~ "sla_cm2_g",
+      traits == "veg_height" ~ "plant_height_cm",
+      TRUE ~ traits
+    )) |>
+    # add variables
+    mutate(year = year(date),
+           country = "sa",
+           gradient = "C",
+           ecosystem = "grassland",
+           site = paste0(country, "_", site_id),
+           plot_id = paste0(site, "_", plot_id)) |>
+    select(country, year, date, gradient, site, plot_id, individual_nr = plant_id, leaf_id = id, species, trait = traits, value, elevation_m = elevation_m_asl, ecosystem)
+  
 }

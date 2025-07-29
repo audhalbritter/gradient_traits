@@ -7,7 +7,7 @@ transformation_plan <- list(
   # merge all communities
   tar_target(
     name = community,
-    command = bind_rows(community_sv, community_pe, community_ch, community_no, community_co)
+    command = bind_rows(community_sv, community_pe, community_ch, community_no, community_co, community_sa)
   ),
 
   # calculate diversity indices
@@ -32,7 +32,7 @@ transformation_plan <- list(
   # merge traits
   tar_target(
     name = traits,
-    command = bind_rows(traits_sv, traits_pe, traits_ch, traits_no, traits_co) |>
+    command = bind_rows(traits_sv, traits_pe, traits_ch, traits_no, traits_co, traits_sa) |>
       # fix trait names
       mutate(
         trait = tolower(trait),
