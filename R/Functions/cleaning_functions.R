@@ -163,7 +163,11 @@ clean_no_comm <- function(raw_community_no, sp_list_no){
     mutate(country = "no",
            gradient = "C",
            ecosystem = "boreal",
-           elevation_m = if_else(destSiteID == "Joa", 920, 1290),
+           elevation_m = case_when(
+             destSiteID == "Joa" ~ 920,
+             destSiteID == "Lia" ~ 1290,
+             TRUE ~ 1290
+           ),
            latitude_n = if_else(destSiteID == "Joa", 60.86183, 60.85994),
            longitude_e = if_else(destSiteID == "Joa", 7.16800, 7.19504),
            site = paste0(country, "_", destSiteID),
@@ -337,16 +341,9 @@ clean_sa_community <- function(raw_community_sa, raw_meta_sa) {
 
   raw_community_sa|>
     clean_names() |>
-    # metadata has plot 1 and 5, but community has plot 1 - 5
-    mutate(plot_id2 = case_when(
-      plot_id %in% c(1, 2, 3) ~ 1,
-      plot_id == 4 ~ 4,
-      plot_id == 5 ~ 5,
-      TRUE ~ plot_id
-    )) |>
-    tidylog::left_join(raw_meta_sa |> 
+    tidylog::left_join(raw_meta_sa_extended |> 
                 clean_names(),
-              by = c("site_id", "plot_id2" = "plot_id", "aspect", "elevation_m_asl")) |>
+              by = c("site_id", "plot_id", "aspect", "elevation_m_asl")) |>
     mutate(
       country = "sa",
       ecosystem = "grassland",
