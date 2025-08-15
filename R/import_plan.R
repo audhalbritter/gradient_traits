@@ -128,6 +128,68 @@ import_plan <- list(
       filter(site_id != 6)
   ),
 
+    # meta data extended
+  tar_target(
+    name = raw_meta_sa_extended,
+    command = {
+      # Get the existing plots 1 and 5 data
+      plots_1_5 <- raw_meta_sa
+      
+      # Create lookup tables for plot 1 and plot 5 coordinates
+      plot_1_coords <- plots_1_5 |>
+        filter(plot_id == 1) |>
+        select(site_id, aspect, latitude_plot1 = latitude, longitude_plot1 = longitude)
+      
+      plot_5_coords <- plots_1_5 |>
+        filter(plot_id == 5) |>
+        select(site_id, aspect, latitude_plot5 = latitude, longitude_plot5 = longitude)
+      
+      # Identify which plots are missing for each site and aspect
+      existing_plots <- plots_1_5 |>
+        select(site_id, aspect, plot_id) |>
+        distinct()
+      
+      # Create all possible plot combinations (1-5) for each site and aspect
+      all_plots <- plots_1_5 |>
+        select(site_id, aspect, elevation_m_asl) |>
+        distinct() |>
+        crossing(plot_id = 1:5)
+      
+      # Find missing plots (plots that don't exist in the original data)
+      missing_plots <- all_plots |>
+        anti_join(existing_plots, by = c("site_id", "aspect", "plot_id")) |>
+        # Join back with the original data to get all other columns (take first row to avoid duplicates)
+        left_join(
+          plots_1_5 |> 
+            select(-plot_id, -latitude, -longitude) |>
+            distinct(site_id, aspect, elevation_m_asl, .keep_all = TRUE),
+          by = c("site_id", "aspect", "elevation_m_asl")
+        ) |>
+        # Join with coordinate lookup tables
+        left_join(plot_1_coords, by = c("site_id", "aspect")) |>
+        left_join(plot_5_coords, by = c("site_id", "aspect")) |>
+        # Fill in latitude and longitude based on plot mapping rules
+        mutate(
+          latitude = case_when(
+            plot_id %in% c(2, 3) ~ latitude_plot1,
+            plot_id == 4 ~ latitude_plot5,
+            TRUE ~ NA_real_
+          ),
+          longitude = case_when(
+            plot_id %in% c(2, 3) ~ longitude_plot1,
+            plot_id == 4 ~ longitude_plot5,
+            TRUE ~ NA_real_
+          )
+        ) |>
+        # Remove the temporary coordinate columns
+        select(-latitude_plot1, -longitude_plot1, -latitude_plot5, -longitude_plot5)
+      
+      # Combine original data with missing plots
+      bind_rows(plots_1_5, missing_plots) |>
+        arrange(site_id, aspect, plot_id)
+    }
+  ),
+
   # download WorldClim data (file target - doesn't load into memory)
   tar_target(
     name = worldclim_files,
@@ -266,8 +328,9 @@ import_plan <- list(
   # climate
   tar_target(
     name = bioclim,
-    command = bind_rows(
-      read_csv("data/bioclim_new.csv") |>
+    command = {
+      # Read and fix the main bioclim data
+      bioclim_main <- read_csv("data/bioclim_new.csv") |>
         rename(
           "annual_temperature" = bio_1,
           "diurnal_range" = bio_2,
@@ -288,8 +351,22 @@ import_plan <- list(
           "precipitation_driest_quarter" = bio_17,
           "precipitation_warmest_quarter" = bio_18,
           "precipitation_coldest_quarter" = bio_19
-        ),
-      bioclim_sa
-    )
+        ) |>
+        # Fix Norway site names to match community and trait data
+        mutate(
+          site = case_when(
+            country == "no" & site == "no_Joa" ~ "no_Joasete",
+            country == "no" & site == "no_Lia" ~ "no_Liahovden",
+            TRUE ~ site
+          ),
+          plot_id = case_when(
+            country == "no" & str_detect(plot_id, "no_Joa_") ~ str_replace(plot_id, "no_Joa_", "no_Joasete_"),
+            country == "no" & str_detect(plot_id, "no_Lia_") ~ str_replace(plot_id, "no_Lia_", "no_Liahovden_"),
+            TRUE ~ plot_id
+          )
+        )
+      
+      bind_rows(bioclim_main, bioclim_sa)
+    }
   )
 )
