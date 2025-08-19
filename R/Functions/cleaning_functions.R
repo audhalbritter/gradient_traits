@@ -142,7 +142,7 @@ clean_ch_traits <- function(raw_traits_leaf_ch, raw_traits_chem_ch, raw_meta_ch)
 # clean norway community
 clean_no_comm <- function(raw_community_no, sp_list_no){
   
-  threeD_community <- raw_community_no |>
+  threeD_community <- raw_community_no |> 
     # filter for 2022 and trait data treatments
     filter(year == 2022,
            warming == "A",
@@ -164,14 +164,13 @@ clean_no_comm <- function(raw_community_no, sp_list_no){
            gradient = "C",
            ecosystem = "boreal",
            elevation_m = case_when(
-             destSiteID == "Joa" ~ 920,
-             destSiteID == "Lia" ~ 1290,
+             destSiteID == "Joasete" ~ 920,
              TRUE ~ 1290
            ),
-           latitude_n = if_else(destSiteID == "Joa", 60.86183, 60.85994),
-           longitude_e = if_else(destSiteID == "Joa", 7.16800, 7.19504),
+           latitude_n = if_else(destSiteID == "Joasete", 60.86183, 60.85994),
+           longitude_e = if_else(destSiteID == "Joasete", 7.16800, 7.19504),
            site = paste0(country, "_", destSiteID),
-           plot_id = paste0(site, "_", turfID)) |>
+           plot_id = paste0(site, "_", turfID)) |> 
     
     # add taxon information
     left_join(sp_list_no |>
@@ -337,7 +336,7 @@ clean_colorado_trait <- function(raw_sp_co, raw_trait_co, coords_co){
 }  
 
 # clean South Africa community
-clean_sa_community <- function(raw_community_sa, raw_meta_sa) {
+clean_sa_community <- function(raw_community_sa, raw_meta_sa_extended) {
 
   raw_community_sa|>
     clean_names() |>
@@ -362,7 +361,7 @@ clean_sa_community <- function(raw_community_sa, raw_meta_sa) {
 }
 
 # clean South Africa traits
-clean_sa_traits <- function(raw_traits_sa){
+clean_sa_traits <- function(raw_traits_sa, raw_meta_sa_extended){
   
   raw_traits_sa |> 
     # remove some traits
@@ -376,6 +375,18 @@ clean_sa_traits <- function(raw_traits_sa){
       traits == "veg_height" ~ "plant_height_cm",
       TRUE ~ traits
     )) |>
+    # Handle plot_id = 0 and NA by mapping to plot 1 for the same site and aspect
+    mutate(
+      plot_id_original = plot_id,
+      plot_id = case_when(
+        is.na(plot_id) | plot_id == 0 ~ 1,
+        TRUE ~ plot_id
+      )
+    ) |>
+    # add lat and long
+    tidylog::left_join(raw_meta_sa_extended |> 
+                clean_names(),
+              by = c("site_id", "plot_id", "aspect", "elevation_m_asl")) |>
     # add variables
     mutate(year = year(date),
            country = "sa",
@@ -386,7 +397,7 @@ clean_sa_traits <- function(raw_traits_sa){
            ),
            ecosystem = "grassland",
            site = paste0(country, "_", site_id),
-           plot_id = paste0(site, "_", plot_id)) |>
-    select(country, year, date, gradient, site, plot_id, individual_nr = plant_id, leaf_id = id, species, trait = traits, value, elevation_m = elevation_m_asl, ecosystem)
+           plot_id = paste0(site, "_", plot_id_original)) |>
+    select(country, year, date, gradient, site, plot_id, individual_nr = plant_id, leaf_id = id, species, trait = traits, value, elevation_m = elevation_m_asl, latitude_n = latitude, longitude_e = longitude, ecosystem)
   
 }
