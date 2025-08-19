@@ -75,12 +75,12 @@ cleaning_plan <- list(
   # clean community
   tar_target(
     name = community_sa,
-    command = clean_sa_community(raw_community_sa, raw_meta_sa)
+    command = clean_sa_community(raw_community_sa, raw_meta_sa_extended)
   ),
 
   # clean traits
   tar_target(
     name = traits_sa,
-    command = clean_sa_traits(raw_traits_sa)
+    command = clean_sa_traits(raw_traits_sa, raw_meta_sa_extended)
   )
 )
