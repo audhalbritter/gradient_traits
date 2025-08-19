@@ -374,7 +374,7 @@ clean_sa_traits <- function(raw_traits_sa, raw_meta_sa_extended){
       traits == "sla" ~ "sla_cm2_g",
       traits == "veg_height" ~ "plant_height_cm",
       TRUE ~ traits
-    )) |>
+    )) |> 
     # Handle plot_id = 0 and NA by mapping to plot 1 for the same site and aspect
     mutate(
       plot_id_original = plot_id,
@@ -398,6 +398,6 @@ clean_sa_traits <- function(raw_traits_sa, raw_meta_sa_extended){
            ecosystem = "grassland",
            site = paste0(country, "_", site_id),
            plot_id = paste0(site, "_", plot_id_original)) |>
-    select(country, year, date, gradient, site, plot_id, individual_nr = plant_id, leaf_id = id, species, trait = traits, value, elevation_m = elevation_m_asl, latitude_n = latitude, longitude_e = longitude, ecosystem)
+    select(country, year, date, gradient, site, plot_id, individual_nr = plant_id, leaf_id = id, taxon = species, trait, value, elevation_m = elevation_m_asl, latitude_n = latitude, longitude_e = longitude, ecosystem)
   
 }
