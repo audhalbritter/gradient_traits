@@ -223,7 +223,7 @@ import_plan <- list(
   tar_target(
     name = bioclim_sa_extracted,
     command = {
-      coords_sa <- raw_meta_sa |>
+      coords_sa <- raw_meta_sa_extended |>
         distinct(latitude, longitude) |>
         rename(lat = latitude, lon = longitude)
       
@@ -244,8 +244,8 @@ import_plan <- list(
     name = bioclim_sa,
     command = {
       if (is.null(bioclim_sa_extracted)) {
-        # if extraction failed, create NA values for all rows in raw_meta_sa
-        raw_meta_sa |>
+        # if extraction failed, create NA values for all rows in raw_meta_sa_extended
+        raw_meta_sa_extended |>
           mutate(
             annual_temperature = NA_real_,
             diurnal_range = NA_real_,
@@ -268,8 +268,8 @@ import_plan <- list(
             precipitation_coldest_quarter = NA_real_
           )
       } else {
-        # join bioclim data to all rows in raw_meta_sa
-        raw_meta_sa |>
+        # join bioclim data to all rows in raw_meta_sa_extended
+        raw_meta_sa_extended |>
           left_join(
             bioclim_sa_extracted |>
               rename(
@@ -364,7 +364,9 @@ import_plan <- list(
             country == "no" & str_detect(plot_id, "no_Lia_") ~ str_replace(plot_id, "no_Lia_", "no_Liahovden_"),
             TRUE ~ plot_id
           )
-        )
+        ) |>
+        # remove SV nutrient gradient
+        filter(!gradient %in% c("N", "B"))
       
       bind_rows(bioclim_main, bioclim_sa)
     }
