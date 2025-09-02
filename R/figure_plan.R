@@ -203,6 +203,11 @@ figure_plan <- list(
     command = make_pca_plot(trait_pca)
   ),
 
+    tar_target(
+    name = trait_pca_full_fig,
+    command = make_pca_plot(trait_pca_full)
+  ),
+
   # trait variance plot
   tar_target(
     name = trait_var_fig,
