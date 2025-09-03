@@ -97,7 +97,7 @@ make_bioclim_pca <- function(bioclim){
 
   # run PCA on bioclim variables only
   bioclim_vars <- bioclim |>
-    select(-(country:latitude_n))
+    select(-(country:ID))
 
   pca_output <- bioclim_vars %>%
     rda(scale = TRUE, center = TRUE)
@@ -105,7 +105,7 @@ make_bioclim_pca <- function(bioclim){
   # extract site scores
   pca_sites <- bind_cols(
     bioclim %>%
-      select(country:latitude_n),
+      select(country:ID),
     fortify(pca_output, display = "sites")
   )
 

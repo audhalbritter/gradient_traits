@@ -5,7 +5,7 @@ make_bioclim_correlation_plot <- function(bioclim){
 
   # prepare bioclim data for correlation analysis
   bioclim_corr_data <- bioclim |>
-    select(-(country:latitude_n))
+    select(-(country:ID))
 
   # calculate correlation matrix
   cor_matrix <- cor(bioclim_corr_data, use = "pairwise.complete.obs")
