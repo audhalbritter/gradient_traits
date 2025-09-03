@@ -128,7 +128,7 @@ import_plan <- list(
       filter(site_id != 6)
   ),
 
-    # meta data extended
+  # meta data extended - needed to provide coordinates for all plots (1-5)
   tar_target(
     name = raw_meta_sa_extended,
     command = {
@@ -219,156 +219,139 @@ import_plan <- list(
     format = "file"
   ),
 
-  # extract bioclim values for South Africa coordinates
+
+
+  # Extract bioclim variables at all coordinates using existing WorldClim data
   tar_target(
-    name = bioclim_sa_extracted,
+    name = bioclim_all_extracted,
     command = {
-      coords_sa <- raw_meta_sa_extended |>
-        distinct(latitude, longitude) |>
-        rename(lat = latitude, lon = longitude)
-      
       if (length(worldclim_files) == 0) {
         return(NULL)
       }
       
-      bioclim_raster <- terra::rast(worldclim_files)
-      coords_df <- data.frame(lon = coords_sa$lon, lat = coords_sa$lat)
+      # Get coordinates from all_coordinates
+      coords_all <- all_coordinates |>
+        distinct(longitude_e, latitude_n)
       
-      terra::extract(bioclim_raster, coords_df) |>
-        bind_cols(coords_sa)
+      if (nrow(coords_all) == 0) {
+        return(NULL)
+      }
+      
+      bioclim_raster <- terra::rast(worldclim_files)
+      coords_df <- data.frame(lon = coords_all$longitude_e, lat = coords_all$latitude_n)
+      
+      extracted <- terra::extract(bioclim_raster, coords_df)
+      
+      # Combine coordinates with extracted values
+      bind_cols(coords_all, extracted)
     }
   ),
 
-  # format bioclim data for South Africa
-  tar_target(
-    name = bioclim_sa,
-    command = {
-      if (is.null(bioclim_sa_extracted)) {
-        # if extraction failed, create NA values for all rows in raw_meta_sa_extended
-        raw_meta_sa_extended |>
-          mutate(
-            annual_temperature = NA_real_,
-            diurnal_range = NA_real_,
-            isothermality = NA_real_,
-            temperature_seasonality = NA_real_,
-            max_temperture_warmest_month = NA_real_,
-            min_temperture_coldest_month = NA_real_,
-            temperature_annual_range = NA_real_,
-            mean_temperture_wettest_quarter = NA_real_,
-            mean_temperture_driest_quarter = NA_real_,
-            mean_temperture_warmest_quarter = NA_real_,
-            mean_temperture_coldest_quarter = NA_real_,
-            annual_precipitation = NA_real_,
-            precipitation_wettest_month = NA_real_,
-            precipitation_driest_month = NA_real_,
-            precipitation_seasonality = NA_real_,
-            precipitation_wettest_quarter = NA_real_,
-            precipitation_driest_quarter = NA_real_,
-            precipitation_warmest_quarter = NA_real_,
-            precipitation_coldest_quarter = NA_real_
-          )
-      } else {
-        # join bioclim data to all rows in raw_meta_sa_extended
-        raw_meta_sa_extended |>
-          left_join(
-            bioclim_sa_extracted |>
-              rename(
-                latitude = lat,
-                longitude = lon,
-                annual_temperature = wc2.1_30s_bio_1,
-                diurnal_range = wc2.1_30s_bio_2,
-                isothermality = wc2.1_30s_bio_3,
-                temperature_seasonality = wc2.1_30s_bio_4,
-                max_temperture_warmest_month = wc2.1_30s_bio_5,
-                min_temperture_coldest_month = wc2.1_30s_bio_6,
-                temperature_annual_range = wc2.1_30s_bio_7,
-                mean_temperture_wettest_quarter = wc2.1_30s_bio_8,
-                mean_temperture_driest_quarter = wc2.1_30s_bio_9,
-                mean_temperture_warmest_quarter = wc2.1_30s_bio_10,
-                mean_temperture_coldest_quarter = wc2.1_30s_bio_11,
-                annual_precipitation = wc2.1_30s_bio_12,
-                precipitation_wettest_month = wc2.1_30s_bio_13,
-                precipitation_driest_month = wc2.1_30s_bio_14,
-                precipitation_seasonality = wc2.1_30s_bio_15,
-                precipitation_wettest_quarter = wc2.1_30s_bio_16,
-                precipitation_driest_quarter = wc2.1_30s_bio_17,
-                precipitation_warmest_quarter = wc2.1_30s_bio_18,
-                precipitation_coldest_quarter = wc2.1_30s_bio_19
-              ) |>
-              select(-ID),
-            by = c("latitude", "longitude")
-          )
-      } |>
-        mutate(
-          country = "sa",
-          gradient = case_when(
-            aspect == "east" ~ "E",
-            aspect == "west" ~ "W",
-            TRUE ~ "C"
-          ),
-          site = paste0(country, "_", site_id),
-          plot_id = paste0(site, "_", plot_id),
-          elevation_m = elevation_m_asl,
-          longitude_e = longitude,
-          latitude_n = latitude
-        ) |>
-        select(
-          country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n,
-          annual_temperature, diurnal_range, isothermality, temperature_seasonality,
-          max_temperture_warmest_month, min_temperture_coldest_month, temperature_annual_range,
-          mean_temperture_wettest_quarter, mean_temperture_driest_quarter,
-          mean_temperture_warmest_quarter, mean_temperture_coldest_quarter,
-          annual_precipitation, precipitation_wettest_month, precipitation_driest_month,
-          precipitation_seasonality, precipitation_wettest_quarter, precipitation_driest_quarter,
-          precipitation_warmest_quarter, precipitation_coldest_quarter
-        )
-    }
-  ),
-
-  # climate
+  # Format bioclim data for all coordinates
   tar_target(
     name = bioclim,
     command = {
-      # Read and fix the main bioclim data
-      bioclim_main <- read_csv("data/bioclim_new.csv") |>
-        rename(
-          "annual_temperature" = bio_1,
-          "diurnal_range" = bio_2,
-          "isothermality" = bio_3,
-          "temperature_seasonality" = bio_4,
-          "max_temperture_warmest_month" = bio_5,
-          "min_temperture_coldest_month" = bio_6,
-          "temperature_annual_range" = bio_7,
-          "mean_temperture_wettest_quarter" = bio_8,
-          "mean_temperture_driest_quarter" = bio_9,
-          "mean_temperture_warmest_quarter" = bio_10,
-          "mean_temperture_coldest_quarter" = bio_11,
-          "annual_precipitation" = bio_12,
-          "precipitation_wettest_month" = bio_13,
-          "precipitation_driest_month" = bio_14,
-          "precipitation_seasonality" = bio_15,
-          "precipitation_wettest_quarter" = bio_16,
-          "precipitation_driest_quarter" = bio_17,
-          "precipitation_warmest_quarter" = bio_18,
-          "precipitation_coldest_quarter" = bio_19
-        ) |>
-        # Fix Norway site names to match community and trait data
-        mutate(
-          site = case_when(
-            country == "no" & site == "no_Joa" ~ "no_Joasete",
-            country == "no" & site == "no_Lia" ~ "no_Liahovden",
-            TRUE ~ site
-          ),
-          plot_id = case_when(
-            country == "no" & str_detect(plot_id, "no_Joa_") ~ str_replace(plot_id, "no_Joa_", "no_Joasete_"),
-            country == "no" & str_detect(plot_id, "no_Lia_") ~ str_replace(plot_id, "no_Lia_", "no_Liahovden_"),
-            TRUE ~ plot_id
-          )
-        ) |>
-        # remove SV nutrient gradient
-        filter(!gradient %in% c("N", "B"))
+      if (is.null(bioclim_all_extracted)) {
+        return(tibble())
+      }
       
-      bind_rows(bioclim_main, bioclim_sa)
+      # Rename columns to match your existing bioclim format
+      bioclim_all_extracted |>
+        rename(
+          annual_temperature = wc2.1_30s_bio_1,
+          diurnal_range = wc2.1_30s_bio_2,
+          isothermality = wc2.1_30s_bio_3,
+          temperature_seasonality = wc2.1_30s_bio_4,
+          max_temperture_warmest_month = wc2.1_30s_bio_5,
+          min_temperture_coldest_month = wc2.1_30s_bio_6,
+          temperature_annual_range = wc2.1_30s_bio_7,
+          mean_temperture_wettest_quarter = wc2.1_30s_bio_8,
+          mean_temperture_driest_quarter = wc2.1_30s_bio_9,
+          mean_temperture_warmest_quarter = wc2.1_30s_bio_10,
+          mean_temperture_coldest_quarter = wc2.1_30s_bio_11,
+          annual_precipitation = wc2.1_30s_bio_12,
+          precipitation_wettest_month = wc2.1_30s_bio_13,
+          precipitation_driest_month = wc2.1_30s_bio_14,
+          precipitation_seasonality = wc2.1_30s_bio_15,
+          precipitation_wettest_quarter = wc2.1_30s_bio_16,
+          precipitation_driest_quarter = wc2.1_30s_bio_17,
+          precipitation_warmest_quarter = wc2.1_30s_bio_18,
+          precipitation_coldest_quarter = wc2.1_30s_bio_19
+        ) |>
+        # Join back with all_coordinates to get country, site, plot_id info
+        tidylog::left_join(all_coordinates, by = c("longitude_e" = "longitude_e", "latitude_n" = "latitude_n")) |>
+        # Ensure proper column order
+        select(country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem, everything())
+    }
+  ),
+
+  # # climate - combine all bioclim data
+  # tar_target(
+  #   name = bioclim,
+  #   command = {
+  #     # Use the newly extracted bioclim data from WorldClim
+  #     # This gives us fresh, consistent data for all coordinates
+  #     bioclim_all_values
+  #   }
+  # ),
+
+  # Extended Bioclim+ variables from envidatS3paths.txt
+  tar_target(
+    name = bioclim_envidat_urls,
+    command = chelsa_read_txt_urls("data/envidatS3paths.txt")
+  ),
+
+  # Show coordinate ranges for tile selection
+  tar_target(
+    name = study_area_bounds,
+    command = {
+      if (!exists("all_coordinates")) {
+        return("Coordinates not available yet")
+      }
+      
+      # Use the new country-specific analysis with actual URLs
+      tile_analysis <- chelsa_analyze_country_tiles(bioclim_envidat_urls, all_coordinates)
+      
+      # Also show overall summary
+      overall_bounds <- all_coordinates |>
+        summarise(
+          min_lon = min(longitude_e, na.rm = TRUE),
+          max_lon = max(longitude_e, na.rm = TRUE),
+          min_lat = min(latitude_n, na.rm = TRUE),
+          max_lat = max(latitude_n, na.rm = TRUE),
+          n_sites = n_distinct(paste(country, site, plot_id)),
+          n_countries = n_distinct(country)
+        )
+      
+      cat("\nOverall study area summary:\n")
+      cat("==========================\n")
+      cat("Countries:", overall_bounds$n_countries, "\n")
+      cat("Total sites:", overall_bounds$n_sites, "\n")
+      cat("Global range: Lon", overall_bounds$min_lon, "to", overall_bounds$max_lon, "\n")
+      cat("Global range: Lat", overall_bounds$min_lat, "to", overall_bounds$max_lat, "\n")
+      
+      list(
+        tile_analysis = tile_analysis,
+        overall_bounds = overall_bounds
+      )
+    }
+  ),
+
+  tar_target(
+    name = bioclim_envidat_files,
+    command = {
+      if (length(bioclim_envidat_urls) == 0) return(character())
+      # Use tile filtering to only download what we need
+      chelsa_download_study_area_tiles(bioclim_envidat_urls, all_coordinates)
+    }
+  ),
+
+  tar_target(
+    name = bioclim_envidat_values,
+    command = {
+      if (length(bioclim_envidat_files) == 0) return(tibble())
+      chelsa_extract_from_nc_files(bioclim_envidat_files, all_coordinates)
     }
   )
+
 )
