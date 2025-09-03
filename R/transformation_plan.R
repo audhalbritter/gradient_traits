@@ -28,7 +28,7 @@ transformation_plan <- list(
       # Then join with bioclim data
       community_agg |>
         pivot_longer(cols = richness:sum_abundance, names_to = "diversity_index", values_to = "value") |>
-        tidylog::left_join(bioclim, by = join_by(country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n))
+        tidylog::left_join(bioclim, by = join_by(country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem))
 
     }
   ),
@@ -129,9 +129,22 @@ transformation_plan <- list(
             "dn15_permil"
           )
         )) |>
-        tidylog::left_join(bioclim, by = join_by(country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n))
+        tidylog::left_join(bioclim, by = join_by(country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem))
+    }
+  ),
+
+  # add community data coordinates to all_coordinates
+  tar_target(
+    name = all_coordinates,
+    command = {
+      # Extract coordinates from community data for countries that don't have separate meta targets
+      coords_from_community <- community |>
+        distinct(country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem) |>
+        filter(!is.na(longitude_e), !is.na(latitude_n))
+      coords_from_community
     }
   )
+  
 
   # # trait coverage
   # tar_target(
