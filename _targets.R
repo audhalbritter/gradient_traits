@@ -9,7 +9,7 @@ library(tarchetypes) # Load other packages as needed.
 
 # Set target options:
 tar_option_set(
-  packages = c("dataDownloader", "tidyverse", "DBI", "RSQLite", "janitor", "vegan", "ggvegan", "traitstrap", "dataDocumentation", "readxl", "broom", "glue", "geodata", "terra")
+  packages = c("dataDownloader", "tidyverse", "DBI", "RSQLite", "janitor", "vegan", "ggvegan", "traitstrap", "dataDocumentation", "readxl", "broom", "broom.mixed", "glue", "geodata", "terra")
 )
 
 # tar_make_clustermq() is an older (pre-{crew}) way to do distributed computing
