@@ -11,31 +11,31 @@ knitr:
 ---
 
 ## Introduction
-Species and functional diversity are different metrics describing biodiversity and ecosystem function and they are affected by both abiotic and biotic filtering as well as the regional species pool.
-Species richness and functional diversity are expected to decrease towards high elevation and the arctic, due to stronger environmental filtering and fewer species in the species pool.
-These metrics can be used to understand how plant communities respond to different filters and how communities assembly along broad environmental gradients.
 
-We assessed plant species diversity (i.e. species richness, evenness) and functional diversity (i.e. community weighted means and variance in leaf functional traits) along five elevational gradients in the arctic (Svalbard), boreal (Norway), , temperate (Colorado), sub-tropics (China) and tropic mountains (Peru). 
-Specifically, we ask how plant communities respond to the environmental drivers along elevational gradients in terms of species and functional diversity? 
-And how consistent these patterns are across a broad latitudinal gradient from the tropics to the arctic?
+Species and functional diversity are different metrics describing biodiversity and ecosystem function and they are affected by both abiotic and biotic filtering as well as the regional species pool. Species richness and functional diversity are expected to decrease towards high elevation and the arctic, due to stronger environmental filtering and fewer species in the species pool. These metrics can be used to understand how plant communities respond to different filters and how communities assembly along broad environmental gradients.
 
+We assessed plant species diversity (i.e. species richness, evenness) and functional diversity (i.e. community weighted means and variance in leaf functional traits) along five elevational gradients in the arctic (Svalbard), boreal (Norway), , temperate (Colorado), sub-tropics (China) and tropic mountains (Peru). Specifically, we ask how plant communities respond to the environmental drivers along elevational gradients in terms of species and functional diversity? And how consistent these patterns are across a broad latitudinal gradient from the tropics to the arctic?
 
 ## Methods
 
-We used species community composition and functional leaf trait data from all PFTC courses and RMBL in Colorado.
-The data represent the following ecosystems/countries: arctic (PFTC4 Svalbard), boreal (PFTC6 Norway), temperate (Colorado), sub-tropics (PFTC1 and 2 China) and tropics (PFTC3, Puna project and PFCT5 Peru).
-There are no chemical traits from Norway yet, and Norway was excluded from the multivariate analysis.
+We used species community composition and functional leaf trait data from all PFTC courses and RMBL in Colorado. The data represent the following ecosystems/countries: arctic (PFTC4 Svalbard), boreal (PFTC6 Norway), temperate (Colorado), sub-tropics (PFTC1 and 2 China) and tropics (PFTC3, Puna project and PFCT5 Peru). There are no chemical traits from Norway yet, and Norway was excluded from the multivariate analysis.
 
-For some ecosystems there are several gradients, representing different management or environmental conditions.
-In Peru there is a gradient with more recent burning (B).
-In Svalbard there is a gradient with nutrient input from sea birds (N).
-For Norway there could be a separate gradient for grazing (G), but this is not included yet.
-I am unsure if we want to have these gradients or not.
+For some ecosystems there are several gradients, representing different management or environmental conditions. In Peru there is a gradient with more recent burning (B). In Svalbard there is a gradient with nutrient input from sea birds (N). For Norway there could be a separate gradient for grazing (G), but this is not included yet. I am unsure if we want to have these gradients or not.
 
 The following diversity indices were calculated: Shannon diversity, Shannon evenness, species richness ( number of species) and sum of cover.
 
-Size traits were log transformed.
-Trait means and higher moments were calculated using a trait imputation and bootstrapping with traitstrap (Maitner et al. 2023).
+Size traits were log transformed. Trait means and higher moments were calculated using a trait imputation and bootstrapping with traitstrap (Maitner et al. 2023).
+
+```{r}
+#| label: study-sites-map
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(regions_world_map)
+regions_world_map
+
+```
 
 \newpage
 
@@ -51,14 +51,11 @@ library(tarchetypes)
 
 ```
 
-
 ### Diversity
 
-This plot shows different diversity indices  across the whole latitudinal gradient.
-All diversity indices increase with latitude or mean annual temperature, i.e. diversity is higher in the tropics.
+This plot shows different diversity indices across the whole latitudinal gradient. All diversity indices increase with latitude or mean annual temperature, i.e. diversity is higher in the tropics.
 
-There are some funny values in sum_abundance (= sum of cover).
-Not sure if we need this variable at all.
+There are some funny values in sum_abundance (= sum of cover). Not sure if we need this variable at all.
 
 ```{r}
 #| label: diversity-lat
@@ -71,15 +68,11 @@ diversity_lat_fig
 
 ```
 
-
 \newpage
 
-This figure shows different diversity indices within each elevational gradient.
-Solid lines indicate significant relationships with mean annual temperature.
+This figure shows different diversity indices within each elevational gradient. Solid lines indicate significant relationships with mean annual temperature.
 
-Diversity decreases with mean annual temperature in Norway (boreal) and China (sub-tropics).
-Evenness decreases with temperature in China and richness decreases with temperature in Norway, China and Peru.
-
+Diversity decreases with mean annual temperature in Norway (boreal) and China (sub-tropics). Evenness decreases with temperature in China and richness decreases with temperature in Norway, China and Peru.
 
 ```{r}
 #| label: diversity
@@ -96,9 +89,7 @@ diversity_fig
 
 ### Functional leaf traits - mean
 
-This figure shows mean functional leaf traits across latitude.
-The size traits (plant height, leaf dry mass, leaf area and leaf thickness), LDMC, C % CN ratio and dC13 increase with mean annual temperature (and latitude).
-SLA, N %, P %, and dN15 decrease with mean annual temperature.
+This figure shows mean functional leaf traits across latitude. The size traits (plant height, leaf dry mass, leaf area and leaf thickness), LDMC, C % CN ratio and dC13 increase with mean annual temperature (and latitude). SLA, N %, P %, and dN15 decrease with mean annual temperature.
 
 ```{r}
 #| label: trait-mean-lat
@@ -113,10 +104,7 @@ trait_lat_fig
 
 \newpage
 
-This figure shows mean functional leaf traits mean within each elevational gradient.
-Most ecosystems reflect the global pattern.
-Colorado is an exception, because soil moisture is more important than temperature along this gradient.
-
+This figure shows mean functional leaf traits mean within each elevational gradient. Most ecosystems reflect the global pattern. Colorado is an exception, because soil moisture is more important than temperature along this gradient.
 
 ```{r}
 #| label: trait-mean
@@ -131,13 +119,9 @@ trait_mean_fig
 
 \newpage
 
-This figure shows the multivariate trait space.
-Norway is not part of this figure, because we do not have the chemical traits yet.
-The ecosystems are well separated in trait space.
-The temperate and sub-tropic regions overlap the most.
+This figure shows the multivariate trait space. Norway is not part of this figure, because we do not have the chemical traits yet. The ecosystems are well separated in trait space. The temperate and sub-tropic regions overlap the most.
 
-PC1 axis explains 46.2 % of the variation and correlates well with LES traits like SLA, LDMC, N %, and P %, as well as dN15 and leaf thickness.
-PC2 axis explains 21.5 % of the variation and correlations with the size traits like dra mass, leaf area, as well as dC13.
+PC1 axis explains 46.2 % of the variation and correlates well with LES traits like SLA, LDMC, N %, and P %, as well as dN15 and leaf thickness. PC2 axis explains 21.5 % of the variation and correlations with the size traits like dra mass, leaf area, as well as dC13.
 
 ```{r}
 #| label: multivariate-traits
@@ -149,7 +133,6 @@ tar_load(trait_pca_fig)
 trait_pca_fig
 
 ```
-
 
 \newpage
 
