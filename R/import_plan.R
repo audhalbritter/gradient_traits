@@ -281,7 +281,7 @@ import_plan <- list(
         # Join back with all_coordinates to get country, site, plot_id info
         tidylog::left_join(all_coordinates, by = c("longitude_e" = "longitude_e", "latitude_n" = "latitude_n")) |>
         # Ensure proper column order
-        select(country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem, everything())
+        select(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem, everything())
     }
   ),
 

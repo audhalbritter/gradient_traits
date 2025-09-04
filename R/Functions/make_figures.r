@@ -1,5 +1,21 @@
 ### Figures
 
+## REGION COLOR MAPPING
+# Function to create consistent color mapping for regions sorted by latitude (north to south)
+create_region_color_mapping <- function() {
+  # Define regions in order from north to south by latitude
+  regions_ordered <- c("Svalbard", "Southern Scandes", "Rocky Mountains", 
+                       "Eastern Himalaya", "Central Andes", "Drakensberg")
+  
+  # Create MetBrewer Archambault palette and reverse it so Svalbard gets yellow, Drakensberg gets blue
+  colors <- rev(met.brewer("Archambault", n = length(regions_ordered)))
+  
+  # Create named vector for consistent mapping
+  names(colors) <- regions_ordered
+  
+  return(colors)
+}
+
 ## BIOCLIM CORRELATION PLOT
 make_bioclim_correlation_plot <- function(bioclim){
 
@@ -64,7 +80,7 @@ make_bioclim_correlation_plot <- function(bioclim){
 }
 
 ## DIVERSITY VS PREDICTOR PLOT
-make_diversity_predictor_plot <- function(data, predictor, color_palette, x_label) {
+make_diversity_predictor_plot <- function(data, predictor, x_label) {
   
   # Map bioclim identifier to actual column name
   predictor_col <- case_when(
@@ -81,7 +97,10 @@ make_diversity_predictor_plot <- function(data, predictor, color_palette, x_labe
   
   # Filter data for the specified predictor (bioclim identifier)
   filtered_data <- data |>
-    filter(bioclim == predictor)
+    filter(bioclim == predictor) |>
+    # Ensure region is ordered consistently (north to south)
+    mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
+                                             "Eastern Himalaya", "Central Andes", "Drakensberg")))
   
   # Check if we have any data after filtering
   if (nrow(filtered_data) == 0) {
@@ -94,27 +113,27 @@ make_diversity_predictor_plot <- function(data, predictor, color_palette, x_labe
   }
   
   # Create the plot using modern ggplot2 syntax
-  ggplot(filtered_data, aes(x = .data[[predictor_col]], y = value, color = ecosystem)) +
+  ggplot(filtered_data, aes(x = .data[[predictor_col]], y = value, color = region)) +
     # Add points for each plot
     geom_point(alpha = 0.6, size = 2) +
     # Add prediction lines (single line across all ecosystems)
     geom_line(aes(y = .fixed, group = 1), size = 1, color = "grey40") +
     # Add confidence intervals (if they exist)
     {if (all(c(".conf.low", ".conf.high") %in% names(filtered_data))) {
-      geom_ribbon(aes(ymin = .conf.low, ymax = .conf.high, fill = ecosystem), 
+      geom_ribbon(aes(ymin = .conf.low, ymax = .conf.high, fill = region), 
                   alpha = 0.2, color = NA)
     } else {
       NULL
     }} +
-    # Use provided color palette
-    scale_color_manual(values = color_palette) +
-    scale_fill_manual(values = color_palette) +
+    # Use consistent color palette based on latitude
+    scale_color_manual(values = create_region_color_mapping()) +
+    scale_fill_manual(values = create_region_color_mapping()) +
     # Facet by diversity index
     facet_wrap(~diversity_index, scales = "free_y", labeller = label_value) +
     # Theme
     theme_bw() +
     theme(
-      legend.position = "right",  # Show legend since ecosystem is now the color
+      legend.position = "right",  # Show legend since region is now the color
       strip.text = element_text(size = 12, face = "bold"),
       axis.title = element_text(size = 12),
       axis.text = element_text(size = 10)
@@ -122,6 +141,6 @@ make_diversity_predictor_plot <- function(data, predictor, color_palette, x_labe
     labs(
       x = x_label,
       y = "Diversity Index Value",
-      color = "Ecosystem"  # Update legend title
+      color = "Region"  # Update legend title
     )
 }

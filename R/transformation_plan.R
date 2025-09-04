@@ -16,7 +16,7 @@ transformation_plan <- list(
     command = {
       # First aggregate community data to plot level
       community_agg <- community |> 
-        group_by(country, season, gradient, site, plot_id, ecosystem, elevation_m, longitude_e, latitude_n) |>
+        group_by(country, region, season, gradient, site, plot_id, ecosystem, elevation_m, longitude_e, latitude_n) |>
         summarise(
           richness = n(),
           diversity = diversity(cover),
@@ -28,7 +28,10 @@ transformation_plan <- list(
       # Then join with bioclim data
       community_agg |>
         pivot_longer(cols = richness:sum_abundance, names_to = "diversity_index", values_to = "value") |>
-        tidylog::left_join(bioclim, by = join_by(country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem))
+        tidylog::left_join(bioclim, by = join_by(country, region,gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)) |>
+        # Ensure region is ordered consistently (north to south)
+        mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
+                                                 "Eastern Himalaya", "Central Andes", "Drakensberg")))
 
     }
   ),
@@ -82,14 +85,14 @@ transformation_plan <- list(
     command = {
       # prepare trait data
       trait <- fancy_trait_name_dictionary(traits) %>%
-        select(country, gradient, site, plot_id, taxon, trait_trans, value_trans, trait_fancy)
+        select(country, region,gradient, site, plot_id, taxon, trait_trans, value_trans, trait_fancy)
 
       # set seed for bootstrapping repeatability
       set.seed(2023)
       trait_imp <- trait_fill(
         comm = community,
         traits = trait,
-        scale_hierarchy = c("country", "gradient", "site", "plot_id"),
+        scale_hierarchy = c("country", "region", "gradient", "site", "plot_id"),
         global = F,
         taxon_col = "taxon",
         trait_col = "trait_trans",
@@ -129,7 +132,10 @@ transformation_plan <- list(
             "dn15_permil"
           )
         )) |>
-        tidylog::left_join(bioclim, by = join_by(country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem))
+        tidylog::left_join(bioclim, by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)) |>
+        # Ensure region is ordered consistently (north to south)
+        mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
+                                                 "Eastern Himalaya", "Central Andes", "Drakensberg")))
     }
   ),
 
@@ -139,7 +145,7 @@ transformation_plan <- list(
     command = {
       # Extract coordinates from community data for countries that don't have separate meta targets
       coords_from_community <- community |>
-        distinct(country, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem) |>
+        distinct(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem) |>
         filter(!is.na(longitude_e), !is.na(latitude_n))
       coords_from_community
     }
