@@ -21,6 +21,23 @@ figure_plan <- list(
     tar_target(
     name = trait_pca_full_fig,
     command = make_pca_plot(trait_pca_full)
+  ),
+
+    # Archambault color palette for diversity plots
+  tar_target(
+    name = archambault_palette,
+    command = met.brewer("Archambault", n = 6)
+  ),
+
+  # diversity vs latitude plot
+  tar_target(
+    name = diversity_lat_fig,
+    command = {
+      # Get the latitude predictions from diversity_predictions
+      diversity_predictions |>
+        unnest(prediction) |>
+        make_diversity_predictor_plot(predictor = "lat", color_palette = archambault_palette, x_label = "Latitude (°N)")
+    }
   )
 
   # # diversity latitude plot
