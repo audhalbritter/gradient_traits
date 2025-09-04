@@ -23,8 +23,8 @@ make_region_world_map <- function(coords) {
     dplyr::mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains",
                                                      "Eastern Himalaya", "Central Andes", "Drakensberg")))
 
-  # World basemap
-  world <- maps::map_data("world")
+  # World basemap (from ggplot2, backed by maps package)
+  world <- ggplot2::map_data("world")
 
   ggplot2::ggplot() +
     ggplot2::geom_polygon(data = world, ggplot2::aes(x = long, y = lat, group = group),
@@ -39,7 +39,7 @@ make_region_world_map <- function(coords) {
       legend.position = "right",
       panel.grid = ggplot2::element_blank()
     ) +
-    ggplot2::labs(color = "Region", x = "Longitude", y = "Latitude", title = "Study Regions")
+    ggplot2::labs(color = "Region", x = "Longitude", y = "Latitude")
 }
 
 ## BIOCLIM CORRELATION PLOT
