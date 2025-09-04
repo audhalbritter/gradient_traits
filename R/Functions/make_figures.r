@@ -18,28 +18,48 @@ create_region_color_mapping <- function() {
 
 ## WORLD MAP OF REGIONS
 make_region_world_map <- function(coords) {
-  # Ensure expected ordering of regions
-  coords <- coords |>
-    dplyr::mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains",
-                                                     "Eastern Himalaya", "Central Andes", "Drakensberg")))
-
-  # World basemap (from ggplot2, backed by maps package)
+  # Download/cache WorldClim elevation data (10 arc-minutes resolution) to project cache
+  cache_path <- file.path("WorldClimData")
+  if (!dir.exists(cache_path)) dir.create(cache_path, recursive = TRUE)
+  elev_raster <- geodata::worldclim_global(var = "elev", res = 10, path = cache_path)
+  
+  # Convert raster to data frame for ggplot
+  elev_df <- as.data.frame(elev_raster, xy = TRUE, na.rm = TRUE)
+  names(elev_df) <- c("lon", "lat", "elev")
+  
+  # World polygons
   world <- ggplot2::map_data("world")
 
+  # Region order/colors
+  coords <- coords |>
+    dplyr::mutate(region = factor(region,
+      levels = c("Svalbard","Southern Scandes","Rocky Mountains",
+                 "Eastern Himalaya","Central Andes","Drakensberg")
+    ))
+
   ggplot2::ggplot() +
-    ggplot2::geom_polygon(data = world, ggplot2::aes(x = long, y = lat, group = group),
-                          fill = "grey95", color = "grey80", linewidth = 0.2) +
-    ggplot2::geom_point(data = coords |> dplyr::distinct(region, site, longitude_e, latitude_n),
-                        ggplot2::aes(x = longitude_e, y = latitude_n, color = region),
-                        alpha = 0.8, size = 2) +
+    # Elevation background (as raster)
+    ggplot2::geom_raster(data = elev_df, ggplot2::aes(lon, lat, fill = elev)) +
+    ggplot2::scale_fill_gradientn(
+      colors = c("grey20", "grey40", "grey60", "grey80", "white"),
+      name = "Elevation (m)"
+    ) +
+    # Land polygons
+    ggplot2::geom_polygon(
+      data = world, ggplot2::aes(long, lat, group = group),
+      fill = NA, color = "grey70", linewidth = 0.2
+    ) +
+    # Region points
+    ggplot2::geom_point(
+      data = dplyr::distinct(coords, region, site, longitude_e, latitude_n),
+      ggplot2::aes(x = longitude_e, y = latitude_n, color = region),
+      alpha = 0.9, size = 3
+    ) +
     ggplot2::scale_color_manual(values = create_region_color_mapping(), drop = FALSE) +
     ggplot2::coord_quickmap() +
     ggplot2::theme_bw() +
-    ggplot2::theme(
-      legend.position = "right",
-      panel.grid = ggplot2::element_blank()
-    ) +
-    ggplot2::labs(color = "Region", x = "Longitude", y = "Latitude")
+    ggplot2::theme(panel.grid = ggplot2::element_blank()) +
+    ggplot2::labs(x = "Longitude", y = "Latitude", color = "Region")
 }
 
 ## BIOCLIM CORRELATION PLOT
