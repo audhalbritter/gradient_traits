@@ -37,3 +37,34 @@ lmer_prediction <- function(dat, fit, predictor){
 
   return(prediction)
 }
+
+# Fit a standard set of lmer models for a response across groups
+# Inputs:
+# - data: a data.frame with columns for predictors and grouping
+# - response: name of the response column (string), e.g., "value" or "mean"
+# - group_var: name of the grouping variable to facet by (string), e.g., "diversity_index" or "trait_trans"
+# - random_effect: random effect grouping column (default: "country")
+# Output: long tibble with columns: {{group_var}}, data, model, bioclim, glance
+fit_lmer_set <- function(data, response, group_var, random_effect = "country") {
+  safelmer <- purrr::safely(lme4::lmer)
+
+  # Build formulas as strings and then convert to formulas
+  f_null       <- stats::as.formula(paste(response, "~ 1 + (1|", random_effect, ")"))
+  f_lat        <- stats::as.formula(paste(response, "~ latitude_n + (1|", random_effect, ")"))
+  f_anntemp    <- stats::as.formula(paste(response, "~ annual_temperature + (1|", random_effect, ")"))
+  f_temprange  <- stats::as.formula(paste(response, "~ temperature_annual_range + (1|", random_effect, ")"))
+
+  data |>
+    dplyr::group_by(.data[[group_var]]) |>
+    tidyr::nest() |>
+    dplyr::mutate(
+      model_null      = purrr::map(.x = data, .f = ~ safelmer(f_null,       data = .)$result),
+      model_lat       = purrr::map(.x = data, .f = ~ safelmer(f_lat,        data = .)$result),
+      model_anntemp   = purrr::map(.x = data, .f = ~ safelmer(f_anntemp,    data = .)$result),
+      model_temprange = purrr::map(.x = data, .f = ~ safelmer(f_temprange,  data = .)$result),
+      glance_null      = purrr::map(model_null,      broom.mixed::glance),
+      glance_lat       = purrr::map(model_lat,       broom.mixed::glance),
+      glance_anntemp   = purrr::map(model_anntemp,   broom.mixed::glance),
+      glance_temprange = purrr::map(model_temprange, broom.mixed::glance)
+    )
+}
