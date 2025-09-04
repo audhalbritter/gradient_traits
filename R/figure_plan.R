@@ -51,6 +51,12 @@ figure_plan <- list(
     command = diversity_predictions |>
         unnest(prediction) |>
         make_diversity_predictor_plot(predictor = "temprange", x_label = "Temperature Annual Range (°C)")
+  ),
+
+  # world map of regions
+  tar_target(
+    name = regions_world_map,
+    command = make_region_world_map(all_coordinates)
   )
 
   
