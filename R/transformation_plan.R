@@ -31,7 +31,9 @@ transformation_plan <- list(
         tidylog::left_join(bioclim, by = join_by(country, region,gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)) |>
         # Ensure region is ordered consistently (north to south)
         mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
-                                                 "Eastern Himalaya", "Central Andes", "Drakensberg")))
+                                                 "Eastern Himalaya", "Central Andes", "Drakensberg"))) |>
+        # Ensure diversity_index is ordered consistently (richness, diversity, evenness, sum_abundance)
+        mutate(diversity_index = factor(diversity_index, levels = c("richness", "diversity", "evenness", "sum_abundance")))
 
     }
   ),
