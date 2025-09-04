@@ -32,113 +32,28 @@ figure_plan <- list(
   # diversity vs latitude plot
   tar_target(
     name = diversity_lat_fig,
-    command = {
-      # Get the latitude predictions from diversity_predictions
-      diversity_predictions |>
+    command = diversity_predictions |>
         unnest(prediction) |>
-        make_diversity_predictor_plot(predictor = "lat", color_palette = archambault_palette, x_label = "Latitude (°N)")
-    }
+        make_diversity_predictor_plot(predictor = "lat", x_label = "Latitude (°N)")
+  ),
+
+  # diversity vs annual temperature plot
+  tar_target(
+    name = diversity_anntemp_fig,
+    command = diversity_predictions |>
+        unnest(prediction) |>
+        make_diversity_predictor_plot(predictor = "anntemp", x_label = "Annual Temperature (°C)")
+  ),
+
+  # diversity vs temperature range plot
+  tar_target(
+    name = diversity_temprange_fig,
+    command = diversity_predictions |>
+        unnest(prediction) |>
+        make_diversity_predictor_plot(predictor = "temprange", x_label = "Temperature Annual Range (°C)")
   )
 
-  # # diversity latitude plot
-  # tar_target(
-  #   name = diversity_lat_fig,
-  #   command = {
-  #     dat <- diversity_lat_model |>
-  #       unnest(data)
-
-  #     res <- diversity_lat_model |>
-  #       select(result) |>
-  #       unnest(result) |>
-  #       filter(term == "annual_temperature") |>
-  #       mutate(sign = if_else(p.value <= 0.05, "sign", "non-sign"))
-
-  #     pred <- diversity_lat_model |>
-  #       select(diversity_index, output) |>
-  #       unnest(output) |>
-  #       rename(prediction = fit) |>
-  #       left_join(res)
-
-  #     ggplot(dat, aes(x = annual_temperature, y = value)) +
-  #       # CI from prediction
-  #       geom_ribbon(
-  #         data = pred, aes(
-  #           y = prediction, ymin = lwr,
-  #           ymax = upr
-  #         ),
-  #         alpha = 0.1,
-  #         linetype = 0
-  #       ) +
-  #       geom_point(alpha = 0.5, aes(colour = ecosystem)) +
-  #       # prediction line
-  #       geom_line(data = pred, aes(y = prediction, linetype = sign), colour = "grey50", linewidth = 0.5) +
-  #       scale_colour_viridis_d(option = "plasma", end = 0.8, name = "") +
-  #       # scale_fill_viridis_d(option = "plasma", end = 0.8, name = "") +
-  #       # scale_shape_manual(values = c(15, 16, 17)) +
-  #       scale_linetype_manual(values = c("solid", "dashed"), name = "") +
-  #       labs(
-  #         x = "Mean annual temperature in °C",
-  #         y = "Diversity index"
-  #       ) +
-  #       facet_wrap(~diversity_index, scales = "free", labeller = label_parsed) +
-  #       theme_bw() +
-  #       theme(
-  #         legend.position = "top",
-  #         legend.box = "vertical"
-  #       )
-  #   }
-  # ),
-
-
-  # # diversity plot
-  # tar_target(
-  #   name = diversity_fig,
-  #   command = {
-  #     dat <- diversity_model |>
-  #       unnest(data)
-
-  #     res <- diversity_model |>
-  #       select(result) |>
-  #       unnest(result) |>
-  #       filter(term == "annual_temperature") |>
-  #       mutate(sign = if_else(p.value <= 0.05, "sign", "non-sign"))
-
-  #     pred <- diversity_model |>
-  #       select(country, gradient, diversity_index, ecosystem, output) |>
-  #       unnest(output) |>
-  #       rename(prediction = fit) |>
-  #       left_join(res)
-
-  #     ggplot(dat, aes(x = annual_temperature, y = value, colour = ecosystem, shape = gradient)) +
-  #       # CI from prediction
-  #       geom_ribbon(
-  #         data = pred, aes(
-  #           y = prediction, ymin = lwr,
-  #           ymax = upr,
-  #           fill = ecosystem
-  #         ),
-  #         alpha = 0.1,
-  #         linetype = 0
-  #       ) +
-  #       geom_point(alpha = 0.5) +
-  #       # prediction line
-  #       geom_line(data = pred, aes(y = prediction, linetype = sign), linewidth = 0.5) +
-  #       scale_colour_viridis_d(option = "plasma", end = 0.8, name = "") +
-  #       scale_fill_viridis_d(option = "plasma", end = 0.8, name = "") +
-  #       scale_shape_manual(values = c(15, 16, 17)) +
-  #       scale_linetype_manual(values = c("dashed", "solid"), name = "") +
-  #       labs(
-  #         x = "Mean annual temperature in °C",
-  #         y = "Diversity index"
-  #       ) +
-  #       facet_wrap(~diversity_index, scales = "free", labeller = label_parsed) +
-  #       theme_bw() +
-  #       theme(
-  #         legend.position = "top",
-  #         legend.box = "vertical"
-  #       )
-  #   }
-  # ),
+  
 
   # # trait mean latitude plot
   # tar_target(
