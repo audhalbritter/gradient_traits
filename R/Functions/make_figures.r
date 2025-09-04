@@ -22,8 +22,7 @@ make_bioclim_correlation_plot <- function(bioclim){
         TRUE ~ "Other"
       ),
       var2_category = case_when(
-        str_detect(var2, "temperature|temp") ~ "Temperature",
-        str_detect(var2, "precipitation|precip") ~ "Precipitation",
+        str_detect(var2, "temperature|temp") ~ "Precipitation",
         TRUE ~ "Other"
       ),
       # create combined category for coloring
@@ -62,4 +61,67 @@ make_bioclim_correlation_plot <- function(bioclim){
     ) +
     labs(title = "Bioclimatic Variables Correlation Matrix")
 
+}
+
+## DIVERSITY VS PREDICTOR PLOT
+make_diversity_predictor_plot <- function(data, predictor, color_palette, x_label) {
+  
+  # Map bioclim identifier to actual column name
+  predictor_col <- case_when(
+    predictor == "lat" ~ "latitude_n",
+    predictor == "anntemp" ~ "annual_temperature",
+    predictor == "temprange" ~ "temperature_annual_range",
+    TRUE ~ predictor
+  )
+  
+  # Check if predictor column exists
+  if (!predictor_col %in% names(data)) {
+    stop("Predictor column '", predictor_col, "' not found in data")
+  }
+  
+  # Filter data for the specified predictor (bioclim identifier)
+  filtered_data <- data |>
+    filter(bioclim == predictor)
+  
+  # Check if we have any data after filtering
+  if (nrow(filtered_data) == 0) {
+    stop("No data found after filtering for bioclim = '", predictor, "'")
+  }
+  
+  # Check if diversity_index has values
+  if (length(unique(filtered_data$diversity_index)) == 0) {
+    stop("No diversity_index values found in filtered data")
+  }
+  
+  # Create the plot using modern ggplot2 syntax
+  ggplot(filtered_data, aes(x = .data[[predictor_col]], y = value, color = ecosystem)) +
+    # Add points for each plot
+    geom_point(alpha = 0.6, size = 2) +
+    # Add prediction lines (single line across all ecosystems)
+    geom_line(aes(y = .fixed, group = 1), size = 1, color = "grey40") +
+    # Add confidence intervals (if they exist)
+    {if (all(c(".conf.low", ".conf.high") %in% names(filtered_data))) {
+      geom_ribbon(aes(ymin = .conf.low, ymax = .conf.high, fill = ecosystem), 
+                  alpha = 0.2, color = NA)
+    } else {
+      NULL
+    }} +
+    # Use provided color palette
+    scale_color_manual(values = color_palette) +
+    scale_fill_manual(values = color_palette) +
+    # Facet by diversity index
+    facet_wrap(~diversity_index, scales = "free_y", labeller = label_value) +
+    # Theme
+    theme_bw() +
+    theme(
+      legend.position = "right",  # Show legend since ecosystem is now the color
+      strip.text = element_text(size = 12, face = "bold"),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10)
+    ) +
+    labs(
+      x = x_label,
+      y = "Diversity Index Value",
+      color = "Ecosystem"  # Update legend title
+    )
 }
