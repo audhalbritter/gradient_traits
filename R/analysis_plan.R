@@ -106,6 +106,34 @@ analysis_plan <- list(
           prediction = map2(.x = model, .y = data, .f = ~ broom.mixed::augment(.x, newdata = .y))
         )
     }
+  ),
+
+  # diversity model checks
+  tar_target(
+    name = diversity_model_checks,
+    command = {
+      diversity_models |>
+        filter(bioclim != "null") |>  # Remove null models
+        rowwise() |>
+        mutate(
+          model_check = list(performance::check_model(model))
+        ) |>
+        ungroup()
+    }
+  ),
+
+  # trait model checks
+  tar_target(
+    name = trait_model_checks,
+    command = {
+      trait_models |>
+        filter(bioclim != "null") |>  # Remove null models
+        rowwise() |>
+        mutate(
+          model_check = list(performance::check_model(model))
+        ) |>
+        ungroup()
+    }
   )
 
 )

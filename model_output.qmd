@@ -1,0 +1,100 @@
+---
+title: "Model Assumption Checks"
+format: html
+editor: visual
+css: |
+  .model-section {
+    margin: 40px 0;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #fafafa;
+  }
+  h3 {
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  .plot-container {
+    margin: 20px 0;
+  }
+---
+
+## Checking model assumptions
+
+```{r}
+#| label: set-up
+#| echo: false
+#| warning: false
+
+library(tidyverse)
+library(performance)
+library(see)
+library(targets)
+library(tarchetypes)
+
+# Load the data
+tar_load(diversity_model_checks)
+tar_load(trait_model_checks)
+```
+
+## Diversity Models
+
+```{r}
+#| label: diversity-model-checks
+#| echo: false
+#| results: asis
+
+diversity_model_checks |> 
+  select(diversity_index, bioclim, model_check) |> 
+  pwalk(.f = function(diversity_index, bioclim, model_check, ...){
+  # Create a nice header with spacing
+  cat("\n\n")
+  cat(paste("###", stringr::str_to_title(diversity_index), "-", 
+            case_when(
+              bioclim == "lat" ~ "Latitude",
+              bioclim == "anntemp" ~ "Annual Temperature", 
+              bioclim == "temprange" ~ "Temperature Range",
+              TRUE ~ bioclim
+            ), "\n\n"))
+  
+  # Print the model check plots
+  print(model_check)
+  
+  # Add spacing after the plot
+  cat("\n\n")
+})
+  
+```
+
+## Trait Models
+
+```{r}
+#| label: trait-model-checks
+#| echo: false
+#| results: asis
+
+trait_model_checks |> 
+  select(trait_trans, bioclim, model_check) |> 
+  pwalk(.f = function(trait_trans, bioclim, model_check, ...){
+  # Create a nice header with spacing
+  cat("\n\n")
+  cat(paste("###", stringr::str_replace_all(trait_trans, "_", " ") |> stringr::str_to_title(), "-", 
+            case_when(
+              bioclim == "lat" ~ "Latitude",
+              bioclim == "anntemp" ~ "Annual Temperature", 
+              bioclim == "temprange" ~ "Temperature Range",
+              TRUE ~ bioclim
+            ), "\n\n"))
+  
+  # Print the model check plots
+  print(model_check)
+  
+  # Add spacing after the plot
+  cat("\n\n")
+})
+  
+```
+
+##
