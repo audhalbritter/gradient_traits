@@ -16,7 +16,7 @@ analysis_plan <- list(
     name = trait_pca_full,
     command = make_trait_pca(trait_mean |> 
     # remove incomplete traits
-    filter(trait_trans %in% c("dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g", "plant_height_cm_log")))
+    filter(trait_trans %in% c("dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")))
   ),
 
   # bioclim PCA using all bioclimatic variables
