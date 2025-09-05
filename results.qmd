@@ -164,3 +164,48 @@ trait_pca_fig
 ```
 
 \newpage
+
+This figure shows functional leaf traits in relation to latitude. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: trait-lat
+#| echo: false
+#| warnings: false
+#| fig-height: 8
+
+tar_load(trait_lat_fig)
+trait_lat_fig
+
+```
+
+\newpage
+
+This figure shows functional leaf traits in relation to annual temperature. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: trait-anntemp
+#| echo: false
+#| warnings: false
+#| fig-height: 8
+
+tar_load(trait_anntemp_fig)
+trait_anntemp_fig
+
+```
+
+\newpage
+
+This figure shows functional leaf traits in relation to temperature annual range. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: trait-temprange
+#| echo: false
+#| warnings: false
+#| fig-height: 8
+
+tar_load(trait_temprange_fig)
+trait_temprange_fig
+
+```
+
+\newpage
