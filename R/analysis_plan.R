@@ -7,7 +7,8 @@ analysis_plan <- list(
     name = trait_pca,
     command = make_trait_pca(trait_mean |>
     # norway and sa needs to be removed for now because no chem traits, ch needs removed because no plant height
-    filter(!country %in% c("no", "sa", "ch")))
+    filter(!country %in% c("no", "sa")) |>
+    filter(!trait_trans %in% c("plant_height_cm_log")))
   ),
 
     # ordination with all countries, fewer traits

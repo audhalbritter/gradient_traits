@@ -13,7 +13,8 @@ make_trait_pca <- function(trait_mean){
     mutate(annual_temperature = mean(annual_temperature)) %>%
     select(country:mean, annual_temperature) %>%
     pivot_wider(names_from = "trait_trans", values_from = "mean") %>%
-    filter(!is.na(plant_height_cm_log)) |>
+    # Only filter for plant_height_cm_log if the column exists
+    {if("plant_height_cm_log" %in% names(.)) filter(., !is.na(plant_height_cm_log)) else .} |>
     ungroup()
 
   pca_output <- cwm_fat %>%
@@ -61,10 +62,10 @@ make_pca_plot <- function(trait_pca){
   e_B <- eigenvals(trait_pca[[3]])/sum(eigenvals(trait_pca[[3]]))
 
   trait_pca[[1]] %>% 
-    ggplot(aes(x = PC1, y = PC2, colour = country)) +
+    ggplot(aes(x = PC1, y = PC2, colour = region)) +
     geom_point(size = 2) +
     coord_equal() +
-    stat_ellipse(aes(group = ecosystem)) +
+    stat_ellipse(aes(group = region)) +
     geom_segment(data = trait_pca[[2]],
                  aes(x = 0, y = 0, xend = PC1, yend = PC2, linetype = class),
                  colour = "grey40",
@@ -82,10 +83,11 @@ make_pca_plot <- function(trait_pca){
               size = 2.5,
               inherit.aes = FALSE,
               show.legend = FALSE, parse = TRUE) +
-    scale_colour_viridis_d(end = 0.8, option = "plasma") +
+    scale_colour_manual(values = create_region_color_mapping(), drop = FALSE) +
     scale_linetype_manual(name = "", values = c("solid", "dashed", "dotted")) +
     labs(x = glue("PCA1 ({round(e_B[1] * 100, 1)}%)"),
-         y = glue("PCA2 ({round(e_B[2] * 100, 1)}%)")) +
+         y = glue("PCA2 ({round(e_B[2] * 100, 1)}%)"),
+         colour = "Region") +
     theme_bw()
 
 }
@@ -133,10 +135,10 @@ make_bioclim_pca_plot <- function(bioclim_pca){
   e_B <- eigenvals(bioclim_pca[[3]])/sum(eigenvals(bioclim_pca[[3]]))
 
   bioclim_pca[[1]] %>% 
-    ggplot(aes(x = PC1, y = PC2, colour = country)) +
+    ggplot(aes(x = PC1, y = PC2, colour = region)) +
     geom_point(size = 2) +
     coord_equal() +
-    stat_ellipse(aes(group = country)) +
+    stat_ellipse(aes(group = region)) +
     geom_segment(data = bioclim_pca[[2]],
                  aes(x = 0, y = 0, xend = PC1, yend = PC2, linetype = var_category),
                  colour = "grey40",
@@ -147,10 +149,11 @@ make_bioclim_pca_plot <- function(bioclim_pca){
               size = 2.5,
               inherit.aes = FALSE,
               show.legend = FALSE) +
-    scale_colour_viridis_d(end = 0.8, option = "plasma") +
+    scale_colour_manual(values = create_region_color_mapping(), drop = FALSE) +
     scale_linetype_manual(name = "", values = c("solid", "dashed", "dotted")) +
     labs(x = glue("PCA1 ({round(e_B[1] * 100, 1)}%)"),
-         y = glue("PCA2 ({round(e_B[2] * 100, 1)}%)")) +
+         y = glue("PCA2 ({round(e_B[2] * 100, 1)}%)"),
+         colour = "Region") +
     theme_bw()
 
 }
