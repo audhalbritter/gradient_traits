@@ -4,26 +4,30 @@ cleaning_plan <- list(
   # clean community
   tar_target(
     name = community_sv,
-    command = clean_sv_communit(raw_community_sv)
+    command = clean_sv_communit(raw_community_sv) |>
+      filter(gradient != "N")
   ),
 
   # clean traits
   tar_target(
     name = traits_sv,
-    command = clean_sv_traits(raw_traits_sv)
+    command = clean_sv_traits(raw_traits_sv) |>
+      filter(gradient != "N")
   ),
 
   # Peru
   # clean community
   tar_target(
     name = community_pe,
-    command = clean_pe_community(raw_community_pe)
+    command = clean_pe_community(raw_community_pe) |>
+      filter(gradient != "B")
   ),
 
   # clean traits
   tar_target(
     name = traits_pe,
-    command = clean_pe_traits(raw_traits_pe)
+    command = clean_pe_traits(raw_traits_pe) |>
+      filter(gradient != "B")
   ),
 
   # China
@@ -71,12 +75,12 @@ cleaning_plan <- list(
   # clean community
   tar_target(
     name = community_sa,
-    command = clean_sa_community(raw_community_sa, raw_meta_sa)
+    command = clean_sa_community(raw_community_sa, raw_meta_sa_extended)
   ),
 
   # clean traits
   tar_target(
     name = traits_sa,
-    command = clean_sa_traits(raw_traits_sa)
+    command = clean_sa_traits(raw_traits_sa, raw_meta_sa_extended)
   )
 )

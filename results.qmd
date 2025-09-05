@@ -1,45 +1,16 @@
 ---
 title: "Understanding community assemblage using species and functional diversity across elevational gradients from the tropics to the arctic"
-format: pdf
+format:
+    html:
+      self-contained: true
+  # pdf:
+  #   documentclass: article
 editor: visual
-execute: 
+execute:
   echo: false
-  warning: false
-knitr:
-  opts_chunk: 
-    dev: cairo_pdf
+  error: true
+  out-width: '100%'
 ---
-
-## Introduction
-Species and functional diversity are different metrics describing biodiversity and ecosystem function and they are affected by both abiotic and biotic filtering as well as the regional species pool.
-Species richness and functional diversity are expected to decrease towards high elevation and the arctic, due to stronger environmental filtering and fewer species in the species pool.
-These metrics can be used to understand how plant communities respond to different filters and how communities assembly along broad environmental gradients.
-
-We assessed plant species diversity (i.e. species richness, evenness) and functional diversity (i.e. community weighted means and variance in leaf functional traits) along five elevational gradients in the arctic (Svalbard), boreal (Norway), , temperate (Colorado), sub-tropics (China) and tropic mountains (Peru). 
-Specifically, we ask how plant communities respond to the environmental drivers along elevational gradients in terms of species and functional diversity? 
-And how consistent these patterns are across a broad latitudinal gradient from the tropics to the arctic?
-
-
-## Methods
-
-We used species community composition and functional leaf trait data from all PFTC courses and RMBL in Colorado.
-The data represent the following ecosystems/countries: arctic (PFTC4 Svalbard), boreal (PFTC6 Norway), temperate (Colorado), sub-tropics (PFTC1 and 2 China) and tropics (PFTC3, Puna project and PFCT5 Peru).
-There are no chemical traits from Norway yet, and Norway was excluded from the multivariate analysis.
-
-For some ecosystems there are several gradients, representing different management or environmental conditions.
-In Peru there is a gradient with more recent burning (B).
-In Svalbard there is a gradient with nutrient input from sea birds (N).
-For Norway there could be a separate gradient for grazing (G), but this is not included yet.
-I am unsure if we want to have these gradients or not.
-
-The following diversity indices were calculated: Shannon diversity, Shannon evenness, species richness ( number of species) and sum of cover.
-
-Size traits were log transformed.
-Trait means and higher moments were calculated using a trait imputation and bootstrapping with traitstrap (Maitner et al. 2023).
-
-\newpage
-
-## Results
 
 ```{r}
 #| label: set-up
@@ -51,96 +22,138 @@ library(tarchetypes)
 
 ```
 
+## Introduction
+
+Species and functional diversity are different metrics describing biodiversity and ecosystem function and they are affected by both abiotic and biotic filtering as well as the regional species pool. Species richness and functional diversity are expected to decrease towards high elevation and the arctic, due to stronger environmental filtering and fewer species in the species pool. These metrics can be used to understand how plant communities respond to different filters and how communities assembly along broad environmental gradients.
+
+We assessed plant species diversity (i.e. species richness, evenness) and functional diversity (i.e. community weighted means and variance in leaf functional traits) along five elevational gradients in the arctic (Svalbard), boreal (Norway), , temperate (Colorado), sub-tropics (China) and tropic mountains (Peru). Specifically, we ask how plant communities respond to the environmental drivers along elevational gradients in terms of species and functional diversity? And how consistent these patterns are across a broad latitudinal gradient from the tropics to the arctic?
+
+## Methods
+
+We used species community composition and functional leaf trait data from all PFTC courses and RMBL in Colorado. The data represent the following ecosystems/countries: arctic (PFTC4 Svalbard), boreal (PFTC6 Norway), temperate (Colorado), sub-tropics (PFTC1 and 2 China) and tropics (PFTC3, Puna project and PFCT5 Peru). There are no chemical traits from Norway yet, and Norway was excluded from the multivariate analysis.
+
+For some ecosystems there are several gradients, representing different management or environmental conditions. In Peru there is a gradient with more recent burning (B). In Svalbard there is a gradient with nutrient input from sea birds (N). For Norway there could be a separate gradient for grazing (G), but this is not included yet. I am unsure if we want to have these gradients or not.
+
+The following diversity indices were calculated: Shannon diversity, Shannon evenness, species richness ( number of species) and sum of cover.
+
+Size traits were log transformed. Trait means and higher moments were calculated using a trait imputation and bootstrapping with traitstrap (Maitner et al. 2023).
+
+```{r}
+#| label: study-sites-map
+#| echo: false
+#| warnings: false
+#| fig-height: 12
+
+tar_load(regions_world_map)
+regions_world_map
+
+```
+
+\newpage
+
+## Results
+
+### Environmental Variables
+
+This correlation matrix shows the relationships between bioclimatic variables across all study sites. Temperature-related variables (annual temperature, temperature range, diurnal range) show strong positive correlations with each other, while precipitation variables show more complex patterns.
+
+```{r}
+#| label: bioclim-correlation
+#| echo: false
+#| warnings: false
+#| fig-height: 8
+#| fig-width: 8
+
+tar_load(bioclim_correlation_fig)
+bioclim_correlation_fig
+
+```
+
+\newpage
+
+This PCA shows the main patterns in bioclimatic variation across our study sites. The first two principal components capture the major environmental gradients that drive community assembly patterns.
+
+```{r}
+#| label: bioclim-pca
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(bioclim_pca_fig)
+bioclim_pca_fig
+
+```
+
+\newpage
 
 ### Diversity
 
-This plot shows different diversity indices  across the whole latitudinal gradient.
-All diversity indices increase with latitude or mean annual temperature, i.e. diversity is higher in the tropics.
-
-There are some funny values in sum_abundance (= sum of cover).
-Not sure if we need this variable at all.
+This figure shows diversity indices (richness, Shannon diversity, and evenness) across the latitudinal gradient. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
 #| label: diversity-lat
 #| echo: false
 #| warnings: false
-#| fig-height: 6
+#| fig-height: 4
 
 tar_load(diversity_lat_fig)
 diversity_lat_fig
 
 ```
 
+\newpage
+
+This figure shows diversity indices in relation to annual temperature. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: diversity-anntemp
+#| echo: false
+#| warnings: false
+#| fig-height: 4
+
+tar_load(diversity_anntemp_fig)
+diversity_anntemp_fig
+
+```
 
 \newpage
 
-This figure shows different diversity indices within each elevational gradient.
-Solid lines indicate significant relationships with mean annual temperature.
-
-Diversity decreases with mean annual temperature in Norway (boreal) and China (sub-tropics).
-Evenness decreases with temperature in China and richness decreases with temperature in Norway, China and Peru.
-
+This figure shows diversity indices in relation to temperature annual range. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: diversity
+#| label: diversity-temprange
+#| echo: false
+#| warnings: false
+#| fig-height: 4
+
+tar_load(diversity_temprange_fig)
+diversity_temprange_fig
+
+```
+
+\newpage
+
+### Functional leaf traits
+
+This figure shows the multivariate trait space for a subset of traits available across all regions. The ecosystems are well separated in trait space, with clear differentiation between regions.
+
+```{r}
+#| label: trait-pca-full
 #| echo: false
 #| warnings: false
 #| fig-height: 6
 
-tar_load(diversity_fig)
-diversity_fig
+tar_load(trait_pca_full_fig)
+trait_pca_full_fig
 
 ```
 
 \newpage
 
-### Functional leaf traits - mean
-
-This figure shows mean functional leaf traits across latitude.
-The size traits (plant height, leaf dry mass, leaf area and leaf thickness), LDMC, C % CN ratio and dC13 increase with mean annual temperature (and latitude).
-SLA, N %, P %, and dN15 decrease with mean annual temperature.
+This figure shows the multivariate trait space including chemical traits. Norway is not part of this figure, because we do not have the chemical traits yet. The ecosystems are well separated in trait space, with the temperate and sub-tropic regions showing some overlap.
 
 ```{r}
-#| label: trait-mean-lat
-#| echo: false
-#| warnings: false
-#| fig-height: 7
-
-tar_load(trait_lat_fig)
-trait_lat_fig
-
-```
-
-\newpage
-
-This figure shows mean functional leaf traits mean within each elevational gradient.
-Most ecosystems reflect the global pattern.
-Colorado is an exception, because soil moisture is more important than temperature along this gradient.
-
-
-```{r}
-#| label: trait-mean
-#| echo: false
-#| warnings: false
-#| fig-height: 7
-
-tar_load(trait_mean_fig)
-trait_mean_fig
-
-```
-
-\newpage
-
-This figure shows the multivariate trait space.
-Norway is not part of this figure, because we do not have the chemical traits yet.
-The ecosystems are well separated in trait space.
-The temperate and sub-tropic regions overlap the most.
-
-PC1 axis explains 46.2 % of the variation and correlates well with LES traits like SLA, LDMC, N %, and P %, as well as dN15 and leaf thickness.
-PC2 axis explains 21.5 % of the variation and correlations with the size traits like dra mass, leaf area, as well as dC13.
-
-```{r}
-#| label: multivariate-traits
+#| label: trait-pca
 #| echo: false
 #| warnings: false
 #| fig-height: 6
@@ -150,35 +163,49 @@ trait_pca_fig
 
 ```
 
-
 \newpage
 
-### Functional traits - happy higher moments
-
-This figure shows trait variance.
+This figure shows functional leaf traits in relation to latitude. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: variance
+#| label: trait-lat
 #| echo: false
 #| warnings: false
-#| fig-height: 7
+#| fig-height: 8
 
-tar_load(trait_var_fig)
-trait_var_fig
+tar_load(trait_lat_fig)
+trait_lat_fig
 
 ```
 
 \newpage
 
-This figure shows skewness versus kurtosis, the Nike plot!
+This figure shows functional leaf traits in relation to annual temperature. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: higher-moments
+#| label: trait-anntemp
 #| echo: false
 #| warnings: false
-#| fig-height: 7
+#| fig-height: 8
 
-tar_load(trait_higher_moments_fig)
-trait_higher_moments_fig
+tar_load(trait_anntemp_fig)
+trait_anntemp_fig
 
 ```
+
+\newpage
+
+This figure shows functional leaf traits in relation to temperature annual range. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: trait-temprange
+#| echo: false
+#| warnings: false
+#| fig-height: 8
+
+tar_load(trait_temprange_fig)
+trait_temprange_fig
+
+```
+
+\newpage

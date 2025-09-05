@@ -1,14 +1,17 @@
-# libraries
-
-library(targets)
+# Load libraries
 library(tidyverse)
-library(janitor)
 library(vegan)
 library(ggvegan)
 library(traitstrap)
 library(dataDocumentation)
-library(dataDownloader)
+library(readxl)
 library(broom)
+library(broom.mixed)
 library(glue)
 library(geodata)
 library(terra)
+library(MetBrewer)
+library(maps)
+library(performance)
+library(see)
+library(lme4)

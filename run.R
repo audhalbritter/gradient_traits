@@ -5,8 +5,12 @@
 # See https://books.ropensci.org/targets/hpc.html
 # to learn about your options.
 source("load_libraries.R")
+library(targets)
 
 targets::tar_make()
-# targets::tar_make_clustermq(workers = 2) # nolint
-# targets::tar_make_future(workers = 2) # nolint
+
+# run only one target
+# targets::tar_delete(bioclim)
+# targets::tar_make(bioclim)
+
 tar_load_everything()

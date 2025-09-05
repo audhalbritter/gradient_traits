@@ -2,87 +2,153 @@
 
 analysis_plan <- list(
 
-  # diversity across latitude
-  tar_target(
-    name = diversity_lat_model,
-    command = {
-      safelm <- safely(.f = lm)
-
-      diversity |>
-        group_by(diversity_index) |>
-        nest() |>
-        mutate(
-          model = map(.x = data, .f = ~ safelm(value ~ annual_temperature, data = .)$result),
-          result = map(model, tidy),
-          prediction = map2(.x = model, .y = data, .f = predict, interval = "confidence"),
-          output = map2(.x = data, .y = prediction, ~ bind_cols(.x, .y))
-        )
-    }
-  ),
-
-  # diversity within country model
-  tar_target(
-    name = diversity_model,
-    command = {
-
-      safelm = safely(.f = lm)
-
-      diversity |>
-        group_by(country, ecosystem, gradient, diversity_index) |>
-        nest() |>
-        mutate(model = map(.x = data, .f= ~ safelm(value ~ annual_temperature, data = .)$result),
-               result = map(model, tidy),
-               prediction = map2(.x = model, .y = data, .f = predict, interval = "confidence"),
-               output = map2(.x = data, .y = prediction, ~ bind_cols(.x, .y)))
-    }
-  ),
-
-  # testing across latitude
-  tar_target(
-    name = latitude_model,
-    command = {
-      safelm <- safely(.f = lm)
-
-      trait_mean |>
-        group_by(trait_trans, trait_fancy) |>
-        nest() |>
-        mutate(
-          model = map(.x = data, .f = ~ safelm(mean ~ annual_temperature, data = .)$result),
-          result = map(model, tidy),
-          # make new data for prediction
-          # newdata = map(.x = data, .f = ~. |>
-          #                        mutate(min)
-          prediction = map2(.x = model, .y = data, .f = predict, interval = "confidence"),
-          output = map2(.x = data, .y = prediction, ~ bind_cols(.x, .y))
-        )
-    }
-  ),
-
-  # testing within country
-  tar_target(
-    name = trait_mean_model,
-    command = {
-      safelm <- safely(.f = lm)
-
-      trait_mean |>
-        group_by(country, ecosystem, gradient, trait_trans, trait_fancy) |>
-        nest() |>
-        mutate(
-          model = map(.x = data, .f = ~ safelm(mean ~ annual_temperature, data = .)$result),
-          result = map(model, tidy),
-          # make new data for prediction
-          # newdata = map(.x = data, .f = ~. |>
-          #                        mutate(min)
-          prediction = map2(.x = model, .y = data, .f = predict, interval = "confidence"),
-          output = map2(.x = data, .y = prediction, ~ bind_cols(.x, .y))
-        )
-    }
-  ),
-
-
-  # ordination
+  # ordination reduced, all traits fewer countries
   tar_target(
     name = trait_pca,
-    command = make_trait_pca(trait_mean)
+    command = make_trait_pca(trait_mean |>
+    # norway and sa needs to be removed for now because no chem traits, ch needs removed because no plant height
+    filter(!country %in% c("no", "sa")) |>
+    filter(!trait_trans %in% c("plant_height_cm_log")))
+  ),
+
+    # ordination with all countries, fewer traits
+    tar_target(
+    name = trait_pca_full,
+    command = make_trait_pca(trait_mean |> 
+    # remove incomplete traits
+    filter(trait_trans %in% c("dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")))
+  ),
+
+  # bioclim PCA using all bioclimatic variables
+  tar_target(
+    name = bioclim_pca,
+    command = make_bioclim_pca(bioclim |>
+    select(country:ID, annual_temperature,
+    annual_precipitation, precipitation_seasonality, precipitation_driest_quarter, precipitation_warmest_quarter, 
+    diurnal_range, temperature_seasonality,
+    max_temperture_warmest_month, temperature_annual_range, mean_temperture_driest_quarter))
+  ),
+
+# Run models
+  # diversity models
+  tar_target(
+    name = diversity_models,
+    command = {
+      diversity |>
+        dplyr::filter(diversity_index != "sum_abundance") |>
+        fit_lmer_set(response = "value", group_var = "diversity_index") |>
+        # make long table
+        tidyr::pivot_longer(cols = -c(diversity_index, data),
+                     names_sep = "_",
+                     names_to = c(".value", "bioclim"))
+    }
+  ),
+
+    # Tidy results from existing models (no refit)
+  tar_target(
+    name = diversity_results,
+    command = {
+      diversity_models |>
+        filter(bioclim %in% c("elev", "anntemp", "temprange")) |> 
+        rowwise() |>
+        mutate(
+          result = list({
+            if(!is.null(model)) {
+              broom.mixed::tidy(model)
+            } else {
+              NULL
+            }
+          })
+        ) |>
+        select(diversity_index, bioclim, result) |>
+        unnest(result)
+    }
+  ),
+
+  # diversity predictions
+  tar_target(
+    name = diversity_predictions,
+    command = {
+      diversity_models |>
+        filter(bioclim != "null") |>  # Remove null models - only needed for comparison
+        mutate(
+          prediction = map2(.x = model, .y = data, .f = ~ broom.mixed::augment(.x, newdata = .y))
+        )
+    }
+  ),
+
+  # trait models
+  tar_target(
+    name = trait_models,
+    command = {
+      trait_mean |>
+        fit_lmer_set(response = "mean", group_var = "trait_trans") |>
+        # make long table
+        tidyr::pivot_longer(cols = -c(trait_trans, data),
+                     names_sep = "_",
+                     names_to = c(".value", "bioclim"))
+    }
+  ),
+
+  # Tidy results from trait models
+  tar_target(
+    name = trait_results,
+    command = {
+      trait_models |>
+        filter(bioclim %in% c("elev", "anntemp", "temprange")) |>
+        rowwise() |>
+        mutate(
+          result = list({
+            if(!is.null(model)) {
+              broom.mixed::tidy(model)
+            } else {
+              NULL
+            }
+          })
+        ) |>
+        select(trait_trans, bioclim, result) |>
+        unnest(result)
+    }
+  ),
+
+  # trait predictions
+  tar_target(
+    name = trait_predictions,
+    command = {
+      trait_models |>
+        filter(bioclim != "null") |>  # Remove null models - only needed for comparison
+        mutate(
+          prediction = map2(.x = model, .y = data, .f = ~ broom.mixed::augment(.x, newdata = .y))
+        )
+    }
+  ),
+
+  # diversity model checks
+  tar_target(
+    name = diversity_model_checks,
+    command = {
+      diversity_models |>
+        filter(bioclim != "null") |>  # Remove null models
+        rowwise() |>
+        mutate(
+          model_check = list(performance::check_model(model))
+        ) |>
+        ungroup()
+    }
+  ),
+
+  # trait model checks
+  tar_target(
+    name = trait_model_checks,
+    command = {
+      trait_models |>
+        filter(bioclim != "null") |>  # Remove null models
+        rowwise() |>
+        mutate(
+          model_check = list(performance::check_model(model))
+        ) |>
+        ungroup()
+    }
   )
+
 )

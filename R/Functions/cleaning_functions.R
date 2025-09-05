@@ -7,12 +7,13 @@ clean_sv_communit <- function(raw_community_sv){
     clean_names() |> 
     tidylog::distinct() |> 
     mutate(country = "sv",
+           region = "Svalbard",
            ecosystem = "arctic",
            gradient = if_else(gradient == "B", "N", gradient),
            site = as.character(site),
            site = paste0(country, "_", gradient, "_", site),
            plot_id = paste0(gradient, "_", site, "_", plot_id)) |> 
-    tidylog::select(country, year, date, gradient, site, plot_id, taxon, cover, elevation_m, latitude_n, longitude_e, ecosystem)
+    tidylog::select(country, region, year, date, gradient, site, plot_id, taxon, cover, elevation_m, latitude_n, longitude_e, ecosystem)
 }
 
 
@@ -23,12 +24,13 @@ clean_sv_traits <- function(raw_traits_sv){
       # remove bryo
       filter(project == "Gradient") |> 
     mutate(country = "sv",
+           region = "Svalbard",
            ecosystem = "arctic",
            gradient = if_else(gradient == "B", "N", gradient),
            site = as.character(site),
            site = paste0(country, "_", gradient, "_", site),
            plot_id = paste0(gradient, "_", site, "_", plot_id)) |> 
-    tidylog::select(country, year, date, gradient, site:individual_nr, leaf_id = id, taxon, trait:longitude_e, ecosystem)
+    tidylog::select(country, region, year, date, gradient, site:individual_nr, leaf_id = id, taxon, trait:longitude_e, ecosystem)
   
 }
 
@@ -41,11 +43,12 @@ clean_pe_community <- function(raw_community_pe){
     filter(!treatment %in% c("NB", "BB"),
            site != "OCC") |> 
     mutate(country = "pe",
+           region = "Central Andes",
            ecosystem = "tropic",
            site = paste0(country, "_", treatment, "_", site),
            plot_id = paste0(treatment, "_", site, "_", plot_id),
            taxon = tolower(taxon)) |> 
-    tidylog::select(country, year, season, month, gradient = treatment, site, plot_id, functional_group, family, taxon, cover, elevation_m = elevation, latitude_n = latitude, longitude_e = longitude, ecosystem)
+    tidylog::select(country, region, year, season, month, gradient = treatment, site, plot_id, functional_group, family, taxon, cover, elevation_m = elevation, latitude_n = latitude, longitude_e = longitude, ecosystem)
     
 }
 
@@ -56,12 +59,13 @@ clean_pe_traits <- function(raw_traits_pe){
     filter(!treatment %in% c("NB", "BB"),
            site != "OCC") |> 
     mutate(country = "pe",
+           region = "Central Andes",
            gradient = treatment,
            ecosystem = "tropic",
            site = paste0(country, "_", treatment, "_", site),
            plot_id = paste0(treatment, "_", site, "_", plot_id),
            taxon = tolower(taxon)) |> 
-    tidylog::select(country, year, season, month, gradient = treatment, site, plot_id, individual_nr, leaf_id = id, functional_group, family, taxon, trait, value, elevation_m = elevation, latitude_n = latitude, longitude_e = longitude, ecosystem)
+    tidylog::select(country, region, year, season, month, gradient = treatment, site, plot_id, individual_nr, leaf_id = id, functional_group, family, taxon, trait, value, elevation_m = elevation, latitude_n = latitude, longitude_e = longitude, ecosystem)
 
 }  
 
@@ -90,13 +94,14 @@ import_clean_ch_community <- function(raw_meta_ch){
   community |> 
     left_join(raw_meta_ch, by = c("siteID" = "site")) |>
     mutate(country = "ch",
+           region = "Eastern Himalaya",
            gradient = "C",
            ecosystem = "sub-tropics",
            site = paste0(country, "_", siteID),
            plot_id = paste0(country, "_", originPlotID),
            speciesName = tolower(speciesName)) |>
     filter(year == 2016) |> 
-    select(country, year, gradient, site, plot_id, taxon = speciesName, cover, functional_group = functionalGroup, family, elevation_m = elevation, latitude_n = latitude.y, longitude_e = longitude.y, ecosystem) |> 
+    select(country, region, year, gradient, site, plot_id, taxon = speciesName, cover, functional_group = functionalGroup, family, elevation_m = elevation, latitude_n = latitude.y, longitude_e = longitude.y, ecosystem) |> 
     mutate(taxon = recode(taxon, "Potentilla stenophylla var. emergens" = "Potentilla stenophylla"))
     
 }
@@ -127,13 +132,14 @@ clean_ch_traits <- function(raw_traits_leaf_ch, raw_traits_chem_ch, raw_meta_ch)
     mutate(taxon = tolower(trimws(taxon))) |>  
     mutate(year = year(date),
            country = "ch",
+           region = "Eastern Himalaya",
            gradient = "C",
            ecosystem = "sub-tropics",
            site = paste0(country, "_", site),
            plot_id = paste0(country, "_", dest_block_id),
            leaf_id = paste(site, treatment, taxon, individual_number, leaf_number, sep = "_"),
            taxon = tolower(taxon)) |> 
-    select(country, year, date, gradient, site, plot_id, individual_number, leaf_id, taxon, trait, value, elevation_m = elevation, latitude_n = latitude, longitude_e = longitude, ecosystem)
+    select(country, region, year, date, gradient, site, plot_id, individual_number, leaf_id, taxon, trait, value, elevation_m = elevation, latitude_n = latitude, longitude_e = longitude, ecosystem)
     
 }
 
@@ -142,7 +148,7 @@ clean_ch_traits <- function(raw_traits_leaf_ch, raw_traits_chem_ch, raw_meta_ch)
 # clean norway community
 clean_no_comm <- function(raw_community_no, sp_list_no){
   
-  threeD_community <- raw_community_no |>
+  threeD_community <- raw_community_no |> 
     # filter for 2022 and trait data treatments
     filter(year == 2022,
            warming == "A",
@@ -161,13 +167,17 @@ clean_no_comm <- function(raw_community_no, sp_list_no){
     
     # add variables
     mutate(country = "no",
+           region = "Southern Scandes",
            gradient = "C",
            ecosystem = "boreal",
-           elevation_m = if_else(destSiteID == "Joa", 920, 1290),
-           latitude_n = if_else(destSiteID == "Joa", 60.86183, 60.85994),
-           longitude_e = if_else(destSiteID == "Joa", 7.16800, 7.19504),
+           elevation_m = case_when(
+             destSiteID == "Joasete" ~ 920,
+             TRUE ~ 1290
+           ),
+           latitude_n = if_else(destSiteID == "Joasete", 60.86183, 60.85994),
+           longitude_e = if_else(destSiteID == "Joasete", 7.16800, 7.19504),
            site = paste0(country, "_", destSiteID),
-           plot_id = paste0(site, "_", turfID)) |>
+           plot_id = paste0(site, "_", turfID)) |> 
     
     # add taxon information
     left_join(sp_list_no |>
@@ -178,7 +188,7 @@ clean_no_comm <- function(raw_community_no, sp_list_no){
                                         species %in% c("Oxytropa laponica", "Galium verum", "Veronica officinalis", "Erigeron uniflorus", "Epilobium anagallidifolium") ~ "forb",
                                         TRUE ~ functional_group)) |>
     ungroup() |>
-    select(country, year, date, gradient, site, plot_id, taxon = species, cover, family, functional_group, elevation_m, latitude_n, longitude_e, ecosystem)
+    select(country, region, year, date, gradient, site, plot_id, taxon = species, cover, family, functional_group, elevation_m, latitude_n, longitude_e, ecosystem)
   
   # vcg plant community data
   con <- dbConnect(SQLite(), dbname = "data/seedclim.sqlite")
@@ -212,12 +222,13 @@ clean_no_comm <- function(raw_community_no, sp_list_no){
     collect() |> 
     
     mutate(country = "no",
+           region = "Southern Scandes",
            gradient = "C",
            ecosystem = "boreal",
            site = paste0(country, "_", siteID),
            plot_id = paste0(site, "_", turfID)) |> 
     ungroup() |> 
-    select(country, year, gradient, site, plot_id, taxon, cover, family, elevation_m = elevation, latitude_n = latitude, longitude_e = longitude, ecosystem)
+    select(country, region, year, gradient, site, plot_id, taxon, cover, family, elevation_m = elevation, latitude_n = latitude, longitude_e = longitude, ecosystem)
   
   bind_rows(threeD_community, vcg_community)
   
@@ -234,11 +245,12 @@ clean_no_traits <- function(raw_traits_no){
     # add variables
     mutate(year = year(date),
            country = "no",
+           region = "Southern Scandes",
            gradient = "C",
            ecosystem = "boreal",
            site = paste0(country, "_", siteID),
            plot_id = paste0(site, "_", turfID)) |>
-    select(country, year, date, gradient, site, plot_id, individual_nr, leaf_id = ID, taxon = species, trait, value, elevation_m = elevation_m_asl, ecosystem)
+    select(country, region, year, date, gradient, site, plot_id, individual_nr, leaf_id = ID, taxon = species, trait, value, elevation_m = elevation_m_asl, ecosystem)
   
 }
 
@@ -272,6 +284,7 @@ clean_colorado_community <- function(raw_community_co, coords_co){
     rename(taxon = species) |> 
     mutate(date = dmy(date),
            country = "co",
+           region = "Rocky Mountains",
            ecosystem = "temperate",
            gradient = "C",
            year = year(date)) |> 
@@ -280,7 +293,7 @@ clean_colorado_community <- function(raw_community_co, coords_co){
            plot_id = paste0(site, "_", plot_id)) |> 
     filter(!is.na(cover), !cover == 0) |> 
     tidylog::left_join(coords_co) |> 
-    select(country, year, date, gradient, site, plot_id, taxon, cover, elevation_m, latitude_n, longitude_e, ecosystem)
+    select(country, region, year, date, gradient, site, plot_id, taxon, cover, elevation_m, latitude_n, longitude_e, ecosystem)
 
 }
 
@@ -303,6 +316,7 @@ clean_colorado_trait <- function(raw_sp_co, raw_trait_co, coords_co){
     select(year, site, block, taxon_std, leaf_area, wet_mass, dry_mass, SLA, height_flower, height_leaf, height, height_2, thickness, pc_C, pc_N, pc_P, d13C, d15N,  C_N, N_P) |> 
     rename(plot_id = block, taxon = taxon_std, Leaf_Area_cm2 = leaf_area, Wet_Mass_g = wet_mass, Dry_Mass_g = dry_mass, SLA_cm2_g = SLA, Plant_Height_cm = height_flower, Leaf_Thickness_Ave_mm = thickness, C_percent = pc_C, N_percent = pc_N, dC13_permil = d13C, dN15_permil = d15N, CN_ratio = C_N, NP_ratio = N_P, P_percent = pc_P) |> 
     mutate(country = "co",
+           region = "Rocky Mountains",
            ecosystem = "temperate",
            gradient = "C",
            LDMC = Dry_Mass_g/Wet_Mass_g) |> 
@@ -327,41 +341,39 @@ clean_colorado_trait <- function(raw_sp_co, raw_trait_co, coords_co){
     mutate(taxon = if_else(!is.na(Species_from_abundance_data), Species_from_abundance_data, taxon)) |>
     tidylog::left_join(coords_co |> 
                          distinct(site, elevation_m, latitude_n, longitude_e,     country, gradient)) |> 
-    select(country, year, gradient, site, plot_id, taxon, trait, value, elevation_m, latitude_n, longitude_e, ecosystem)
+    select(country, region, year, gradient, site, plot_id, taxon, trait, value, elevation_m, latitude_n, longitude_e, ecosystem)
    
   
 }  
 
 # clean South Africa community
-clean_sa_community <- function(raw_community_sa, raw_meta_sa) {
+clean_sa_community <- function(raw_community_sa, raw_meta_sa_extended) {
 
   raw_community_sa|>
     clean_names() |>
-    # metadata has plot 1 and 5, but community has plot 1 - 5
-    mutate(plot_id2 = case_when(
-      plot_id %in% c(1, 2, 3) ~ 1,
-      plot_id == 4 ~ 4,
-      plot_id == 5 ~ 5,
-      TRUE ~ plot_id
-    )) |>
-    tidylog::left_join(raw_meta_sa |> 
+    tidylog::left_join(raw_meta_sa_extended |> 
                 clean_names(),
-              by = c("site_id", "plot_id2" = "plot_id", "aspect", "elevation_m_asl")) |>
+              by = c("site_id", "plot_id", "aspect", "elevation_m_asl")) |>
     mutate(
       country = "sa",
+      region = "Drakensberg",
       ecosystem = "grassland",
       year = year(date),
-      gradient = "C",
+      gradient = case_when(
+        aspect == "east" ~ "E",
+        aspect == "west" ~ "W",
+        TRUE ~ "C"
+      ),
       site = paste0(country, "_", site_id),
       plot_id = paste0(site, "_", plot_id)
     ) |>
     select(
-      country, year, date, gradient, site, plot_id, taxon = species, cover, aspect, fertility_all, elevation_m = elevation_m_asl, latitude_n = latitude, longitude_e = longitude, ecosystem
+      country, region, year, date, gradient, site, plot_id, taxon = species, cover, aspect, fertility_all, elevation_m = elevation_m_asl, latitude_n = latitude, longitude_e = longitude, ecosystem
     )
 }
 
 # clean South Africa traits
-clean_sa_traits <- function(raw_traits_sa){
+clean_sa_traits <- function(raw_traits_sa, raw_meta_sa_extended){
   
   raw_traits_sa |> 
     # remove some traits
@@ -374,14 +386,31 @@ clean_sa_traits <- function(raw_traits_sa){
       traits == "sla" ~ "sla_cm2_g",
       traits == "veg_height" ~ "plant_height_cm",
       TRUE ~ traits
-    )) |>
+    )) |> 
+    # Handle plot_id = 0 and NA by mapping to plot 1 for the same site and aspect
+    mutate(
+      plot_id_original = plot_id,
+      plot_id = case_when(
+        is.na(plot_id) | plot_id == 0 ~ 1,
+        TRUE ~ plot_id
+      )
+    ) |>
+    # add lat and long
+    tidylog::left_join(raw_meta_sa_extended |> 
+                clean_names(),
+              by = c("site_id", "plot_id", "aspect", "elevation_m_asl")) |>
     # add variables
     mutate(year = year(date),
            country = "sa",
-           gradient = "C",
+           region = "Drakensberg",
+           gradient = case_when(
+             aspect == "east" ~ "E",
+             aspect == "west" ~ "W",
+             TRUE ~ "C"
+           ),
            ecosystem = "grassland",
            site = paste0(country, "_", site_id),
-           plot_id = paste0(site, "_", plot_id)) |>
-    select(country, year, date, gradient, site, plot_id, individual_nr = plant_id, leaf_id = id, species, trait = traits, value, elevation_m = elevation_m_asl, ecosystem)
+           plot_id = paste0(site, "_", plot_id_original)) |>
+    select(country, region, year, date, gradient, site, plot_id, individual_nr = plant_id, leaf_id = id, taxon = species, trait, value, elevation_m = elevation_m_asl, latitude_n = latitude, longitude_e = longitude, ecosystem)
   
 }
