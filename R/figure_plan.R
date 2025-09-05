@@ -34,7 +34,7 @@ figure_plan <- list(
     name = diversity_lat_fig,
     command = diversity_predictions |>
         unnest(prediction) |>
-        make_diversity_predictor_plot(predictor = "lat", x_label = "Latitude (°N)")
+        make_diversity_predictor_plot(predictor = "elev", x_label = "Elevation (m a.s.l.)")
   ),
 
   # diversity vs annual temperature plot
@@ -57,144 +57,27 @@ figure_plan <- list(
   tar_target(
     name = regions_world_map,
     command = make_region_world_map(all_coordinates)
+  ),
+
+  # Trait vs predictor plots
+  tar_target(
+    name = trait_lat_fig,
+    command = trait_predictions |>
+        unnest(prediction) |>
+        make_trait_predictor_plot(predictor = "elev", x_label = "Elevation (m a.s.l.)")
+  ),
+
+  tar_target(
+    name = trait_anntemp_fig,
+    command = trait_predictions |>
+        unnest(prediction) |>
+        make_trait_predictor_plot(predictor = "anntemp", x_label = "Annual Temperature (°C)")
+  ),
+
+  tar_target(
+    name = trait_temprange_fig,
+    command = trait_predictions |>
+        unnest(prediction) |>
+        make_trait_predictor_plot(predictor = "temprange", x_label = "Temperature Annual Range (°C)")
   )
-
-  
-
-  # # trait mean latitude plot
-  # tar_target(
-  #   name = trait_lat_fig,
-  #   command = {
-  #     dat <- latitude_model |>
-  #       unnest(data)
-
-  #     res <- latitude_model |>
-  #       select(result) |>
-  #       unnest(result) |>
-  #       filter(term == "annual_temperature") |>
-  #       mutate(sign = if_else(p.value <= 0.05, "sign", "non-sign"))
-
-  #     pred <- latitude_model |>
-  #       select(trait_trans, trait_fancy, output) |>
-  #       unnest(output) |>
-  #       rename(prediction = fit) |>
-  #       left_join(res)
-
-  #     ggplot(dat, aes(x = annual_temperature, y = mean)) +
-  #       # CI from prediction
-  #       geom_ribbon(
-  #         data = pred, aes(
-  #           y = prediction, ymin = lwr,
-  #           ymax = upr
-  #         ),
-  #         alpha = 0.1,
-  #         linetype = 0
-  #       ) +
-  #       geom_point(alpha = 0.5, aes(colour = ecosystem)) +
-  #       # prediction line
-  #       geom_line(data = pred, aes(y = prediction, linetype = sign), colour = "grey50", linewidth = 0.5) +
-  #       scale_colour_viridis_d(option = "plasma", end = 0.8, name = "") +
-  #       scale_linetype_manual(values = c("solid", "dashed"), name = "") +
-  #       labs(
-  #         x = "Mean annual temperature in °C",
-  #         y = "Bootstrapped trait mean"
-  #       ) +
-  #       facet_wrap(~figure_names, scales = "free", labeller = label_parsed) +
-  #       theme_bw() +
-  #       theme(
-  #         legend.position = "top",
-  #         legend.box = "vertical"
-  #       )
-  #   }
-  # ),
-
-  # # trait mean plot
-  # tar_target(
-  #   name = trait_mean_fig,
-  #   command = {
-  #     dat <- trait_mean_model |>
-  #       unnest(data)
-
-  #     res <- trait_mean_model |>
-  #       select(result) |>
-  #       unnest(result) |>
-  #       filter(term == "annual_temperature") |>
-  #       mutate(sign = if_else(p.value <= 0.05, "sign", "non-sign"))
-
-  #     pred <- trait_mean_model |>
-  #       select(country, gradient, trait_trans, trait_fancy, ecosystem, output) |>
-  #       unnest(output) |>
-  #       rename(prediction = fit) |>
-  #       left_join(res)
-
-  #     ggplot(dat, aes(x = annual_temperature, y = mean, colour = ecosystem, shape = gradient)) +
-  #       # CI from prediction
-  #       geom_ribbon(
-  #         data = pred, aes(
-  #           y = prediction, ymin = lwr,
-  #           ymax = upr,
-  #           fill = ecosystem
-  #         ),
-  #         alpha = 0.1,
-  #         linetype = 0
-  #       ) +
-  #       geom_point(alpha = 0.5) +
-  #       # prediction line
-  #       geom_line(data = pred, aes(y = prediction, linetype = sign), linewidth = 0.5) +
-  #       scale_colour_viridis_d(option = "plasma", end = 0.8, name = "") +
-  #       scale_fill_viridis_d(option = "plasma", end = 0.8, name = "") +
-  #       scale_shape_manual(values = c(15, 16, 17)) +
-  #       scale_linetype_manual(values = c("dashed", "solid"), name = "") +
-  #       labs(
-  #         x = "Mean annual temperature in °C",
-  #         y = "Bootstrapped trait mean"
-  #       ) +
-  #       facet_wrap(~figure_names, scales = "free", labeller = label_parsed) +
-  #       theme_bw() +
-  #       theme(
-  #         legend.position = "top",
-  #         legend.box = "vertical"
-  #       )
-  #   }
-  # ),
-
-
-  # # trait variance plot
-  # tar_target(
-  #   name = trait_var_fig,
-  #   command = trait_mean |>
-  #     ggplot(aes(x = annual_temperature, y = var, colour = ecosystem)) +
-  #     geom_point(alpha = 0.5) +
-  #     geom_smooth(method = "lm") +
-  #     scale_colour_viridis_d(option = "plasma", end = 0.8) +
-  #     labs(
-  #       x = "Mean annual temperature in °C",
-  #       y = "Bootstrapped trait variance"
-  #     ) +
-  #     facet_wrap(~figure_names, scales = "free", labeller = label_parsed) +
-  #     theme_bw() +
-  #     theme(
-  #       legend.position = "top",
-  #       legend.box = "vertical"
-  #     )
-  # ),
-
-  # # trait variance plot
-  # tar_target(
-  #   name = trait_higher_moments_fig,
-  #   command = trait_mean |>
-  #     ggplot(aes(x = skew, y = kurt, colour = ecosystem)) +
-  #     geom_point(alpha = 0.5) +
-  #     scale_colour_viridis_d(option = "plasma", end = 0.8) +
-  #     labs(
-  #       y = "Bootstrapped trait kurtosis",
-  #       x = "Bootstrapped trait skewness"
-  #     ) +
-  #     facet_wrap(~figure_names, scales = "free", labeller = label_parsed) +
-  #     theme_bw() +
-  #     theme(
-  #       legend.position = "top",
-  #       legend.box = "vertical"
-  #     )
-  # )
 )

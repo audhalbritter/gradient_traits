@@ -130,7 +130,7 @@ make_diversity_predictor_plot <- function(data, predictor, x_label) {
   
   # Map bioclim identifier to actual column name
   predictor_col <- case_when(
-    predictor == "lat" ~ "latitude_n",
+    predictor == "elev" ~ "elevation_m",
     predictor == "anntemp" ~ "annual_temperature",
     predictor == "temprange" ~ "temperature_annual_range",
     TRUE ~ predictor
@@ -148,6 +148,7 @@ make_diversity_predictor_plot <- function(data, predictor, x_label) {
     mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
                                              "Eastern Himalaya", "Central Andes", "Drakensberg")))
   
+  
   # Check if we have any data after filtering
   if (nrow(filtered_data) == 0) {
     stop("No data found after filtering for bioclim = '", predictor, "'")
@@ -162,8 +163,14 @@ make_diversity_predictor_plot <- function(data, predictor, x_label) {
   ggplot(filtered_data, aes(x = .data[[predictor_col]], y = value, color = region)) +
     # Add points for each plot
     geom_point(alpha = 0.6, size = 2) +
-    # Add prediction lines (single line across all ecosystems)
-    geom_line(aes(y = .fixed, group = 1), size = 1, color = "grey40") +
+    # Add prediction lines - different approach for interaction models
+    {if (predictor == "elev") {
+      # For elevation model (with interaction), show separate lines per region
+      geom_line(aes(y = .fixed, group = region, color = region), size = 1, alpha = 0.8)
+    } else {
+      # For other models (no interaction), show single overall line
+      geom_line(aes(y = .fixed, group = 1), size = 1, color = "grey40")
+    }} +
     # Add confidence intervals (if they exist)
     {if (all(c(".conf.low", ".conf.high") %in% names(filtered_data))) {
       geom_ribbon(aes(ymin = .conf.low, ymax = .conf.high, fill = region), 
@@ -179,7 +186,8 @@ make_diversity_predictor_plot <- function(data, predictor, x_label) {
     # Theme
     theme_bw() +
     theme(
-      legend.position = "right",  # Show legend since region is now the color
+      legend.position = "top",  # Move legend to top
+      legend.box = "horizontal",  # Split legend across multiple rows
       strip.text = element_text(size = 12, face = "bold"),
       axis.title = element_text(size = 12),
       axis.text = element_text(size = 10)
@@ -187,6 +195,80 @@ make_diversity_predictor_plot <- function(data, predictor, x_label) {
     labs(
       x = x_label,
       y = "Diversity Index Value",
+      color = "Region"  # Update legend title
+    )
+}
+
+## TRAIT VS PREDICTOR PLOT
+make_trait_predictor_plot <- function(data, predictor, x_label) {
+  
+  # Map bioclim identifier to actual column name
+  predictor_col <- case_when(
+    predictor == "elev" ~ "elevation_m",
+    predictor == "anntemp" ~ "annual_temperature",
+    predictor == "temprange" ~ "temperature_annual_range",
+    TRUE ~ predictor
+  )
+  
+  # Check if predictor column exists
+  if (!predictor_col %in% names(data)) {
+    stop("Predictor column '", predictor_col, "' not found in data")
+  }
+  
+  # Filter data for the specified predictor (bioclim identifier)
+  filtered_data <- data |>
+    filter(bioclim == predictor) |>
+    # Ensure region is ordered consistently (north to south)
+    mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
+                                             "Eastern Himalaya", "Central Andes", "Drakensberg")))
+  
+  
+  # Check if we have any data after filtering
+  if (nrow(filtered_data) == 0) {
+    stop("No data found after filtering for bioclim = '", predictor, "'")
+  }
+  
+  # Check if trait_trans has values
+  if (length(unique(filtered_data$trait_trans)) == 0) {
+    stop("No trait_trans values found in filtered data")
+  }
+  
+  # Create the plot using modern ggplot2 syntax
+  ggplot(filtered_data, aes(x = .data[[predictor_col]], y = mean, color = region)) +
+    # Add points for each plot
+    geom_point(alpha = 0.6, size = 2) +
+    # Add prediction lines - different approach for interaction models
+    {if (predictor == "elev") {
+      # For elevation model (with interaction), show separate lines per region
+      geom_line(aes(y = .fixed, group = region, color = region), size = 1, alpha = 0.8)
+    } else {
+      # For other models (no interaction), show single overall line
+      geom_line(aes(y = .fixed, group = 1), size = 1, color = "grey40")
+    }} +
+    # Add confidence intervals (if they exist)
+    {if (all(c(".conf.low", ".conf.high") %in% names(filtered_data))) {
+      geom_ribbon(aes(ymin = .conf.low, ymax = .conf.high, fill = region), 
+                  alpha = 0.2, color = NA)
+    } else {
+      NULL
+    }} +
+    # Use consistent color palette based on latitude
+    scale_color_manual(values = create_region_color_mapping()) +
+    scale_fill_manual(values = create_region_color_mapping()) +
+    # Facet by trait using figure_names for labels
+    facet_wrap(~figure_names, scales = "free_y", labeller = label_parsed) +
+    # Theme
+    theme_bw() +
+    theme(
+      legend.position = "top",  # Move legend to top
+      legend.box = "horizontal",  # Split legend across multiple rows
+      strip.text = element_text(size = 10, face = "bold"),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10)
+    ) +
+    labs(
+      x = x_label,
+      y = "Trait Value",
       color = "Region"  # Update legend title
     )
 }
