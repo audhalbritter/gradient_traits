@@ -50,7 +50,7 @@ fit_lmer_set <- function(data, response, group_var, random_effect = "country") {
 
   # Build formulas as strings and then convert to formulas
   f_null       <- stats::as.formula(paste(response, "~ 1 + (1|", random_effect, ")"))
-  f_lat        <- stats::as.formula(paste(response, "~ latitude_n + (1|", random_effect, ")"))
+  f_elev       <- stats::as.formula(paste(response, "~ elevation_m * latitude_n + (1|", random_effect, ")"))
   f_anntemp    <- stats::as.formula(paste(response, "~ annual_temperature + (1|", random_effect, ")"))
   f_temprange  <- stats::as.formula(paste(response, "~ temperature_annual_range + (1|", random_effect, ")"))
 
@@ -59,12 +59,12 @@ fit_lmer_set <- function(data, response, group_var, random_effect = "country") {
     tidyr::nest() |>
     dplyr::mutate(
       model_null      = purrr::map(.x = data, .f = ~ safelmer(f_null,       data = .)$result),
-      model_lat       = purrr::map(.x = data, .f = ~ safelmer(f_lat,        data = .)$result),
+      model_elev      = purrr::map(.x = data, .f = ~ safelmer(f_elev,       data = .)$result),
       model_anntemp   = purrr::map(.x = data, .f = ~ safelmer(f_anntemp,    data = .)$result),
       model_temprange = purrr::map(.x = data, .f = ~ safelmer(f_temprange,  data = .)$result),
-      glance_null      = purrr::map(model_null,      broom.mixed::glance),
-      glance_lat       = purrr::map(model_lat,       broom.mixed::glance),
-      glance_anntemp   = purrr::map(model_anntemp,   broom.mixed::glance),
-      glance_temprange = purrr::map(model_temprange, broom.mixed::glance)
+      glance_null      = purrr::map(model_null,      ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_elev      = purrr::map(model_elev,      ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_anntemp   = purrr::map(model_anntemp,   ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_temprange = purrr::map(model_temprange, ~ if(!is.null(.)) broom.mixed::glance(.) else NULL)
     )
 }

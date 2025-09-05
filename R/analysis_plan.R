@@ -49,9 +49,16 @@ analysis_plan <- list(
     name = diversity_results,
     command = {
       diversity_models |>
-        filter(bioclim %in% c("lat", "anntemp", "temprange")) |>
+        filter(bioclim %in% c("elev", "anntemp", "temprange")) |> 
+        rowwise() |>
         mutate(
-          result = map(model, broom.mixed::tidy)
+          result = list({
+            if(!is.null(model)) {
+              broom.mixed::tidy(model)
+            } else {
+              NULL
+            }
+          })
         ) |>
         select(diversity_index, bioclim, result) |>
         unnest(result)
@@ -88,9 +95,16 @@ analysis_plan <- list(
     name = trait_results,
     command = {
       trait_models |>
-        filter(bioclim %in% c("lat", "anntemp", "temprange")) |>
+        filter(bioclim %in% c("elev", "anntemp", "temprange")) |>
+        rowwise() |>
         mutate(
-          result = map(model, broom.mixed::tidy)
+          result = list({
+            if(!is.null(model)) {
+              broom.mixed::tidy(model)
+            } else {
+              NULL
+            }
+          })
         ) |>
         select(trait_trans, bioclim, result) |>
         unnest(result)
