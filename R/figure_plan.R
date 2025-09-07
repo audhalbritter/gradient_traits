@@ -1,12 +1,5 @@
 figure_plan <- list(
 
-
-  # bioclim correlation plot
-  tar_target(
-    name = bioclim_correlation_fig,
-    command = make_bioclim_correlation_plot(bioclim)
-  ),
-
   # trait ordination
   tar_target(
     name = trait_pca_fig,
