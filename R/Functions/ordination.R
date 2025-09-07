@@ -5,25 +5,35 @@ make_trait_pca <- function(trait_mean){
 
   set.seed(32)
 
-  # make wide trait table
+  # Filter trait data and pivot to wide format
   cwm_fat <- trait_mean %>%
-    # remove nutrient ratio traits, because correlated with c, n, and p content
-    filter(!trait_trans %in% c("cn_ratio", "np_ratio")) |>
-    group_by(country, ecosystem) %>%
-    mutate(annual_temperature = mean(annual_temperature)) %>%
-    select(country:mean, annual_temperature) %>%
+    filter(!trait_trans %in% c("cn_ratio", "np_ratio")) %>%
+    select(country:mean) %>%
     pivot_wider(names_from = "trait_trans", values_from = "mean") %>%
-    # Only filter for plant_height_cm_log if the column exists
-    {if("plant_height_cm_log" %in% names(.)) filter(., !is.na(plant_height_cm_log)) else .} |>
     ungroup()
-
-  pca_output <- cwm_fat %>%
-    select(-(country:annual_temperature)) %>%
+  
+  # Get trait columns (exclude metadata)
+  trait_cols <- cwm_fat %>%
+    select(-c(country, region, gradient, site, plot_id, elevation_m, latitude_n, longitude_e, ecosystem)) %>%
+    names()
+  
+  # Check for missing values in trait columns only
+  trait_data <- cwm_fat %>%
+    select(all_of(trait_cols))
+  
+  # Remove rows with any missing trait values
+  complete_rows <- complete.cases(trait_data)
+  
+  if (sum(complete_rows) < 3) {
+    stop("Not enough complete cases for PCA (need at least 3, have ", sum(complete_rows), ")")
+  }
+  
+  pca_output <- trait_data[complete_rows, ] %>%
     rda(scale = TRUE, center = TRUE)
 
   pca_sites <- bind_cols(
-    cwm_fat %>%
-      select(country:annual_temperature),
+    cwm_fat[complete_rows, ] %>%
+      select(country:ecosystem),
     fortify(pca_output, display = "sites")
   )
 
@@ -31,11 +41,6 @@ make_trait_pca <- function(trait_mean){
   pca_traits <- fortify(pca_output, display = "species") %>%
     mutate(trait_trans = label) %>%
     fancy_trait_name_dictionary() |>
-    # mutate(figure_names = str_remove(figure_names, "Size~-~|LES~-~|I~-~"),
-    #        figure_names = str_extract(figure_names, "[^~]+"),
-    #        figure_names = recode(figure_names,
-    #                                  "δ^{13}" = "δ^{13}~C",
-    #                                  "δ^{15}" = "δ^{15}~N")) |>
     mutate(class = as.character(class),
            class = factor(class, levels = c("Size", "Leaf economics", "Isotopes", "Environment")))
 
