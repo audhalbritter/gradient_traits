@@ -1,0 +1,200 @@
+---
+title: "Methods: Google Earth Engine Data Extraction"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    theme: cosmo
+  pdf:
+    toc: true
+    toc-depth: 3
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+# Google Earth Engine Data Extraction Methods
+
+This document describes the methods used to extract climate and vegetation data from Google Earth Engine (GEE) for the PFTC gradient traits analysis.
+
+## Overview
+
+We extracted several climate and vegetation metrics from GEE to complement existing WorldClim and CHELSA bioclimatic data. The GEE data provides higher temporal resolution and site-specific growing season metrics that are not available in traditional bioclimatic datasets.
+
+## Authentication and Setup
+
+Google Earth Engine authentication is handled outside the `targets` pipeline in `run.R` to allow for interactive authentication. Within the pipeline, each GEE target initializes GEE using cached credentials:
+
+```r
+rgee::ee_Initialize(drive = FALSE, gcs = FALSE)
+```
+
+## Datasets and Variables
+
+### 1. Vegetation Phenology (Growing Season Window)
+
+**Dataset**: `NOAA/VIIRS/001/VNP22Q2`  
+**Resolution**: ~500 m  
+**Temporal Coverage**: 2012–present  
+**Source**: [NOAA VIIRS Vegetation Phenology](https://developers.google.com/earth-engine/datasets/catalog/NOAA_VIIRS_001_VNP22Q2)
+
+**Variables Extracted**:
+- `Onset_Greenness_Increase_1`: Day of year (DOY) when vegetation greenness starts increasing
+- `Onset_Greenness_Decrease_1`: Day of year (DOY) when vegetation greenness starts decreasing
+- `Growing_Season_Length_1`: Direct growing season length in days (when available)
+
+**Processing**:
+- Median composite over 2018–2023 to derive stable growing season windows
+- Growing season length calculated as: `Onset_Greenness_Decrease_1 - Onset_Greenness_Increase_1`
+- Approximate months derived: `floor((DOY - 1)/30.5) + 1`
+
+**Target**: `gee_gs_window`
+
+### 2. Land Surface Temperature
+
+**Dataset**: `MODIS/006/MOD11A2`  
+**Resolution**: 1 km  
+**Temporal Resolution**: 8-day composites  
+**Temporal Coverage**: 2000–present  
+**Source**: [MODIS Land Surface Temperature](https://developers.google.com/earth-engine/datasets/catalog/MODIS_006_MOD11A2)
+
+**Variables Extracted**:
+- `LST_Day_1km`: Daytime land surface temperature (Kelvin, scale factor 0.02)
+- `LST_Night_1km`: Nighttime land surface temperature (Kelvin, scale factor 0.02)
+
+**Processing**:
+- Limited to 2020 to stay within GEE's 5,000-element transfer limit
+- Temperature conversion: `°C = (value × 0.02) - 273.15`
+- Growing season metrics calculated by filtering 8-day composites within site-specific growing season windows
+
+**Derived Variables**:
+- `growing_season_temperature`: Mean of `(LST_Day + LST_Night)/2` across growing season
+- `growing_season_diurnal_range`: Mean of `(LST_Day - LST_Night)` across growing season
+
+**Targets**: `gee_modis_lst_timeseries`, `gee_gs_temp_diurnal`
+
+### 3. Potential Evapotranspiration
+
+**Dataset**: `MODIS/006/MOD16A2`  
+**Resolution**: 500 m  
+**Temporal Resolution**: 8-day composites  
+**Temporal Coverage**: 2000–present  
+**Source**: [MODIS Evapotranspiration](https://developers.google.com/earth-engine/datasets/catalog/MODIS_006_MOD16A2)
+
+**Variables Extracted**:
+- `PET`: Potential evapotranspiration (mm per 8-day period)
+
+**Processing**:
+- Limited to 2020 to stay within GEE's 5,000-element transfer limit
+- Growing season PET calculated as sum of 8-day PET values within site-specific growing season windows
+
+**Derived Variables**:
+- `potential_evapotranspiration`: Sum of PET across growing season window
+
+**Targets**: `gee_modis_pet_timeseries`, `gee_gs_pet`
+
+### 4. Site Elevation
+
+**Dataset**: `NASA/NASADEM_HGT/001` (primary), `USGS/SRTMGL1_003` (fallback)  
+**Resolution**: 30 m  
+**Source**: [NASADEM](https://developers.google.com/earth-engine/datasets/catalog/NASA_NASADEM_HGT_001), [SRTM](https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003)
+
+**Variables Extracted**:
+- `elevation`: Elevation in meters above sea level
+
+**Processing**:
+- NASADEM preferred, with automatic fallback to SRTM if unavailable
+- Extracted at exact site coordinates using 30m scale
+
+**Target**: `gee_elevation`
+
+## Data Processing Pipeline
+
+### 1. Coordinate Preparation
+All targets start by extracting unique coordinates from `all_coordinates`:
+
+```r
+coords_all <- all_coordinates |>
+  dplyr::distinct(longitude_e, latitude_n) |>
+  dplyr::filter(!is.na(longitude_e), !is.na(latitude_n))
+```
+
+### 2. Point Feature Creation
+Coordinates are converted to GEE FeatureCollection:
+
+```r
+pts <- rgee::ee$FeatureCollection(
+  purrr::map2(coords_all$longitude_e, coords_all$latitude_n, function(lon, lat) {
+    rgee::ee$Feature(rgee::ee$Geometry$Point(c(lon, lat)), 
+                     list(longitude_e = lon, latitude_n = lat))
+  })
+)
+```
+
+### 3. Data Extraction
+Values are extracted using `sampleRegions()` with appropriate scales:
+- Phenology: 500m scale
+- LST: 1000m scale  
+- PET: 500m scale
+- Elevation: 30m scale
+
+### 4. Error Handling
+All targets include robust error handling:
+- Null property checks
+- Empty result handling
+- Graceful fallbacks for missing data
+
+### 5. Data Cleaning and Joining
+- Raw GEE data converted to data frames
+- Joined with `all_coordinates` to restore site metadata
+- Invalid values cleaned (e.g., negative growing season lengths)
+
+## Limitations and Considerations
+
+### Transfer Limits
+- GEE has a 5,000-element client transfer limit
+- MODIS time series limited to single year (2020) to stay under this limit
+- Multi-year extraction requires alternative approaches (TODO: `gee_pet_multi_year`)
+
+### Data Availability
+- Some MODIS collections are deprecated but still functional
+- Svalbard coordinates may have limited coverage in some datasets
+- Growing season windows may not be available for all sites
+
+### Temporal Resolution
+- 8-day composites provide good temporal resolution for growing season analysis
+- Single-year limitation means temporal trends cannot be analyzed
+- Phenology data provides stable multi-year growing season windows
+
+## Quality Control
+
+### Data Validation
+- Coordinate matching between GEE extraction and original coordinates
+- Range checks for derived variables (e.g., growing season length 0-365 days)
+- Missing data handling and reporting
+
+### Comparison with Existing Data
+- GEE growing season length compared with CHELSA equivalent (`gee_chelsa_gsl_comparison`)
+- Elevation values compared with WorldClim data
+- Cross-validation of derived metrics
+
+## Future Improvements
+
+1. **Multi-year extraction**: Implement chunked processing for multi-year MODIS data
+2. **Global elevation background**: Replace WorldClim elevation with GEE global elevation raster
+3. **Additional variables**: Extract growing season precipitation, vapor pressure deficit
+4. **Higher resolution**: Consider newer MODIS collections (MOD21A2) when available
+5. **Automated updates**: Implement periodic re-extraction for new data
+
+## Code Organization
+
+All GEE extraction code is organized in `R/gee_plan.R` with the following structure:
+
+- **Authentication**: Handled in `run.R` for interactive sessions
+- **Individual targets**: Each dataset has dedicated extraction targets
+- **Derived targets**: Growing season metrics computed from time series data
+- **Comparison targets**: Cross-validation with existing datasets
+
+The pipeline ensures reproducible extraction while handling GEE's specific requirements and limitations.
