@@ -22,23 +22,47 @@ figure_plan <- list(
     name = diversity_lat_fig,
     command = diversity_predictions |>
         unnest(prediction) |>
+        make_diversity_predictor_plot(predictor = "lat", x_label = "Latitude (°N)")
+  ),
+
+  # diversity vs elevation plot
+  tar_target(
+    name = diversity_elev_fig,
+    command = diversity_predictions |>
+        unnest(prediction) |>
         make_diversity_predictor_plot(predictor = "elev", x_label = "Elevation (m a.s.l.)")
   ),
 
-  # diversity vs annual temperature plot
+  # diversity vs growing season length plot
   tar_target(
-    name = diversity_anntemp_fig,
+    name = diversity_gsl_fig,
     command = diversity_predictions |>
         unnest(prediction) |>
-        make_diversity_predictor_plot(predictor = "anntemp", x_label = "Annual Temperature (°C)")
+        make_diversity_predictor_plot(predictor = "gsl", x_label = "Growing Season Length (days)")
   ),
 
-  # diversity vs temperature range plot
+  # diversity vs growing season temperature plot
   tar_target(
-    name = diversity_temprange_fig,
+    name = diversity_gst_fig,
     command = diversity_predictions |>
         unnest(prediction) |>
-        make_diversity_predictor_plot(predictor = "temprange", x_label = "Temperature Annual Range (°C)")
+        make_diversity_predictor_plot(predictor = "gst", x_label = "Growing Season Temperature (°C)")
+  ),
+
+  # diversity vs potential evapotranspiration plot
+  tar_target(
+    name = diversity_pet_fig,
+    command = diversity_predictions |>
+        unnest(prediction) |>
+        make_diversity_predictor_plot(predictor = "pet", x_label = "Potential Evapotranspiration (mm/month)")
+  ),
+
+  # diversity vs diurnal range plot
+  tar_target(
+    name = diversity_diurnal_fig,
+    command = diversity_predictions |>
+        unnest(prediction) |>
+        make_diversity_predictor_plot(predictor = "diurnal", x_label = "Mean Diurnal Range (°C)")
   ),
 
   # world map of regions
@@ -52,21 +76,42 @@ figure_plan <- list(
     name = trait_lat_fig,
     command = trait_predictions |>
         unnest(prediction) |>
+        make_trait_predictor_plot(predictor = "lat", x_label = "Latitude (°N)")
+  ),
+
+  tar_target(
+    name = trait_elev_fig,
+    command = trait_predictions |>
+        unnest(prediction) |>
         make_trait_predictor_plot(predictor = "elev", x_label = "Elevation (m a.s.l.)")
   ),
 
   tar_target(
-    name = trait_anntemp_fig,
+    name = trait_gsl_fig,
     command = trait_predictions |>
         unnest(prediction) |>
-        make_trait_predictor_plot(predictor = "anntemp", x_label = "Annual Temperature (°C)")
+        make_trait_predictor_plot(predictor = "gsl", x_label = "Growing Season Length (days)")
   ),
 
   tar_target(
-    name = trait_temprange_fig,
+    name = trait_gst_fig,
     command = trait_predictions |>
         unnest(prediction) |>
-        make_trait_predictor_plot(predictor = "temprange", x_label = "Temperature Annual Range (°C)")
+        make_trait_predictor_plot(predictor = "gst", x_label = "Growing Season Temperature (°C)")
+  ),
+
+  tar_target(
+    name = trait_pet_fig,
+    command = trait_predictions |>
+        unnest(prediction) |>
+        make_trait_predictor_plot(predictor = "pet", x_label = "Potential Evapotranspiration (mm/month)")
+  ),
+
+  tar_target(
+    name = trait_diurnal_fig,
+    command = trait_predictions |>
+        unnest(prediction) |>
+        make_trait_predictor_plot(predictor = "diurnal", x_label = "Mean Diurnal Range (°C)")
   ),
 
   # CHELSA bioclim+ density plots by region

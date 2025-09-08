@@ -67,9 +67,12 @@ make_diversity_predictor_plot <- function(data, predictor, x_label) {
   
   # Map bioclim identifier to actual column name
   predictor_col <- case_when(
+    predictor == "lat" ~ "latitude_n",
     predictor == "elev" ~ "elevation_m",
-    predictor == "anntemp" ~ "annual_temperature",
-    predictor == "temprange" ~ "temperature_annual_range",
+    predictor == "gsl" ~ "growing_season_length",
+    predictor == "gst" ~ "growing_season_temperature",
+    predictor == "pet" ~ "potential_evapotranspiration",
+    predictor == "diurnal" ~ "mean_diurnal_range_chelsa",
     TRUE ~ predictor
   )
   
@@ -96,18 +99,31 @@ make_diversity_predictor_plot <- function(data, predictor, x_label) {
     stop("No diversity_index values found in filtered data")
   }
   
+  # Create prediction line data
+  x_range <- range(filtered_data[[predictor_col]], na.rm = TRUE)
+  x_seq <- seq(x_range[1], x_range[2], length.out = 100)
+  
+  # Get the model from the data (assuming all models are the same for this predictor)
+  model_obj <- filtered_data$model[[1]]
+  
+  # Create new data for prediction
+  new_data <- data.frame(x = x_seq)
+  names(new_data) <- predictor_col
+  
+  # Make predictions (fixed effects only)
+  pred_values <- predict(model_obj, newdata = new_data, re.form = NA)
+  
+  # Create prediction line data frame
+  prediction_line <- data.frame(x = x_seq, y = pred_values)
+  names(prediction_line) <- c(predictor_col, "fitted")
+  
   # Create the plot using modern ggplot2 syntax
   ggplot(filtered_data, aes(x = .data[[predictor_col]], y = value, color = region)) +
     # Add points for each plot
     geom_point(alpha = 0.6, size = 2) +
-    # Add prediction lines - different approach for interaction models
-    {if (predictor == "elev") {
-      # For elevation model (with interaction), show separate lines per region
-      geom_line(aes(y = .fixed, group = region, color = region), size = 1, alpha = 0.8)
-    } else {
-      # For other models (no interaction), show single overall line
-      geom_line(aes(y = .fixed, group = 1), size = 1, color = "grey40")
-    }} +
+    # Add prediction line from lmer model
+    geom_line(data = prediction_line, aes(x = .data[[predictor_col]], y = fitted), 
+              linewidth = 1, color = "grey40") +
     # Add confidence intervals (if they exist)
     {if (all(c(".conf.low", ".conf.high") %in% names(filtered_data))) {
       geom_ribbon(aes(ymin = .conf.low, ymax = .conf.high, fill = region), 
@@ -141,9 +157,12 @@ make_trait_predictor_plot <- function(data, predictor, x_label) {
   
   # Map bioclim identifier to actual column name
   predictor_col <- case_when(
+    predictor == "lat" ~ "latitude_n",
     predictor == "elev" ~ "elevation_m",
-    predictor == "anntemp" ~ "annual_temperature",
-    predictor == "temprange" ~ "temperature_annual_range",
+    predictor == "gsl" ~ "growing_season_length",
+    predictor == "gst" ~ "growing_season_temperature",
+    predictor == "pet" ~ "potential_evapotranspiration",
+    predictor == "diurnal" ~ "mean_diurnal_range_chelsa",
     TRUE ~ predictor
   )
   
@@ -170,18 +189,31 @@ make_trait_predictor_plot <- function(data, predictor, x_label) {
     stop("No trait_trans values found in filtered data")
   }
   
+  # Create prediction line data
+  x_range <- range(filtered_data[[predictor_col]], na.rm = TRUE)
+  x_seq <- seq(x_range[1], x_range[2], length.out = 100)
+  
+  # Get the model from the data (assuming all models are the same for this predictor)
+  model_obj <- filtered_data$model[[1]]
+  
+  # Create new data for prediction
+  new_data <- data.frame(x = x_seq)
+  names(new_data) <- predictor_col
+  
+  # Make predictions (fixed effects only)
+  pred_values <- predict(model_obj, newdata = new_data, re.form = NA)
+  
+  # Create prediction line data frame
+  prediction_line <- data.frame(x = x_seq, y = pred_values)
+  names(prediction_line) <- c(predictor_col, "fitted")
+  
   # Create the plot using modern ggplot2 syntax
   ggplot(filtered_data, aes(x = .data[[predictor_col]], y = mean, color = region)) +
     # Add points for each plot
     geom_point(alpha = 0.6, size = 2) +
-    # Add prediction lines - different approach for interaction models
-    {if (predictor == "elev") {
-      # For elevation model (with interaction), show separate lines per region
-      geom_line(aes(y = .fixed, group = region, color = region), size = 1, alpha = 0.8)
-    } else {
-      # For other models (no interaction), show single overall line
-      geom_line(aes(y = .fixed, group = 1), size = 1, color = "grey40")
-    }} +
+    # Add prediction line from lmer model
+    geom_line(data = prediction_line, aes(x = .data[[predictor_col]], y = fitted), 
+              linewidth = 1, color = "grey40") +
     # Add confidence intervals (if they exist)
     {if (all(c(".conf.low", ".conf.high") %in% names(filtered_data))) {
       geom_ribbon(aes(ymin = .conf.low, ymax = .conf.high, fill = region), 

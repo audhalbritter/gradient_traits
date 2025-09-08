@@ -39,7 +39,7 @@ analysis_plan <- list(
     name = diversity_results,
     command = {
       diversity_models |>
-        filter(bioclim %in% c("elev", "anntemp", "temprange")) |> 
+        filter(bioclim %in% c("lat", "elev", "gsl", "gst", "pet", "diurnal")) |> 
         rowwise() |>
         mutate(
           result = list({
@@ -85,7 +85,7 @@ analysis_plan <- list(
     name = trait_results,
     command = {
       trait_models |>
-        filter(bioclim %in% c("elev", "anntemp", "temprange")) |>
+        filter(bioclim %in% c("lat", "elev", "gsl", "gst", "pet", "diurnal")) |>
         rowwise() |>
         mutate(
           result = list({
