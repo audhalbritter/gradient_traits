@@ -5,25 +5,35 @@ make_trait_pca <- function(trait_mean){
 
   set.seed(32)
 
-  # make wide trait table
+  # Filter trait data and pivot to wide format
   cwm_fat <- trait_mean %>%
-    # remove nutrient ratio traits, because correlated with c, n, and p content
-    filter(!trait_trans %in% c("cn_ratio", "np_ratio")) |>
-    group_by(country, ecosystem) %>%
-    mutate(annual_temperature = mean(annual_temperature)) %>%
-    select(country:mean, annual_temperature) %>%
+    filter(!trait_trans %in% c("cn_ratio", "np_ratio")) %>%
+    select(country:mean) %>%
     pivot_wider(names_from = "trait_trans", values_from = "mean") %>%
-    # Only filter for plant_height_cm_log if the column exists
-    {if("plant_height_cm_log" %in% names(.)) filter(., !is.na(plant_height_cm_log)) else .} |>
     ungroup()
-
-  pca_output <- cwm_fat %>%
-    select(-(country:annual_temperature)) %>%
+  
+  # Get trait columns (exclude metadata)
+  trait_cols <- cwm_fat %>%
+    select(-c(country, region, gradient, site, plot_id, elevation_m, latitude_n, longitude_e, ecosystem)) %>%
+    names()
+  
+  # Check for missing values in trait columns only
+  trait_data <- cwm_fat %>%
+    select(all_of(trait_cols))
+  
+  # Remove rows with any missing trait values
+  complete_rows <- complete.cases(trait_data)
+  
+  if (sum(complete_rows) < 3) {
+    stop("Not enough complete cases for PCA (need at least 3, have ", sum(complete_rows), ")")
+  }
+  
+  pca_output <- trait_data[complete_rows, ] %>%
     rda(scale = TRUE, center = TRUE)
 
   pca_sites <- bind_cols(
-    cwm_fat %>%
-      select(country:annual_temperature),
+    cwm_fat[complete_rows, ] %>%
+      select(country:ecosystem),
     fortify(pca_output, display = "sites")
   )
 
@@ -31,11 +41,6 @@ make_trait_pca <- function(trait_mean){
   pca_traits <- fortify(pca_output, display = "species") %>%
     mutate(trait_trans = label) %>%
     fancy_trait_name_dictionary() |>
-    # mutate(figure_names = str_remove(figure_names, "Size~-~|LES~-~|I~-~"),
-    #        figure_names = str_extract(figure_names, "[^~]+"),
-    #        figure_names = recode(figure_names,
-    #                                  "δ^{13}" = "δ^{13}~C",
-    #                                  "δ^{15}" = "δ^{15}~N")) |>
     mutate(class = as.character(class),
            class = factor(class, levels = c("Size", "Leaf economics", "Isotopes", "Environment")))
 
@@ -83,72 +88,6 @@ make_pca_plot <- function(trait_pca){
               size = 2.5,
               inherit.aes = FALSE,
               show.legend = FALSE, parse = TRUE) +
-    scale_colour_manual(values = create_region_color_mapping(), drop = FALSE) +
-    scale_linetype_manual(name = "", values = c("solid", "dashed", "dotted")) +
-    labs(x = glue("PCA1 ({round(e_B[1] * 100, 1)}%)"),
-         y = glue("PCA2 ({round(e_B[2] * 100, 1)}%)"),
-         colour = "Region") +
-    theme_bw()
-
-}
-
-## BIOCLIM (PCA)
-make_bioclim_pca <- function(bioclim){
-
-  set.seed(32)
-
-  # run PCA on bioclim variables only
-  bioclim_vars <- bioclim |>
-    select(-c(country:plot_id, longitude_e, ecosystem, ID))
-
-  pca_output <- bioclim_vars %>%
-    rda(scale = TRUE, center = TRUE)
-
-  # extract site scores
-  pca_sites <- bind_cols(
-    bioclim %>%
-      select(country:plot_id, longitude_e, ecosystem, ID),
-    fortify(pca_output, display = "sites")
-  )
-
-  # extract variable scores (arrows)
-  pca_vars <- fortify(pca_output, display = "species") %>%
-    mutate(variable = label) %>%
-    # create variable categories for plotting
-    mutate(
-      var_category = case_when(
-        str_detect(variable, "temperature|temp") ~ "Temperature",
-        str_detect(variable, "precipitation|precip") ~ "Precipitation",
-        TRUE ~ "Other"
-      ),
-      var_category = factor(var_category, levels = c("Temperature", "Precipitation", "Other"))
-    )
-
-  outputList <- list(pca_sites, pca_vars, pca_output)
-
-  return(outputList)
-}
-
-make_bioclim_pca_plot <- function(bioclim_pca){
-
-  # eigenvalues
-  e_B <- eigenvals(bioclim_pca[[3]])/sum(eigenvals(bioclim_pca[[3]]))
-
-  bioclim_pca[[1]] %>% 
-    ggplot(aes(x = PC1, y = PC2, colour = region)) +
-    geom_point(size = 2) +
-    coord_equal() +
-    stat_ellipse(aes(group = region)) +
-    geom_segment(data = bioclim_pca[[2]],
-                 aes(x = 0, y = 0, xend = PC1, yend = PC2, linetype = var_category),
-                 colour = "grey40",
-                 arrow = arrow(length = unit(0.2, "cm")),
-                 inherit.aes = FALSE) +
-    geom_text(data = bioclim_pca[[2]],
-              aes(x = PC1 + 0.1, y = PC2 + 0.1, label = variable),
-              size = 2.5,
-              inherit.aes = FALSE,
-              show.legend = FALSE) +
     scale_colour_manual(values = create_region_color_mapping(), drop = FALSE) +
     scale_linetype_manual(name = "", values = c("solid", "dashed", "dotted")) +
     labs(x = glue("PCA1 ({round(e_B[1] * 100, 1)}%)"),

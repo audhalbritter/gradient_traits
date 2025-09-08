@@ -18,111 +18,52 @@ create_region_color_mapping <- function() {
 
 ## WORLD MAP OF REGIONS
 make_region_world_map <- function(coords) {
-  # Download/cache WorldClim elevation data (10 arc-minutes resolution) to project cache
+  # Elevation raster background from WorldClim (10 arc-min)
   cache_path <- file.path("WorldClimData")
   if (!dir.exists(cache_path)) dir.create(cache_path, recursive = TRUE)
   elev_raster <- geodata::worldclim_global(var = "elev", res = 10, path = cache_path)
-  
-  # Convert raster to data frame for ggplot
   elev_df <- as.data.frame(elev_raster, xy = TRUE, na.rm = TRUE)
   names(elev_df) <- c("lon", "lat", "elev")
-  
+
   # World polygons
   world <- ggplot2::map_data("world")
 
-  # Region order/colors
+  # Harmonize region labels to match palette (ensure Svalbard appears)
   coords <- coords |>
-    dplyr::mutate(region = factor(region,
-      levels = c("Svalbard","Southern Scandes","Rocky Mountains",
-                 "Eastern Himalaya","Central Andes","Drakensberg")
-    ))
+    dplyr::mutate(
+      region_label = dplyr::case_when(
+        region %in% c("sv", "Svalbard") ~ "Svalbard",
+        region %in% c("no", "Southern Scandes") ~ "Southern Scandes",
+        region %in% c("co", "Rocky Mountains") ~ "Rocky Mountains",
+        region %in% c("ch", "Eastern Himalaya") ~ "Eastern Himalaya",
+        region %in% c("pe", "Central Andes") ~ "Central Andes",
+        region %in% c("sa", "Drakensberg") ~ "Drakensberg",
+        TRUE ~ as.character(region)
+      ),
+      region_label = factor(region_label,
+        levels = c("Svalbard","Southern Scandes","Rocky Mountains",
+                   "Eastern Himalaya","Central Andes","Drakensberg")
+      )
+    )
 
   ggplot2::ggplot() +
     # Elevation background (as raster)
     ggplot2::geom_raster(data = elev_df, ggplot2::aes(lon, lat, fill = elev)) +
-    ggplot2::scale_fill_gradientn(
-      colors = c("grey20", "grey40", "grey60", "grey80", "white"),
-      name = "Elevation (m)"
-    ) +
-    # Land polygons
-    ggplot2::geom_polygon(
-      data = world, ggplot2::aes(long, lat, group = group),
-      fill = NA, color = "grey70", linewidth = 0.2
-    ) +
+    ggplot2::scale_fill_gradientn(colors = c("grey40","grey50","grey60","grey70","white"), name = "Elevation (m)") +
+    # Land outlines
+    ggplot2::geom_polygon(data = world, ggplot2::aes(long, lat, group = group), 
+                          fill = NA, color = "grey70", linewidth = 0.2) +
     # Region points
     ggplot2::geom_point(
-      data = dplyr::distinct(coords, region, site, longitude_e, latitude_n),
-      ggplot2::aes(x = longitude_e, y = latitude_n, color = region),
+      data = dplyr::distinct(coords, region_label, site, longitude_e, latitude_n),
+      ggplot2::aes(x = longitude_e, y = latitude_n, color = region_label),
       alpha = 0.9, size = 3
     ) +
-    ggplot2::scale_color_manual(values = create_region_color_mapping(), drop = FALSE) +
+    ggplot2::scale_color_manual(values = create_region_color_mapping(), drop = FALSE, name = "Region") +
     ggplot2::coord_quickmap() +
     ggplot2::theme_bw() +
-    ggplot2::theme(panel.grid = ggplot2::element_blank()) +
-    ggplot2::labs(x = "Longitude", y = "Latitude", color = "Region")
-}
-
-## BIOCLIM CORRELATION PLOT
-make_bioclim_correlation_plot <- function(bioclim){
-
-  # prepare bioclim data for correlation analysis
-  bioclim_corr_data <- bioclim |>
-    select(-(country:ID))
-
-  # calculate correlation matrix
-  cor_matrix <- cor(bioclim_corr_data, use = "pairwise.complete.obs")
-
-  # convert to long format for plotting
-  cor_long <- as.data.frame(cor_matrix) |>
-    rownames_to_column("var1") |>
-    pivot_longer(cols = -var1, names_to = "var2", values_to = "correlation") |>
-    # create variable categories for coloring
-    mutate(
-      var1_category = case_when(
-        str_detect(var1, "temperature|temp") ~ "Temperature",
-        str_detect(var1, "precipitation|precip") ~ "Precipitation",
-        TRUE ~ "Other"
-      ),
-      var2_category = case_when(
-        str_detect(var2, "temperature|temp") ~ "Precipitation",
-        TRUE ~ "Other"
-      ),
-      # create combined category for coloring
-      combined_category = case_when(
-        var1_category == var2_category ~ var1_category,
-        TRUE ~ "Mixed"
-      ),
-      combined_category = factor(combined_category, 
-                               levels = c("Temperature", "Precipitation", "Mixed", "Other"))
-    )
-
-  # create correlation plot
-  output <- ggplot(cor_long, aes(x = var1, y = var2, fill = correlation)) +
-    geom_tile() +
-    # add correlation values as text
-    geom_text(aes(label = round(correlation, 2)), 
-              size = 2.5, 
-              color = ifelse(abs(cor_long$correlation) > 0.7, "white", "black")) +
-    # color scale
-    scale_fill_gradient2(
-      low = "#d73027", 
-      mid = "white", 
-      high = "#1f78b4",
-      midpoint = 0,
-      limits = c(-1, 1),
-      name = "Correlation"
-    ) +
-    # theme
-    theme_minimal() +
-    theme(
-      axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
-      axis.text.y = element_text(size = 8),
-      axis.title = element_blank(),
-      panel.grid = element_blank(),
-      legend.position = "right"
-    ) +
-    labs(title = "Bioclimatic Variables Correlation Matrix")
-
+    ggplot2::theme(panel.grid = ggplot2::element_blank(), legend.position = "top", legend.box = "horizontal") +
+    ggplot2::labs(x = "Longitude", y = "Latitude")
 }
 
 ## DIVERSITY VS PREDICTOR PLOT
@@ -130,9 +71,12 @@ make_diversity_predictor_plot <- function(data, predictor, x_label) {
   
   # Map bioclim identifier to actual column name
   predictor_col <- case_when(
+    predictor == "lat" ~ "latitude_n",
     predictor == "elev" ~ "elevation_m",
-    predictor == "anntemp" ~ "annual_temperature",
-    predictor == "temprange" ~ "temperature_annual_range",
+    predictor == "gsl" ~ "growing_season_length",
+    predictor == "gst" ~ "growing_season_temperature",
+    predictor == "pet" ~ "potential_evapotranspiration",
+    predictor == "diurnal" ~ "mean_diurnal_range_chelsa",
     TRUE ~ predictor
   )
   
@@ -159,18 +103,31 @@ make_diversity_predictor_plot <- function(data, predictor, x_label) {
     stop("No diversity_index values found in filtered data")
   }
   
+  # Create prediction line data
+  x_range <- range(filtered_data[[predictor_col]], na.rm = TRUE)
+  x_seq <- seq(x_range[1], x_range[2], length.out = 100)
+  
+  # Get the model from the data (assuming all models are the same for this predictor)
+  model_obj <- filtered_data$model[[1]]
+  
+  # Create new data for prediction
+  new_data <- data.frame(x = x_seq)
+  names(new_data) <- predictor_col
+  
+  # Make predictions (fixed effects only)
+  pred_values <- predict(model_obj, newdata = new_data, re.form = NA)
+  
+  # Create prediction line data frame
+  prediction_line <- data.frame(x = x_seq, y = pred_values)
+  names(prediction_line) <- c(predictor_col, "fitted")
+  
   # Create the plot using modern ggplot2 syntax
   ggplot(filtered_data, aes(x = .data[[predictor_col]], y = value, color = region)) +
     # Add points for each plot
     geom_point(alpha = 0.6, size = 2) +
-    # Add prediction lines - different approach for interaction models
-    {if (predictor == "elev") {
-      # For elevation model (with interaction), show separate lines per region
-      geom_line(aes(y = .fixed, group = region, color = region), size = 1, alpha = 0.8)
-    } else {
-      # For other models (no interaction), show single overall line
-      geom_line(aes(y = .fixed, group = 1), size = 1, color = "grey40")
-    }} +
+    # Add prediction line from lmer model
+    geom_line(data = prediction_line, aes(x = .data[[predictor_col]], y = fitted), 
+              linewidth = 1, color = "grey40") +
     # Add confidence intervals (if they exist)
     {if (all(c(".conf.low", ".conf.high") %in% names(filtered_data))) {
       geom_ribbon(aes(ymin = .conf.low, ymax = .conf.high, fill = region), 
@@ -204,9 +161,12 @@ make_trait_predictor_plot <- function(data, predictor, x_label) {
   
   # Map bioclim identifier to actual column name
   predictor_col <- case_when(
+    predictor == "lat" ~ "latitude_n",
     predictor == "elev" ~ "elevation_m",
-    predictor == "anntemp" ~ "annual_temperature",
-    predictor == "temprange" ~ "temperature_annual_range",
+    predictor == "gsl" ~ "growing_season_length",
+    predictor == "gst" ~ "growing_season_temperature",
+    predictor == "pet" ~ "potential_evapotranspiration",
+    predictor == "diurnal" ~ "mean_diurnal_range_chelsa",
     TRUE ~ predictor
   )
   
@@ -233,18 +193,31 @@ make_trait_predictor_plot <- function(data, predictor, x_label) {
     stop("No trait_trans values found in filtered data")
   }
   
+  # Create prediction line data
+  x_range <- range(filtered_data[[predictor_col]], na.rm = TRUE)
+  x_seq <- seq(x_range[1], x_range[2], length.out = 100)
+  
+  # Get the model from the data (assuming all models are the same for this predictor)
+  model_obj <- filtered_data$model[[1]]
+  
+  # Create new data for prediction
+  new_data <- data.frame(x = x_seq)
+  names(new_data) <- predictor_col
+  
+  # Make predictions (fixed effects only)
+  pred_values <- predict(model_obj, newdata = new_data, re.form = NA)
+  
+  # Create prediction line data frame
+  prediction_line <- data.frame(x = x_seq, y = pred_values)
+  names(prediction_line) <- c(predictor_col, "fitted")
+  
   # Create the plot using modern ggplot2 syntax
   ggplot(filtered_data, aes(x = .data[[predictor_col]], y = mean, color = region)) +
     # Add points for each plot
     geom_point(alpha = 0.6, size = 2) +
-    # Add prediction lines - different approach for interaction models
-    {if (predictor == "elev") {
-      # For elevation model (with interaction), show separate lines per region
-      geom_line(aes(y = .fixed, group = region, color = region), size = 1, alpha = 0.8)
-    } else {
-      # For other models (no interaction), show single overall line
-      geom_line(aes(y = .fixed, group = 1), size = 1, color = "grey40")
-    }} +
+    # Add prediction line from lmer model
+    geom_line(data = prediction_line, aes(x = .data[[predictor_col]], y = fitted), 
+              linewidth = 1, color = "grey40") +
     # Add confidence intervals (if they exist)
     {if (all(c(".conf.low", ".conf.high") %in% names(filtered_data))) {
       geom_ribbon(aes(ymin = .conf.low, ymax = .conf.high, fill = region), 

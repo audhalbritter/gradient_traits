@@ -19,16 +19,6 @@ analysis_plan <- list(
     filter(trait_trans %in% c("dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")))
   ),
 
-  # bioclim PCA using all bioclimatic variables
-  tar_target(
-    name = bioclim_pca,
-    command = make_bioclim_pca(bioclim |>
-    select(country:ID, annual_temperature,
-    annual_precipitation, precipitation_seasonality, precipitation_driest_quarter, precipitation_warmest_quarter, 
-    diurnal_range, temperature_seasonality,
-    max_temperture_warmest_month, temperature_annual_range, mean_temperture_driest_quarter))
-  ),
-
 # Run models
   # diversity models
   tar_target(
@@ -49,7 +39,7 @@ analysis_plan <- list(
     name = diversity_results,
     command = {
       diversity_models |>
-        filter(bioclim %in% c("elev", "anntemp", "temprange")) |> 
+        filter(bioclim %in% c("lat", "elev", "gsl", "gst", "pet", "diurnal")) |> 
         rowwise() |>
         mutate(
           result = list({
@@ -95,7 +85,7 @@ analysis_plan <- list(
     name = trait_results,
     command = {
       trait_models |>
-        filter(bioclim %in% c("elev", "anntemp", "temprange")) |>
+        filter(bioclim %in% c("lat", "elev", "gsl", "gst", "pet", "diurnal")) |>
         rowwise() |>
         mutate(
           result = list({
