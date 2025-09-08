@@ -18,48 +18,52 @@ create_region_color_mapping <- function() {
 
 ## WORLD MAP OF REGIONS
 make_region_world_map <- function(coords) {
-  # Download/cache WorldClim elevation data (10 arc-minutes resolution) to project cache
+  # Elevation raster background from WorldClim (10 arc-min)
   cache_path <- file.path("WorldClimData")
   if (!dir.exists(cache_path)) dir.create(cache_path, recursive = TRUE)
   elev_raster <- geodata::worldclim_global(var = "elev", res = 10, path = cache_path)
-  
-  # Convert raster to data frame for ggplot
   elev_df <- as.data.frame(elev_raster, xy = TRUE, na.rm = TRUE)
   names(elev_df) <- c("lon", "lat", "elev")
-  
+
   # World polygons
   world <- ggplot2::map_data("world")
 
-  # Region order/colors
+  # Harmonize region labels to match palette (ensure Svalbard appears)
   coords <- coords |>
-    dplyr::mutate(region = factor(region,
-      levels = c("Svalbard","Southern Scandes","Rocky Mountains",
-                 "Eastern Himalaya","Central Andes","Drakensberg")
-    ))
+    dplyr::mutate(
+      region_label = dplyr::case_when(
+        region %in% c("sv", "Svalbard") ~ "Svalbard",
+        region %in% c("no", "Southern Scandes") ~ "Southern Scandes",
+        region %in% c("co", "Rocky Mountains") ~ "Rocky Mountains",
+        region %in% c("ch", "Eastern Himalaya") ~ "Eastern Himalaya",
+        region %in% c("pe", "Central Andes") ~ "Central Andes",
+        region %in% c("sa", "Drakensberg") ~ "Drakensberg",
+        TRUE ~ as.character(region)
+      ),
+      region_label = factor(region_label,
+        levels = c("Svalbard","Southern Scandes","Rocky Mountains",
+                   "Eastern Himalaya","Central Andes","Drakensberg")
+      )
+    )
 
   ggplot2::ggplot() +
     # Elevation background (as raster)
     ggplot2::geom_raster(data = elev_df, ggplot2::aes(lon, lat, fill = elev)) +
-    ggplot2::scale_fill_gradientn(
-      colors = c("grey20", "grey40", "grey60", "grey80", "white"),
-      name = "Elevation (m)"
-    ) +
-    # Land polygons
-    ggplot2::geom_polygon(
-      data = world, ggplot2::aes(long, lat, group = group),
-      fill = NA, color = "grey70", linewidth = 0.2
-    ) +
+    ggplot2::scale_fill_gradientn(colors = c("grey40","grey50","grey60","grey70","white"), name = "Elevation (m)") +
+    # Land outlines
+    ggplot2::geom_polygon(data = world, ggplot2::aes(long, lat, group = group), 
+                          fill = NA, color = "grey70", linewidth = 0.2) +
     # Region points
     ggplot2::geom_point(
-      data = dplyr::distinct(coords, region, site, longitude_e, latitude_n),
-      ggplot2::aes(x = longitude_e, y = latitude_n, color = region),
+      data = dplyr::distinct(coords, region_label, site, longitude_e, latitude_n),
+      ggplot2::aes(x = longitude_e, y = latitude_n, color = region_label),
       alpha = 0.9, size = 3
     ) +
-    ggplot2::scale_color_manual(values = create_region_color_mapping(), drop = FALSE) +
+    ggplot2::scale_color_manual(values = create_region_color_mapping(), drop = FALSE, name = "Region") +
     ggplot2::coord_quickmap() +
     ggplot2::theme_bw() +
-    ggplot2::theme(panel.grid = ggplot2::element_blank()) +
-    ggplot2::labs(x = "Longitude", y = "Latitude", color = "Region")
+    ggplot2::theme(panel.grid = ggplot2::element_blank(), legend.position = "top", legend.box = "horizontal") +
+    ggplot2::labs(x = "Longitude", y = "Latitude")
 }
 
 ## DIVERSITY VS PREDICTOR PLOT
