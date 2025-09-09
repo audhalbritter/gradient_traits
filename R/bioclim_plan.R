@@ -77,7 +77,7 @@ bioclim_plan <- list(
       
       # Get coordinates from all_coordinates
       coords_all <- all_coordinates |>
-        distinct(longitude_e, latitude_n)
+        dplyr::distinct(longitude_e, latitude_n)
       
       if (nrow(coords_all) == 0) {
         return(NULL)
@@ -89,7 +89,7 @@ bioclim_plan <- list(
       extracted <- terra::extract(bioclim_raster, coords_df)
       
       # Combine coordinates with extracted values
-      bind_cols(coords_all, extracted)
+      dplyr::bind_cols(coords_all, extracted)
     }
   ),
 
@@ -103,7 +103,7 @@ bioclim_plan <- list(
       
       # Rename columns to match your existing bioclim format
       bioclim_all_extracted |>
-        rename(
+        dplyr::rename(
           annual_temperature = wc2.1_30s_bio_1,
           diurnal_range = wc2.1_30s_bio_2,
           isothermality = wc2.1_30s_bio_3,
@@ -127,7 +127,7 @@ bioclim_plan <- list(
         # Join back with all_coordinates to get country, site, plot_id info
         tidylog::left_join(all_coordinates, by = c("longitude_e" = "longitude_e", "latitude_n" = "latitude_n")) |>
         # Ensure proper column order
-        select(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem, everything())
+        dplyr::select(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem, dplyr::everything())
     }
   ),
 
@@ -161,7 +161,7 @@ bioclim_plan <- list(
       
       # Get coordinates from all_coordinates
       coords_all <- all_coordinates |>
-        distinct(longitude_e, latitude_n)
+        dplyr::distinct(longitude_e, latitude_n)
       
       if (nrow(coords_all) == 0) {
         cat("No coordinates found\n")
@@ -268,9 +268,9 @@ bioclim_plan <- list(
       
       # Join with all_coordinates to get site metadata
       result_final <- all_coordinates |>
-        left_join(result_cleaned, by = c("longitude_e", "latitude_n")) |>
+        dplyr::left_join(result_cleaned, by = c("longitude_e", "latitude_n")) |>
         # Rename CHELSA variables to descriptive names
-        rename_with(~ case_when(
+        dplyr::rename_with(~ dplyr::case_when(
           .x == "swb_1981" ~ "soil_water_balance",
           .x == "gsl_1981-2010" ~ "growing_season_length", 
           .x == "gsp_1981-2010" ~ "growing_season_precipitation",
@@ -281,7 +281,7 @@ bioclim_plan <- list(
           TRUE ~ .x
         )) |>
         # Reorder columns
-        select(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem, everything())
+        dplyr::select(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem, dplyr::everything())
       
       # Print summary
       var_names <- setdiff(names(result_final), c("country", "region", "gradient", "site", "plot_id", "elevation_m", "longitude_e", "latitude_n", "ecosystem"))
@@ -313,5 +313,7 @@ bioclim_plan <- list(
       return(result_final)
     }
   )
-
+  
 )
+
+
