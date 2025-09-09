@@ -2,7 +2,7 @@
 title: "Understanding community assemblage using species and functional diversity across elevational gradients from the tropics to the arctic"
 format:
     html:
-      #self-contained: true
+      self-contained: false
   # pdf:
   #   documentclass: article
 editor: visual
@@ -39,10 +39,62 @@ The following diversity indices were calculated: Shannon diversity, Shannon even
 Size traits were log transformed. Trait means and higher moments were calculated using a trait imputation and bootstrapping with traitstrap (Maitner et al. 2023).
 
 ```{r}
-#| label: study-sites-map
+#| label: tab-climate-summary
 #| echo: false
 #| warnings: false
-#| fig-height: 12
+
+library(gt)
+library(dplyr)
+
+# Load CHELSA climate data
+tar_load(chelsa_extracted)
+
+# Create summary table of climate variables by region
+climate_summary <- chelsa_extracted |>
+  group_by(region) |>
+  summarise(
+    `Growing Season Length (days)` = round(mean(growing_season_length, na.rm = TRUE), 1),
+    `Growing Season Temperature (°C)` = round(mean(growing_season_temperature, na.rm = TRUE), 1),
+    `Growing Season Precipitation (mm)` = round(mean(growing_season_precipitation, na.rm = TRUE), 1),
+    `Potential Evapotranspiration (mm)` = round(mean(potential_evapotranspiration, na.rm = TRUE), 1),
+    .groups = "drop"
+  ) |>
+  # Reorder regions from north to south
+  mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
+                                           "Eastern Himalaya", "Central Andes", "Drakensberg"))) |>
+  arrange(region)
+
+# Create nice table with gt
+climate_summary |>
+  gt() |>
+  tab_header(
+    title = "Climate Summary by Region",
+    subtitle = "Average growing season conditions across study sites"
+  ) |>
+  cols_label(
+    region = "Region"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_body(columns = everything())
+  ) |>
+  tab_options(
+    table.font.size = 12,
+    heading.title.font.size = 14,
+    heading.subtitle.font.size = 12
+  )
+
+```
+
+```{r}
+#| label: fig-study-sites-map
+#| echo: false
+#| warnings: false
+#| fig-height: 8
 
 tar_load(regions_world_map)
 regions_world_map
@@ -58,7 +110,7 @@ regions_world_map
 This figure shows diversity indices (richness, Shannon diversity, and evenness) across the elevational gradient. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: diversity-elev
+#| label: fig-diversity-elev
 #| echo: false
 #| warnings: false
 #| fig-height: 4
@@ -73,7 +125,7 @@ diversity_elev_fig
 This figure shows the multivariate trait space for a subset of traits available across all regions. The ecosystems are well separated in trait space, with clear differentiation between regions.
 
 ```{r}
-#| label: trait-pca-full
+#| label: fig-trait-pca-full
 #| echo: false
 #| warnings: false
 #| fig-height: 6
@@ -88,7 +140,7 @@ trait_pca_full_fig
 This figure shows the multivariate trait space including chemical traits. Norway is not part of this figure, because we do not have the chemical traits yet. The ecosystems are well separated in trait space, with the temperate and sub-tropic regions showing some overlap.
 
 ```{r}
-#| label: trait-pca
+#| label: fig-trait-pca
 #| echo: false
 #| warnings: false
 #| fig-height: 6
@@ -103,7 +155,7 @@ trait_pca_fig
 This figure shows functional leaf traits in relation to latitude. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: trait-elev
+#| label: fig-trait-elev
 #| echo: false
 #| warnings: false
 #| fig-height: 8
@@ -118,12 +170,12 @@ trait_elev_fig
 This figure shows functional leaf traits in relation to growing season length. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: trait-anntemp
+#| label: fig-trait-gsl
 #| echo: false
 #| warnings: false
 #| fig-height: 8
 
 tar_load(trait_gsl_fig)
-trait_anntemp_fig
+trait_gsl_fig
 
 ```
