@@ -67,77 +67,32 @@ make_region_world_map <- function(coords) {
 }
 
 ## DIVERSITY VS PREDICTOR PLOT
-make_diversity_predictor_plot <- function(data, predictor, x_label) {
+make_diversity_plot <- function(data) {
   
-  # Map bioclim identifier to actual column name
-  predictor_col <- case_when(
-    predictor == "lat" ~ "latitude_n",
-    predictor == "elev" ~ "elevation_m",
-    predictor == "gsl" ~ "growing_season_length",
-    predictor == "gst" ~ "growing_season_temperature",
-    predictor == "pet" ~ "potential_evapotranspiration",
-    predictor == "diurnal" ~ "mean_diurnal_range_chelsa",
-    TRUE ~ predictor
-  )
-  
-  # Check if predictor column exists
-  if (!predictor_col %in% names(data)) {
-    stop("Predictor column '", predictor_col, "' not found in data")
-  }
-  
-  # Filter data for the specified predictor (bioclim identifier)
-  filtered_data <- data |>
-    filter(bioclim == predictor) |>
+  # Unnest the data_with_predictions to get the combined data
+  plot_data <- data |>
+    unnest(data_with_predictions) |>
     # Ensure region is ordered consistently (north to south)
     mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
                                              "Eastern Himalaya", "Central Andes", "Drakensberg")))
   
-  
-  # Check if we have any data after filtering
-  if (nrow(filtered_data) == 0) {
-    stop("No data found after filtering for bioclim = '", predictor, "'")
-  }
-  
   # Check if diversity_index has values
-  if (length(unique(filtered_data$diversity_index)) == 0) {
-    stop("No diversity_index values found in filtered data")
+  if (length(unique(plot_data$diversity_index)) == 0) {
+    stop("No diversity_index values found in data")
   }
-  
-  # Create prediction line data
-  x_range <- range(filtered_data[[predictor_col]], na.rm = TRUE)
-  x_seq <- seq(x_range[1], x_range[2], length.out = 100)
-  
-  # Get the model from the data (assuming all models are the same for this predictor)
-  model_obj <- filtered_data$model[[1]]
-  
-  # Create new data for prediction
-  new_data <- data.frame(x = x_seq)
-  names(new_data) <- predictor_col
-  
-  # Make predictions (fixed effects only)
-  pred_values <- predict(model_obj, newdata = new_data, re.form = NA)
-  
-  # Create prediction line data frame
-  prediction_line <- data.frame(x = x_seq, y = pred_values)
-  names(prediction_line) <- c(predictor_col, "fitted")
   
   # Create the plot using modern ggplot2 syntax
-  ggplot(filtered_data, aes(x = .data[[predictor_col]], y = value, color = region)) +
+  ggplot(plot_data, aes(x = elevation_km, y = value, color = region)) +
     # Add points for each plot
     geom_point(alpha = 0.6, size = 2) +
     # Add prediction line from lmer model
-    geom_line(data = prediction_line, aes(x = .data[[predictor_col]], y = fitted), 
+    geom_line(aes(x = elevation_km, y = .fitted), 
               linewidth = 1, color = "grey40") +
-    # Add confidence intervals (if they exist)
-    {if (all(c(".conf.low", ".conf.high") %in% names(filtered_data))) {
-      geom_ribbon(aes(ymin = .conf.low, ymax = .conf.high, fill = region), 
-                  alpha = 0.2, color = NA)
-    } else {
-      NULL
-    }} +
+    # Add confidence intervals
+    geom_ribbon(aes(x = elevation_km, ymin = plo, ymax = phi), 
+                alpha = 0.2, color = NA, fill = "grey40") +
     # Use consistent color palette based on latitude
     scale_color_manual(values = create_region_color_mapping()) +
-    scale_fill_manual(values = create_region_color_mapping()) +
     # Facet by diversity index
     facet_wrap(~diversity_index, scales = "free_y", labeller = label_value) +
     # Theme
@@ -150,7 +105,7 @@ make_diversity_predictor_plot <- function(data, predictor, x_label) {
       axis.text = element_text(size = 10)
     ) +
     labs(
-      x = x_label,
+      x = "Elevation (km)",
       y = "Diversity Index Value",
       color = "Region"  # Update legend title
     )
@@ -170,71 +125,34 @@ make_trait_predictor_plot <- function(data, predictor, x_label) {
     TRUE ~ predictor
   )
   
-  # Check if predictor column exists
-  if (!predictor_col %in% names(data)) {
-    stop("Predictor column '", predictor_col, "' not found in data")
-  }
-  
-  # Filter data for the specified predictor (bioclim identifier)
+  # Unnest combined data and filter for this predictor
   filtered_data <- data |>
-    filter(bioclim == predictor) |>
+    unnest(data_with_predictions) |>
+    # Prefer filtering by mapped predictor column name to avoid label mismatches
+    filter(predictor == predictor_col) |>
     # Ensure region is ordered consistently (north to south)
     mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
                                              "Eastern Himalaya", "Central Andes", "Drakensberg")))
-  
-  
-  # Check if we have any data after filtering
+
+  # Basic checks
+  if (!predictor_col %in% names(filtered_data)) {
+    stop("Predictor column '", predictor_col, "' not found in combined data")
+  }
   if (nrow(filtered_data) == 0) {
     stop("No data found after filtering for bioclim = '", predictor, "'")
   }
-  
-  # Check if trait_trans has values
-  if (length(unique(filtered_data$trait_trans)) == 0) {
-    stop("No trait_trans values found in filtered data")
-  }
-  
-  # Create prediction line data
-  x_range <- range(filtered_data[[predictor_col]], na.rm = TRUE)
-  x_seq <- seq(x_range[1], x_range[2], length.out = 100)
-  
-  # Get the model from the data (assuming all models are the same for this predictor)
-  model_obj <- filtered_data$model[[1]]
-  
-  # Create new data for prediction
-  new_data <- data.frame(x = x_seq)
-  names(new_data) <- predictor_col
-  
-  # Make predictions (fixed effects only)
-  pred_values <- predict(model_obj, newdata = new_data, re.form = NA)
-  
-  # Create prediction line data frame
-  prediction_line <- data.frame(x = x_seq, y = pred_values)
-  names(prediction_line) <- c(predictor_col, "fitted")
-  
-  # Create the plot using modern ggplot2 syntax
+
+  # Plot with prediction line and ribbon from precomputed columns
   ggplot(filtered_data, aes(x = .data[[predictor_col]], y = mean, color = region)) +
-    # Add points for each plot
     geom_point(alpha = 0.6, size = 2) +
-    # Add prediction line from lmer model
-    geom_line(data = prediction_line, aes(x = .data[[predictor_col]], y = fitted), 
-              linewidth = 1, color = "grey40") +
-    # Add confidence intervals (if they exist)
-    {if (all(c(".conf.low", ".conf.high") %in% names(filtered_data))) {
-      geom_ribbon(aes(ymin = .conf.low, ymax = .conf.high, fill = region), 
-                  alpha = 0.2, color = NA)
-    } else {
-      NULL
-    }} +
-    # Use consistent color palette based on latitude
+    geom_line(aes(y = .fitted), linewidth = 1, color = "grey40") +
+    geom_ribbon(aes(ymin = plo, ymax = phi), alpha = 0.2, color = NA, fill = "grey40") +
     scale_color_manual(values = create_region_color_mapping()) +
-    scale_fill_manual(values = create_region_color_mapping()) +
-    # Facet by trait using figure_names for labels
     facet_wrap(~figure_names, scales = "free_y", labeller = label_parsed) +
-    # Theme
     theme_bw() +
     theme(
-      legend.position = "top",  # Move legend to top
-      legend.box = "horizontal",  # Split legend across multiple rows
+      legend.position = "top",
+      legend.box = "horizontal",
       strip.text = element_text(size = 10, face = "bold"),
       axis.title = element_text(size = 12),
       axis.text = element_text(size = 10)
@@ -242,6 +160,6 @@ make_trait_predictor_plot <- function(data, predictor, x_label) {
     labs(
       x = x_label,
       y = "Trait Value",
-      color = "Region"  # Update legend title
+      color = "Region"
     )
 }

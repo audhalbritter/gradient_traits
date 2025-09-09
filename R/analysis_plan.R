@@ -111,6 +111,21 @@ analysis_plan <- list(
               }
               return(result$result)
             }
+          ),
+          data_with_predictions = pmap(
+            list(data, prediction, predictor, model),
+            function(dat, pred, pred_col, fit){
+              if (is.null(pred)) return(NULL)
+              # Align rows with model's training data (handle na.action like in prediction)
+              if (!is.null(attr(fit@frame, "na.action"))) {
+                na_action <- attr(fit@frame, "na.action")
+                if (length(na_action) > 0) {
+                  dat <- dat[-na_action, ]
+                }
+              }
+              cols_to_drop <- intersect(names(dat), c(pred_col, "mean"))
+              dplyr::bind_cols(dplyr::select(dat, -dplyr::all_of(cols_to_drop)), pred)
+            }
           )
         )
     }
