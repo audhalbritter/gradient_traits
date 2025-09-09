@@ -121,10 +121,12 @@ make_trait_predictor_plot <- function(data, predictor, x_label) {
   predictor_col <- case_when(
     predictor == "lat" ~ "latitude_n",
     predictor == "elev" ~ "elevation_m",
-    predictor == "gsl" ~ "growing_season_length",
-    predictor == "gst" ~ "growing_season_temperature",
-    predictor == "pet" ~ "potential_evapotranspiration",
-    predictor == "diurnal" ~ "mean_diurnal_range_chelsa",
+    predictor == "gsl_gee" ~ "growing_season_length",  # GEE growing season length
+    predictor == "gsl_chelsa" ~ "gsl_1981-2010_chelsa",  # CHELSA growing season length
+    predictor == "gst_chelsa" ~ "gst_1981-2010_chelsa",  # CHELSA growing season temperature
+    predictor == "gsp_chelsa" ~ "gsp_1981-2010_chelsa",  # CHELSA growing season precipitation
+    predictor == "pet_chelsa" ~ "pet_penman_mean_1981-2010_chelsa",  # CHELSA potential evapotranspiration
+    predictor == "diurnal" ~ "bio2_1981-2010_chelsa",  # CHELSA mean diurnal range
     TRUE ~ predictor
   )
   

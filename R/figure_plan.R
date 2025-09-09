@@ -46,7 +46,7 @@ figure_plan <- list(
   tar_target(
     name = trait_gsl_fig,
     command = trait_predictions |>
-        make_trait_predictor_plot(predictor = "gsl", x_label = "Growing Season Length (days)")
+        make_trait_predictor_plot(predictor = "gsl_gee", x_label = "Growing Season Length (days)")
   )
 
   # tar_target(
