@@ -42,7 +42,18 @@ analysis_plan <- list(
     command = {
       diversity_model |>
         mutate(
-          prediction = map2(.x = model, .y = data, .f = ~ lmer_prediction(dat = .y, fit = .x, predictor = "elevation_km"))
+          prediction = map2(.x = model, .y = data, .f = ~ lmer_prediction(dat = .y, fit = .x, predictor = "elevation_km")),
+          # Extract p-value for elevation_km term to determine line type
+          elevation_pvalue = map_dbl(result, ~ {
+            elev_row <- .x |> filter(term == "elevation_km" & effect == "fixed")
+            if (nrow(elev_row) > 0) {
+              elev_row$p.value
+            } else {
+              NA_real_
+            }
+          }),
+          # Determine if relationship is significant (p < 0.05)
+          is_significant = elevation_pvalue < 0.05
         ) |>
         mutate(
           data_with_predictions = map2(.x = data, .y = prediction, .f = ~ bind_cols(.x |> select(-elevation_km, -value), .y))
@@ -142,20 +153,20 @@ analysis_plan <- list(
         ) |>
         ungroup()
     }
-  )
+  ),
 
-  # # trait model checks
-  # tar_target(
-  #   name = trait_model_checks,
-  #   command = {
-  #     trait_models |>
-  #       filter(bioclim != "null") |>  # Remove null models
-  #       rowwise() |>
-  #       mutate(
-  #         model_check = list(performance::check_model(model))
-  #       ) |>
-  #       ungroup()
-  #   }
-  # )
+  # trait model checks
+  tar_target(
+    name = trait_model_checks,
+    command = {
+      trait_models |>
+        filter(bioclim != "null") |>  # Remove null models
+        rowwise() |>
+        mutate(
+          model_check = list(performance::check_model(model))
+        ) |>
+        ungroup()
+    }
+  )
 
 )

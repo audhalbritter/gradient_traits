@@ -85,14 +85,18 @@ make_diversity_plot <- function(data) {
   ggplot(plot_data, aes(x = elevation_km, y = value, color = region)) +
     # Add points for each plot
     geom_point(alpha = 0.6, size = 2) +
-    # Add prediction line from lmer model
-    geom_line(aes(x = elevation_km, y = .fitted), 
+    # Add prediction line from lmer model with different line types based on significance
+    geom_line(aes(x = elevation_km, y = .fitted, linetype = is_significant), 
               linewidth = 1, color = "grey40") +
     # Add confidence intervals
     geom_ribbon(aes(x = elevation_km, ymin = plo, ymax = phi), 
                 alpha = 0.2, color = NA, fill = "grey40") +
     # Use consistent color palette based on latitude
     scale_color_manual(values = create_region_color_mapping()) +
+    # Set line types: solid for significant, dashed for non-significant
+    scale_linetype_manual(values = c("FALSE" = "dashed", "TRUE" = "solid"),
+                         labels = c("FALSE" = "Non-significant", "TRUE" = "Significant"),
+                         name = "Relationship") +
     # Facet by diversity index
     facet_wrap(~diversity_index, scales = "free_y", labeller = label_value) +
     # Theme
