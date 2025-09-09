@@ -29,8 +29,8 @@ combined_plan <- c(
   cleaning_plan,
   transformation_plan,
   analysis_plan,
-  figure_plan
-  #output_plan
+  figure_plan,
+  output_plan
   # si_figures_plan#,
   #manuscript_plan
 )
