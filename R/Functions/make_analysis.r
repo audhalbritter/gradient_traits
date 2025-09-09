@@ -74,28 +74,31 @@ fit_lmer_set <- function(data, response, group_var, random_effect = "country") {
   f_null       <- stats::as.formula(paste(response, "~ 1 + (1|", random_effect, ")"))
   f_lat        <- stats::as.formula(paste(response, "~ latitude_n + (1|", random_effect, ")"))
   f_elev       <- stats::as.formula(paste(response, "~ elevation_m + (1|", random_effect, ")"))
-  f_gsl        <- stats::as.formula(paste(response, "~ growing_season_length + (1|", random_effect, ")"))
-  # f_gst        <- stats::as.formula(paste(response, "~ growing_season_temperature + (1|", random_effect, ")"))
-  # f_pet        <- stats::as.formula(paste(response, "~ potential_evapotranspiration + (1|", random_effect, ")"))
-  # f_diurnal    <- stats::as.formula(paste(response, "~ mean_diurnal_range_chelsa + (1|", random_effect, ")"))
+  f_gsl_gee    <- stats::as.formula(paste(response, "~ growing_season_length + (1|", random_effect, ")"))
+  f_gsl_chelsa <- stats::as.formula(paste(response, "~ `gsl_1981-2010_chelsa` + (1|", random_effect, ")"))
+  f_gst_chelsa <- stats::as.formula(paste(response, "~ `gst_1981-2010_chelsa` + (1|", random_effect, ")"))
+  f_gsp_chelsa <- stats::as.formula(paste(response, "~ `gsp_1981-2010_chelsa` + (1|", random_effect, ")"))
+  f_pet_chelsa <- stats::as.formula(paste(response, "~ `pet_penman_mean_1981-2010_chelsa` + (1|", random_effect, ")"))
 
   data |>
     dplyr::group_by(.data[[group_var]]) |>
     tidyr::nest() |>
     dplyr::mutate(
-      model_null      = purrr::map(.x = data, .f = ~ safelmer(f_null,       data = .)$result),
-      model_lat       = purrr::map(.x = data, .f = ~ safelmer(f_lat,        data = .)$result),
-      model_elev      = purrr::map(.x = data, .f = ~ safelmer(f_elev,       data = .)$result),
-      model_gsl       = purrr::map(.x = data, .f = ~ safelmer(f_gsl,        data = .)$result),
-      # model_gst       = purrr::map(.x = data, .f = ~ safelmer(f_gst,        data = .)$result),
-      # model_pet       = purrr::map(.x = data, .f = ~ safelmer(f_pet,        data = .)$result),
-      # model_diurnal   = purrr::map(.x = data, .f = ~ safelmer(f_diurnal,    data = .)$result),
-      glance_null     = purrr::map(model_null,      ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
-      glance_lat      = purrr::map(model_lat,       ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
-      glance_elev     = purrr::map(model_elev,      ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
-      glance_gsl      = purrr::map(model_gsl,       ~ if(!is.null(.)) broom.mixed::glance(.) else NULL)
-      # glance_gst      = purrr::map(model_gst,       ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
-      # glance_pet      = purrr::map(model_pet,       ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
-      # glance_diurnal  = purrr::map(model_diurnal,   ~ if(!is.null(.)) broom.mixed::glance(.) else NULL)
+      model_null        = purrr::map(.x = data, .f = ~ safelmer(f_null,         data = .)$result),
+      model_lat         = purrr::map(.x = data, .f = ~ safelmer(f_lat,          data = .)$result),
+      model_elev        = purrr::map(.x = data, .f = ~ safelmer(f_elev,         data = .)$result),
+      model_gsl_gee     = purrr::map(.x = data, .f = ~ safelmer(f_gsl_gee,      data = .)$result),
+      model_gsl_chelsa  = purrr::map(.x = data, .f = ~ safelmer(f_gsl_chelsa,   data = .)$result),
+      model_gst_chelsa  = purrr::map(.x = data, .f = ~ safelmer(f_gst_chelsa,   data = .)$result),
+      model_gsp_chelsa  = purrr::map(.x = data, .f = ~ safelmer(f_gsp_chelsa,   data = .)$result),
+      model_pet_chelsa  = purrr::map(.x = data, .f = ~ safelmer(f_pet_chelsa,   data = .)$result),
+      glance_null       = purrr::map(model_null,        ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_lat        = purrr::map(model_lat,         ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_elev       = purrr::map(model_elev,        ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_gsl_gee    = purrr::map(model_gsl_gee,     ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_gsl_chelsa = purrr::map(model_gsl_chelsa,  ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_gst_chelsa = purrr::map(model_gst_chelsa,  ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_gsp_chelsa = purrr::map(model_gsp_chelsa,  ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_pet_chelsa = purrr::map(model_pet_chelsa,  ~ if(!is.null(.)) broom.mixed::glance(.) else NULL)
     )
 }

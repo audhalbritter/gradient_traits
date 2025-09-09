@@ -197,6 +197,8 @@ bioclim_plan <- list(
           var_name <- tools::file_path_sans_ext(basename(file_path))
           var_name <- gsub("CHELSA_", "", var_name)
           var_name <- gsub("_V\\.2\\.1$", "", var_name)
+          # Add _chelsa suffix to avoid conflicts with GEE variables
+          var_name <- paste0(var_name, "_chelsa")
           
           # Get the data column (excluding ID)
           data_cols <- names(extracted_values)[names(extracted_values) != "ID"]

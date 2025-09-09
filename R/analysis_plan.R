@@ -69,8 +69,20 @@ analysis_plan <- list(
         fit_lmer_set(response = "mean", group_var = "trait_trans") |>
         # make long table
         tidyr::pivot_longer(cols = -c(trait_trans, data),
-                     names_sep = "_",
-                     names_to = c(".value", "bioclim"))
+                     names_pattern = "model_(.+)",
+                     names_to = "bioclim",
+                     values_to = "model") |>
+        # Add glance data back
+        left_join(
+          trait_mean |>
+            fit_lmer_set(response = "mean", group_var = "trait_trans") |>
+            select(trait_trans, starts_with("glance")) |>
+            tidyr::pivot_longer(cols = -trait_trans,
+                         names_pattern = "glance_(.+)",
+                         names_to = "bioclim",
+                         values_to = "glance"),
+          by = c("trait_trans", "bioclim")
+        )
     }
   ),
 
@@ -79,7 +91,7 @@ analysis_plan <- list(
     name = trait_results,
     command = {
       trait_models |>
-        filter(bioclim %in% c("lat", "elev", "gsl", "gst", "pet", "diurnal")) |>
+        filter(bioclim %in% c("lat", "elev", "gsl", "gee", "gsl", "chelsa", "gst", "chelsa", "gsp", "chelsa", "pet", "chelsa")) |>
         rowwise() |>
         mutate(
           result = list({
@@ -105,10 +117,11 @@ analysis_plan <- list(
           predictor = dplyr::case_when(
             bioclim == "lat" ~ "latitude_n",
             bioclim == "elev" ~ "elevation_m",
-            bioclim == "gsl" ~ "growing_season_length",
-            bioclim == "gst" ~ "growing_season_temperature",
-            bioclim == "pet" ~ "potential_evapotranspiration",
-            bioclim == "diurnal" ~ "mean_diurnal_range_chelsa",
+            bioclim == "gsl_gee" ~ "growing_season_length",  # GEE growing season length
+            bioclim == "gsl_chelsa" ~ "gsl_1981-2010_chelsa",  # CHELSA growing season length
+            bioclim == "gst_chelsa" ~ "gst_1981-2010_chelsa",  # CHELSA growing season temperature
+            bioclim == "gsp_chelsa" ~ "gsp_1981-2010_chelsa",  # CHELSA growing season precipitation
+            bioclim == "pet_chelsa" ~ "pet_penman_mean_1981-2010_chelsa",  # CHELSA potential evapotranspiration
             TRUE ~ bioclim
           ),
           # Extract p-value for the predictor term to determine line type
@@ -182,9 +195,16 @@ analysis_plan <- list(
         filter(bioclim != "null") |>  # Remove null models
         rowwise() |>
         mutate(
-          model_check = list(performance::check_model(model))
+          model_check = list({
+            if (!is.null(model)) {
+              performance::check_model(model)
+            } else {
+              NULL
+            }
+          })
         ) |>
-        ungroup()
+        ungroup() |>
+        filter(!is.null(model_check))  # Remove rows with NULL model_check
     }
   )
 

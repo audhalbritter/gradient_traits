@@ -134,6 +134,7 @@ transformation_plan <- list(
           )
         )) |>
         tidylog::left_join(gee_growing_season_length, by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)) |>
+        tidylog::left_join(chelsa_extracted, by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)) |>
         # Ensure region is ordered consistently (north to south)
         mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
                                                  "Eastern Himalaya", "Central Andes", "Drakensberg")))
