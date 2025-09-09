@@ -111,6 +111,25 @@ analysis_plan <- list(
             bioclim == "diurnal" ~ "mean_diurnal_range_chelsa",
             TRUE ~ bioclim
           ),
+          # Extract p-value for the predictor term to determine line type
+          predictor_pvalue = pmap_dbl(
+            list(model, predictor),
+            function(fit, pred_col){
+              if (is.null(fit)) return(NA_real_)
+              # Get the model results
+              model_results <- broom.mixed::tidy(fit)
+              # Find the row for this predictor
+              pred_row <- model_results |> 
+                filter(term == pred_col & effect == "fixed")
+              if (nrow(pred_row) > 0) {
+                pred_row$p.value
+              } else {
+                NA_real_
+              }
+            }
+          ),
+          # Determine if relationship is significant (p < 0.05)
+          is_significant = predictor_pvalue < 0.05,
           prediction = pmap(
             list(data, model, predictor),
             function(dat, fit, pred_col){

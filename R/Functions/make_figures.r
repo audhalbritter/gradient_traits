@@ -87,16 +87,15 @@ make_diversity_plot <- function(data) {
     geom_point(alpha = 0.6, size = 2) +
     # Add prediction line from lmer model with different line types based on significance
     geom_line(aes(x = elevation_km, y = .fitted, linetype = is_significant), 
-              linewidth = 1, color = "grey40") +
+              linewidth = 1, color = "grey40", show.legend = FALSE) +
     # Add confidence intervals
     geom_ribbon(aes(x = elevation_km, ymin = plo, ymax = phi), 
                 alpha = 0.2, color = NA, fill = "grey40") +
     # Use consistent color palette based on latitude
     scale_color_manual(values = create_region_color_mapping()) +
-    # Set line types: solid for significant, dashed for non-significant
+    # Set line types: solid for significant, dashed for non-significant (no legend)
     scale_linetype_manual(values = c("FALSE" = "dashed", "TRUE" = "solid"),
-                         labels = c("FALSE" = "Non-significant", "TRUE" = "Significant"),
-                         name = "Relationship") +
+                         guide = "none") +
     # Facet by diversity index
     facet_wrap(~diversity_index, scales = "free_y", labeller = label_value) +
     # Theme
@@ -149,9 +148,13 @@ make_trait_predictor_plot <- function(data, predictor, x_label) {
   # Plot with prediction line and ribbon from precomputed columns
   ggplot(filtered_data, aes(x = .data[[predictor_col]], y = mean, color = region)) +
     geom_point(alpha = 0.6, size = 2) +
-    geom_line(aes(y = .fitted), linewidth = 1, color = "grey40") +
+    # Add prediction line with different line types based on significance
+    geom_line(aes(y = .fitted, linetype = is_significant), linewidth = 1, color = "grey40", show.legend = FALSE) +
     geom_ribbon(aes(ymin = plo, ymax = phi), alpha = 0.2, color = NA, fill = "grey40") +
     scale_color_manual(values = create_region_color_mapping()) +
+    # Set line types: solid for significant, dashed for non-significant (no legend)
+    scale_linetype_manual(values = c("FALSE" = "dashed", "TRUE" = "solid"),
+                         guide = "none") +
     facet_wrap(~figure_names, scales = "free_y", labeller = label_parsed) +
     theme_bw() +
     theme(
