@@ -53,85 +53,20 @@ regions_world_map
 
 ## Results
 
-### Environmental Variables
-
-This correlation matrix shows the relationships between bioclimatic variables across all study sites. Temperature-related variables (annual temperature, temperature range, diurnal range) show strong positive correlations with each other, while precipitation variables show more complex patterns.
-
-```{r}
-#| label: bioclim-correlation
-#| echo: false
-#| warnings: false
-#| fig-height: 8
-#| fig-width: 8
-
-tar_load(bioclim_correlation_fig)
-bioclim_correlation_fig
-
-```
-
-\newpage
-
-This PCA shows the main patterns in bioclimatic variation across our study sites. The first two principal components capture the major environmental gradients that drive community assembly patterns.
-
-```{r}
-#| label: bioclim-pca
-#| echo: false
-#| warnings: false
-#| fig-height: 6
-
-tar_load(bioclim_pca_fig)
-bioclim_pca_fig
-
-```
-
-\newpage
-
 ### Diversity
 
-This figure shows diversity indices (richness, Shannon diversity, and evenness) across the latitudinal gradient. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+This figure shows diversity indices (richness, Shannon diversity, and evenness) across the elevational gradient. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: diversity-lat
+#| label: diversity-elev
 #| echo: false
 #| warnings: false
 #| fig-height: 4
 
-tar_load(diversity_lat_fig)
-diversity_lat_fig
+tar_load(diversity_elev_fig)
+diversity_elev_fig
 
 ```
-
-\newpage
-
-This figure shows diversity indices in relation to annual temperature. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
-
-```{r}
-#| label: diversity-anntemp
-#| echo: false
-#| warnings: false
-#| fig-height: 4
-
-tar_load(diversity_anntemp_fig)
-diversity_anntemp_fig
-
-```
-
-\newpage
-
-This figure shows diversity indices in relation to temperature annual range. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
-
-```{r}
-#| label: diversity-temprange
-#| echo: false
-#| warnings: false
-#| fig-height: 4
-
-tar_load(diversity_temprange_fig)
-diversity_temprange_fig
-
-```
-
-\newpage
 
 ### Functional leaf traits
 
@@ -168,13 +103,13 @@ trait_pca_fig
 This figure shows functional leaf traits in relation to latitude. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: trait-lat
+#| label: trait-elev
 #| echo: false
 #| warnings: false
 #| fig-height: 8
 
-tar_load(trait_lat_fig)
-trait_lat_fig
+tar_load(trait_elev_fig)
+trait_elev_fig
 
 ```
 
