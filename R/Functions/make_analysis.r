@@ -2,29 +2,13 @@
 
 # make prediction for lmer
 lmer_prediction <- function(dat, fit, predictor){
-  
-  # Map bioclim identifiers to actual column names
-  predictor_col <- case_when(
-    predictor == "lat" ~ "latitude_n",
-    predictor == "elev" ~ "elevation_m",
-    predictor == "gsl" ~ "growing_season_length",
-    predictor == "gst" ~ "growing_season_temperature", 
-    predictor == "pet" ~ "potential_evapotranspiration",
-    predictor == "diurnal" ~ "mean_diurnal_range_chelsa",
-    TRUE ~ predictor
-  )
-  
-  # Check if the predictor column exists
-  if (!predictor_col %in% names(dat)) {
-    stop("Predictor column '", predictor_col, "' not found in data")
-  }
 
   # Create new data with predictor and response variables
   newdat <- dat %>%
-    select(all_of(predictor_col), value)
+    select(all_of(predictor), value)
 
   # Make predictions
-  newdat$value <- predict(fit, newdat, re.form = NA)
+  newdat$.fitted <- predict(fit, newdat, re.form = NA)
 
   # Calculate confidence intervals
   mm <- model.matrix(terms(fit), newdat)
@@ -33,11 +17,46 @@ lmer_prediction <- function(dat, fit, predictor){
     mutate(pvar1 = diag(mm %*% tcrossprod(vcov(fit), mm)),
            tvar1 = pvar1 + VarCorr(fit)$country[1],
            cmult = 1.96) %>%
-    mutate(plo = value - cmult*sqrt(pvar1),
-           phi = value + cmult*sqrt(pvar1),
-           tlo = value - cmult*sqrt(tvar1),
-           thi = value + cmult*sqrt(tvar1))
+    mutate(plo = .fitted - cmult*sqrt(pvar1),
+           phi = .fitted + cmult*sqrt(pvar1),
+           tlo = .fitted - cmult*sqrt(tvar1),
+           thi = .fitted + cmult*sqrt(tvar1))
 
+  return(prediction)
+}
+
+# make prediction for lmer - trait version (handles 'mean' column instead of 'value')
+lmer_prediction_trait <- function(dat, fit, predictor){
+  
+  # Create new data with predictor and response variables
+  newdat <- dat %>%
+    select(all_of(predictor), mean)
+  
+  # Handle missing data by using the same na.action as the model
+  # This ensures the prediction data matches the model's training data
+  if (!is.null(attr(fit@frame, "na.action"))) {
+    # Remove the same rows that were removed during model fitting
+    na_action <- attr(fit@frame, "na.action")
+    if (length(na_action) > 0) {
+      newdat <- newdat[-na_action, ]
+    }
+  }
+  
+  # Make predictions
+  newdat$.fitted <- predict(fit, newdat, re.form = NA)
+  
+  # Calculate confidence intervals
+  mm <- model.matrix(terms(fit), newdat)
+  
+  prediction <- newdat %>%
+    mutate(pvar1 = diag(mm %*% tcrossprod(vcov(fit), mm)),
+           tvar1 = pvar1 + VarCorr(fit)$country[1],
+           cmult = 1.96) %>%
+    mutate(plo = .fitted - cmult*sqrt(pvar1),
+           phi = .fitted + cmult*sqrt(pvar1),
+           tlo = .fitted - cmult*sqrt(tvar1),
+           thi = .fitted + cmult*sqrt(tvar1))
+  
   return(prediction)
 }
 
@@ -49,16 +68,16 @@ lmer_prediction <- function(dat, fit, predictor){
 # - random_effect: random effect grouping column (default: "country")
 # Output: long tibble with columns: {{group_var}}, data, model, bioclim, glance
 fit_lmer_set <- function(data, response, group_var, random_effect = "country") {
-  safelmer <- purrr::safely(lme4::lmer)
+  safelmer <- purrr::safely(lmerTest::lmer)
 
   # Build formulas as strings and then convert to formulas
   f_null       <- stats::as.formula(paste(response, "~ 1 + (1|", random_effect, ")"))
   f_lat        <- stats::as.formula(paste(response, "~ latitude_n + (1|", random_effect, ")"))
   f_elev       <- stats::as.formula(paste(response, "~ elevation_m + (1|", random_effect, ")"))
   f_gsl        <- stats::as.formula(paste(response, "~ growing_season_length + (1|", random_effect, ")"))
-  f_gst        <- stats::as.formula(paste(response, "~ growing_season_temperature + (1|", random_effect, ")"))
-  f_pet        <- stats::as.formula(paste(response, "~ potential_evapotranspiration + (1|", random_effect, ")"))
-  f_diurnal    <- stats::as.formula(paste(response, "~ mean_diurnal_range_chelsa + (1|", random_effect, ")"))
+  # f_gst        <- stats::as.formula(paste(response, "~ growing_season_temperature + (1|", random_effect, ")"))
+  # f_pet        <- stats::as.formula(paste(response, "~ potential_evapotranspiration + (1|", random_effect, ")"))
+  # f_diurnal    <- stats::as.formula(paste(response, "~ mean_diurnal_range_chelsa + (1|", random_effect, ")"))
 
   data |>
     dplyr::group_by(.data[[group_var]]) |>
@@ -68,15 +87,15 @@ fit_lmer_set <- function(data, response, group_var, random_effect = "country") {
       model_lat       = purrr::map(.x = data, .f = ~ safelmer(f_lat,        data = .)$result),
       model_elev      = purrr::map(.x = data, .f = ~ safelmer(f_elev,       data = .)$result),
       model_gsl       = purrr::map(.x = data, .f = ~ safelmer(f_gsl,        data = .)$result),
-      model_gst       = purrr::map(.x = data, .f = ~ safelmer(f_gst,        data = .)$result),
-      model_pet       = purrr::map(.x = data, .f = ~ safelmer(f_pet,        data = .)$result),
-      model_diurnal   = purrr::map(.x = data, .f = ~ safelmer(f_diurnal,    data = .)$result),
+      # model_gst       = purrr::map(.x = data, .f = ~ safelmer(f_gst,        data = .)$result),
+      # model_pet       = purrr::map(.x = data, .f = ~ safelmer(f_pet,        data = .)$result),
+      # model_diurnal   = purrr::map(.x = data, .f = ~ safelmer(f_diurnal,    data = .)$result),
       glance_null     = purrr::map(model_null,      ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
       glance_lat      = purrr::map(model_lat,       ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
       glance_elev     = purrr::map(model_elev,      ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
-      glance_gsl      = purrr::map(model_gsl,       ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
-      glance_gst      = purrr::map(model_gst,       ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
-      glance_pet      = purrr::map(model_pet,       ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
-      glance_diurnal  = purrr::map(model_diurnal,   ~ if(!is.null(.)) broom.mixed::glance(.) else NULL)
+      glance_gsl      = purrr::map(model_gsl,       ~ if(!is.null(.)) broom.mixed::glance(.) else NULL)
+      # glance_gst      = purrr::map(model_gst,       ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      # glance_pet      = purrr::map(model_pet,       ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      # glance_diurnal  = purrr::map(model_diurnal,   ~ if(!is.null(.)) broom.mixed::glance(.) else NULL)
     )
 }

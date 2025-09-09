@@ -20,38 +20,19 @@ analysis_plan <- list(
   ),
 
 # Run models
-  # diversity models
+  # diversity model
   tar_target(
-    name = diversity_models,
+    name = diversity_model,
     command = {
-      diversity |>
-        dplyr::filter(diversity_index != "sum_abundance") |>
-        fit_lmer_set(response = "value", group_var = "diversity_index") |>
-        # make long table
-        tidyr::pivot_longer(cols = -c(diversity_index, data),
-                     names_sep = "_",
-                     names_to = c(".value", "bioclim"))
-    }
-  ),
+      safelmer <- purrr::safely(lmerTest::lmer)
 
-    # Tidy results from existing models (no refit)
-  tar_target(
-    name = diversity_results,
-    command = {
-      diversity_models |>
-        filter(bioclim %in% c("lat", "elev", "gsl", "gst", "pet", "diurnal")) |> 
-        rowwise() |>
-        mutate(
-          result = list({
-            if(!is.null(model)) {
-              broom.mixed::tidy(model)
-            } else {
-              NULL
-            }
-          })
-        ) |>
-        select(diversity_index, bioclim, result) |>
-        unnest(result)
+      diversity |>
+        filter(diversity_index != "sum_abundance") |>
+        mutate(elevation_km = elevation_m / 1000) |>
+        group_by(diversity_index) |>
+        nest() |>
+        mutate(model = purrr::map(.x = data, .f = ~ safelmer(value ~ elevation_km + (1|country), data = .)$result),
+        result = purrr::map(model, broom.mixed::tidy))
     }
   ),
 
@@ -59,10 +40,12 @@ analysis_plan <- list(
   tar_target(
     name = diversity_predictions,
     command = {
-      diversity_models |>
-        filter(bioclim != "null") |>  # Remove null models - only needed for comparison
+      diversity_model |>
         mutate(
-          prediction = map2(.x = model, .y = data, .f = ~ broom.mixed::augment(.x, newdata = .y))
+          prediction = map2(.x = model, .y = data, .f = ~ lmer_prediction(dat = .y, fit = .x, predictor = "elevation_km"))
+        ) |>
+        mutate(
+          data_with_predictions = map2(.x = data, .y = prediction, .f = ~ bind_cols(.x |> select(-elevation_km, -value), .y))
         )
     }
   ),
@@ -107,8 +90,28 @@ analysis_plan <- list(
     command = {
       trait_models |>
         filter(bioclim != "null") |>  # Remove null models - only needed for comparison
-        mutate(
-          prediction = map2(.x = model, .y = data, .f = ~ broom.mixed::augment(.x, newdata = .y))
+        dplyr::mutate(
+          predictor = dplyr::case_when(
+            bioclim == "lat" ~ "latitude_n",
+            bioclim == "elev" ~ "elevation_m",
+            bioclim == "gsl" ~ "growing_season_length",
+            bioclim == "gst" ~ "growing_season_temperature",
+            bioclim == "pet" ~ "potential_evapotranspiration",
+            bioclim == "diurnal" ~ "mean_diurnal_range_chelsa",
+            TRUE ~ bioclim
+          ),
+          prediction = pmap(
+            list(data, model, predictor),
+            function(dat, fit, pred_col){
+              safe_pred <- purrr::safely(lmer_prediction_trait)
+              result <- safe_pred(dat = dat, fit = fit, predictor = pred_col)
+              if (!is.null(result$error)) {
+                cat("Error in prediction for", pred_col, ":", result$error$message, "\n")
+                return(NULL)
+              }
+              return(result$result)
+            }
+          )
         )
     }
   ),
@@ -117,22 +120,7 @@ analysis_plan <- list(
   tar_target(
     name = diversity_model_checks,
     command = {
-      diversity_models |>
-        filter(bioclim != "null") |>  # Remove null models
-        rowwise() |>
-        mutate(
-          model_check = list(performance::check_model(model))
-        ) |>
-        ungroup()
-    }
-  ),
-
-  # trait model checks
-  tar_target(
-    name = trait_model_checks,
-    command = {
-      trait_models |>
-        filter(bioclim != "null") |>  # Remove null models
+      diversity_model |>
         rowwise() |>
         mutate(
           model_check = list(performance::check_model(model))
@@ -140,5 +128,19 @@ analysis_plan <- list(
         ungroup()
     }
   )
+
+  # # trait model checks
+  # tar_target(
+  #   name = trait_model_checks,
+  #   command = {
+  #     trait_models |>
+  #       filter(bioclim != "null") |>  # Remove null models
+  #       rowwise() |>
+  #       mutate(
+  #         model_check = list(performance::check_model(model))
+  #       ) |>
+  #       ungroup()
+  #   }
+  # )
 
 )
