@@ -47,17 +47,11 @@ tar_load(trait_model_checks)
 #| results: asis
 
 diversity_model_checks |> 
-  select(diversity_index, bioclim, model_check) |> 
-  pwalk(.f = function(diversity_index, bioclim, model_check, ...){
+  select(diversity_index, model_check) |> 
+  pwalk(.f = function(diversity_index, model_check, ...){
   # Create a nice header with spacing
   cat("\n\n")
-  cat(paste("###", stringr::str_to_title(diversity_index), "-", 
-            case_when(
-              bioclim == "lat" ~ "Latitude",
-              bioclim == "anntemp" ~ "Annual Temperature", 
-              bioclim == "temprange" ~ "Temperature Range",
-              TRUE ~ bioclim
-            ), "\n\n"))
+  cat(paste("###", stringr::str_to_title(diversity_index), "- Elevation", "\n\n"))
   
   # Print the model check plots
   print(model_check)
