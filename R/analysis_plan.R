@@ -119,120 +119,149 @@ analysis_plan <- list(
     }
   ),
 
-  # trait models
+  # trait data in long format with climate variables stacked
   tar_target(
-    name = trait_models,
+    name = trait_mean_long,
     command = {
       trait_mean |>
-        filter(trait_trans %in% c("dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")) |>
-        fit_lmer_set(response = "mean", group_var = "trait_trans") |>
-        # make long table
-        tidyr::pivot_longer(cols = -c(trait_trans, data),
-                     names_pattern = "model_(.+)",
-                     names_to = "bioclim",
-                     values_to = "model") |>
-        # Add glance data back
-        left_join(
-          trait_mean |>
-            filter(trait_trans %in% c("dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")) |>
-            fit_lmer_set(response = "mean", group_var = "trait_trans") |>
-            select(trait_trans, starts_with("glance")) |>
-            tidyr::pivot_longer(cols = -trait_trans,
-                         names_pattern = "glance_(.+)",
-                         names_to = "bioclim",
-                         values_to = "glance"),
-          by = c("trait_trans", "bioclim")
+        # Pivot climate variables to long format
+        pivot_longer(
+          cols = c(
+            # GEE variables
+            growing_season_length,
+            # CHELSA variables
+            `gsl_1981-2010_chelsa`, `gst_1981-2010_chelsa`, `gsp_1981-2010_chelsa`, `pet_penman_mean_1981-2010_chelsa`,
+            # WorldClim bioclim variables
+            mean_temperture_warmest_quarter_bioclim, precipitation_warmest_quarter_bioclim, diurnal_range_bioclim
+          ),
+          names_to = "climate_variable",
+          values_to = "climate_value"
+        ) |>
+        # Add data source column
+        mutate(
+          data_source = case_when(
+            climate_variable == "growing_season_length" ~ "GEE",
+            climate_variable %in% c("gsl_1981-2010_chelsa", "gst_1981-2010_chelsa", "gsp_1981-2010_chelsa", "pet_penman_mean_1981-2010_chelsa") ~ "CHELSA",
+            climate_variable %in% c("mean_temperture_warmest_quarter_bioclim", "precipitation_warmest_quarter_bioclim", "diurnal_range_bioclim") ~ "WorldClim",
+            TRUE ~ "Other"
+          ),
+          # Clean up climate variable names for display
+          climate_variable_clean = case_when(
+            climate_variable == "growing_season_length" ~ "Growing Season Length",
+            climate_variable == "gsl_1981-2010_chelsa" ~ "Growing Season Length",
+            climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature",
+            climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation",
+            climate_variable == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration",
+            climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter",
+            climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter",
+            climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range",
+            TRUE ~ climate_variable
+          )
+        ) |>
+        # Filter out rows with NA climate values
+        filter(!is.na(climate_value)) |>
+        # Keep elevation and latitude as separate columns
+        select(country:ecosystem, elevation_m, latitude_n, longitude_e, trait_trans, mean, 
+               climate_variable, climate_variable_clean, climate_value, data_source)
+    }
+  ),
+
+  # trait models with long format climate data
+  tar_target(
+    name = trait_models_all,
+    command = {
+      trait_mean_long |>
+        # Filter for the same traits as trait_models
+        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")) |>
+        # Group by trait and climate variable
+        group_by(trait_trans, climate_variable, data_source) |>
+        nest() |>
+        # Run models for each combination
+        mutate(
+          # Linear model
+          model_linear = purrr::map(data, ~ {
+            safelmer <- purrr::safely(lmerTest::lmer)
+            result <- safelmer(mean ~ climate_value + (1|country), data = .x)
+            result$result
+          }),
+          # Polynomial model (second order)
+          model_poly = purrr::map(data, ~ {
+            safelmer <- purrr::safely(lmerTest::lmer)
+            result <- safelmer(mean ~ climate_value + I(climate_value^2) + (1|country), data = .x)
+            result$result
+          }),
+          # Glance data for linear model
+          glance_linear = purrr::map(model_linear, ~ {
+            safe_glance <- purrr::safely(broom.mixed::glance)
+            result <- safe_glance(.x)
+            result$result
+          }),
+          # Glance data for polynomial model
+          glance_poly = purrr::map(model_poly, ~ {
+            safe_glance <- purrr::safely(broom.mixed::glance)
+            result <- safe_glance(.x)
+            result$result
+          })
+        ) |>
+        # Pivot to long format to stack linear and polynomial models
+        tidyr::pivot_longer(
+          cols = c(model_linear, model_poly, glance_linear, glance_poly),
+          names_sep = "_",
+          names_to = c(".value", "model_type")
         )
     }
   ),
 
-  # Tidy results from trait models
   tar_target(
-    name = trait_results,
+    name = trait_models_best,
     command = {
-      trait_models |>
-        filter(bioclim != "null", !is.na(bioclim)) |>
-        rowwise() |>
-        mutate(
-          result = list({
-            if(!is.null(model)) {
-              broom.mixed::tidy(model)
-            } else {
-              NULL
-            }
-          })
-        ) |>
-        select(trait_trans, bioclim, result) |>
-        unnest(result)
+      trait_models_all |>
+        unnest(glance) |>
+        dplyr::select(trait_trans:model, AIC) |>
+        filter(AIC == min(AIC)) |>
+        select(-AIC)
     }
   ),
 
-  # trait predictions
   tar_target(
-    name = trait_predictions,
+    name = trait_models_output,
     command = {
-      trait_models |>
-        filter(bioclim != "null") |>  # Remove null models - only needed for comparison
-        dplyr::mutate(
-          predictor = dplyr::case_when(
-            bioclim == "lat" ~ "latitude_n",
-            bioclim == "elev" ~ "elevation_m",
-            bioclim == "gsl_gee" ~ "growing_season_length",  # GEE growing season length
-            bioclim == "gsl_chelsa" ~ "gsl_1981-2010_chelsa",  # CHELSA growing season length
-            bioclim == "gst_chelsa" ~ "gst_1981-2010_chelsa",  # CHELSA growing season temperature
-            bioclim == "gsp_chelsa" ~ "gsp_1981-2010_chelsa",  # CHELSA growing season precipitation
-            bioclim == "pet_chelsa" ~ "pet_penman_mean_1981-2010_chelsa",  # CHELSA potential evapotranspiration
-            bioclim == "temp_warm_bioclim" ~ "mean_temperture_warmest_quarter_bioclim",  # WorldClim mean temperature warmest quarter
-            bioclim == "precip_warm_bioclim" ~ "precipitation_warmest_quarter_bioclim",  # WorldClim precipitation warmest quarter
-            bioclim == "diurnal_bioclim" ~ "diurnal_range_bioclim",  # WorldClim diurnal range
-            TRUE ~ bioclim
-          ),
-          # Extract p-value for the predictor term to determine line type
-          predictor_pvalue = pmap_dbl(
-            list(model, predictor),
-            function(fit, pred_col){
-              if (is.null(fit)) return(NA_real_)
-              # Get the model results
-              model_results <- broom.mixed::tidy(fit)
-              # Find the row for this predictor
-              pred_row <- model_results |> 
-                filter(term == pred_col & effect == "fixed")
-              if (nrow(pred_row) > 0) {
-                pred_row$p.value
+      trait_models_best |>
+        # Get tidy results from the best models
+        mutate(
+          tidy_results = purrr::map(model, ~ {
+            safe_tidy <- purrr::safely(broom.mixed::tidy)
+            result <- safe_tidy(.x)
+            result$result
+          }),
+          # Extract p-value for climate_value term to determine significance
+          climate_pvalue = purrr::map_dbl(tidy_results, ~ {
+            if (!is.null(.x)) {
+              climate_row <- .x |> filter(term == "climate_value" & effect == "fixed")
+              if (nrow(climate_row) > 0) {
+                climate_row$p.value
               } else {
                 NA_real_
               }
+            } else {
+              NA_real_
             }
-          ),
+          }),
           # Determine if relationship is significant (p < 0.05)
-          is_significant = predictor_pvalue < 0.05,
-          prediction = pmap(
-            list(data, model, predictor),
-            function(dat, fit, pred_col){
-              safe_pred <- purrr::safely(lmer_prediction_trait)
-              result <- safe_pred(dat = dat, fit = fit, predictor = pred_col)
-              if (!is.null(result$error)) {
-                cat("Error in prediction for", pred_col, ":", result$error$message, "\n")
-                return(NULL)
-              }
-              return(result$result)
+          is_significant = climate_pvalue < 0.05,
+          # Add predictions for the best models
+          predictions = purrr::map2(data, model, ~ {
+            safe_pred <- purrr::safely(lmer_prediction_trait)
+            pred_result <- safe_pred(dat = .x, fit = .y, predictor = "climate_value")
+            if (!is.null(pred_result$result)) {
+              # Since lmer_prediction_trait now only returns prediction columns, we can simply bind columns
+              # Bind original data with predictions (rows are in same order)
+              result <- bind_cols(.x, pred_result$result)
+              return(result)
+            } else {
+              return(NULL)
             }
-          ),
-          data_with_predictions = pmap(
-            list(data, prediction, predictor, model),
-            function(dat, pred, pred_col, fit){
-              if (is.null(pred)) return(NULL)
-              # Align rows with model's training data (handle na.action like in prediction)
-              if (!is.null(attr(fit@frame, "na.action"))) {
-                na_action <- attr(fit@frame, "na.action")
-                if (length(na_action) > 0) {
-                  dat <- dat[-na_action, ]
-                }
-              }
-              cols_to_drop <- intersect(names(dat), c(pred_col, "mean"))
-              dplyr::bind_cols(dplyr::select(dat, -dplyr::all_of(cols_to_drop)), pred)
-            }
-          )
+          })
         )
     }
   ),
@@ -248,27 +277,27 @@ analysis_plan <- list(
         ) |>
         ungroup()
     }
-  ),
+  )
 
   # trait model checks
-  tar_target(
-    name = trait_model_checks,
-    command = {
-      trait_models |>
-        filter(bioclim != "null") |>  # Remove null models
-        rowwise() |>
-        mutate(
-          model_check = list({
-            if (!is.null(model)) {
-              performance::check_model(model)
-            } else {
-              NULL
-            }
-          })
-        ) |>
-        ungroup() |>
-        filter(!is.null(model_check))  # Remove rows with NULL model_check
-    }
-  )
+  # tar_target(
+  #   name = trait_model_checks,
+  #   command = {
+  #     trait_models |>
+  #       filter(bioclim != "null") |>  # Remove null models
+  #       rowwise() |>
+  #       mutate(
+  #         model_check = list({
+  #           if (!is.null(model)) {
+  #             performance::check_model(model)
+  #           } else {
+  #             NULL
+  #           }
+  #         })
+  #       ) |>
+  #       ungroup() |>
+  #       filter(!is.null(model_check))  # Remove rows with NULL model_check
+  #   }
+  # )
 
 )
