@@ -270,6 +270,21 @@ trait_climate_diurnal_fig
 
 ```
 
+\newpage
+
+This figure shows functional leaf traits in relation to annual temperature (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-annual-temp
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_climate_annual_temp_fig)
+trait_climate_annual_temp_fig
+
+```
+
 ## Trait Model Results
 
 ```{r}
@@ -309,6 +324,7 @@ trait_results_table <- trait_models_output |>
       climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
       climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
       climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range (WorldClim)",
+      climate_variable == "annual_temperature_bioclim" ~ "Annual Temperature (WorldClim)",
       TRUE ~ climate_variable
     ),
     # Round numeric values

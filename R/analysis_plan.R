@@ -132,7 +132,7 @@ analysis_plan <- list(
             # CHELSA variables
             `gsl_1981-2010_chelsa`, `gst_1981-2010_chelsa`, `gsp_1981-2010_chelsa`, `pet_penman_mean_1981-2010_chelsa`,
             # WorldClim bioclim variables
-            mean_temperture_warmest_quarter_bioclim, precipitation_warmest_quarter_bioclim, diurnal_range_bioclim
+            mean_temperture_warmest_quarter_bioclim, precipitation_warmest_quarter_bioclim, diurnal_range_bioclim, annual_temperature_bioclim
           ),
           names_to = "climate_variable",
           values_to = "climate_value"
@@ -142,7 +142,7 @@ analysis_plan <- list(
           data_source = case_when(
             climate_variable == "growing_season_length" ~ "GEE",
             climate_variable %in% c("gsl_1981-2010_chelsa", "gst_1981-2010_chelsa", "gsp_1981-2010_chelsa", "pet_penman_mean_1981-2010_chelsa") ~ "CHELSA",
-            climate_variable %in% c("mean_temperture_warmest_quarter_bioclim", "precipitation_warmest_quarter_bioclim", "diurnal_range_bioclim") ~ "WorldClim",
+            climate_variable %in% c("mean_temperture_warmest_quarter_bioclim", "precipitation_warmest_quarter_bioclim", "diurnal_range_bioclim", "annual_temperature_bioclim") ~ "WorldClim",
             TRUE ~ "Other"
           ),
           # Clean up climate variable names for display
@@ -280,24 +280,24 @@ analysis_plan <- list(
   )
 
   # trait model checks
-  # tar_target(
-  #   name = trait_model_checks,
-  #   command = {
-  #     trait_models |>
-  #       filter(bioclim != "null") |>  # Remove null models
-  #       rowwise() |>
-  #       mutate(
-  #         model_check = list({
-  #           if (!is.null(model)) {
-  #             performance::check_model(model)
-  #           } else {
-  #             NULL
-  #           }
-  #         })
-  #       ) |>
-  #       ungroup() |>
-  #       filter(!is.null(model_check))  # Remove rows with NULL model_check
-  #   }
-  # )
+  tar_target(
+    name = trait_model_checks,
+    command = {
+      trait_models |>
+        filter(bioclim != "null") |>  # Remove null models
+        rowwise() |>
+        mutate(
+          model_check = list({
+            if (!is.null(model)) {
+              performance::check_model(model)
+            } else {
+              NULL
+            }
+          })
+        ) |>
+        ungroup() |>
+        filter(!is.null(model_check))  # Remove rows with NULL model_check
+    }
+  )
 
 )

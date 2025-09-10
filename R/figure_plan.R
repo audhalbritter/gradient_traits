@@ -100,6 +100,14 @@ figure_plan <- list(
     command = trait_models_output |>
         unnest(predictions) |>
         make_trait_climate_plot(climate_variable = "diurnal_range_bioclim", data_source = "WorldClim", x_label = "Mean Diurnal Range (°C)")
+  ),
+
+  # Annual Temperature (WorldClim)
+  tar_target(
+    name = trait_climate_annual_temp_fig,
+    command = trait_models_output |>
+        unnest(predictions) |>
+        make_trait_climate_plot(climate_variable = "annual_temperature_bioclim", data_source = "WorldClim", x_label = "Annual Temperature (°C)")
   )
 
 )
