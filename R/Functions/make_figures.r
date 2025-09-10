@@ -82,14 +82,14 @@ make_diversity_plot <- function(data) {
   }
   
   # Create the plot using modern ggplot2 syntax
-  ggplot(plot_data, aes(x = elevation_km, y = value, color = region)) +
+  ggplot(plot_data, aes(x = latitude_n, y = value, color = region)) +
     # Add points for each plot
     geom_point(alpha = 0.6, size = 2) +
     # Add prediction line from lmer model with different line types based on significance
-    geom_line(aes(x = elevation_km, y = .fitted, linetype = is_significant), 
+    geom_line(aes(x = latitude_n, y = .fitted, linetype = is_significant), 
               linewidth = 1, color = "grey40", show.legend = FALSE) +
     # Add confidence intervals
-    geom_ribbon(aes(x = elevation_km, ymin = plo, ymax = phi), 
+    geom_ribbon(aes(x = latitude_n, ymin = plo, ymax = phi), 
                 alpha = 0.2, color = NA, fill = "grey40") +
     # Use consistent color palette based on latitude
     scale_color_manual(values = create_region_color_mapping()) +
@@ -108,9 +108,44 @@ make_diversity_plot <- function(data) {
       axis.text = element_text(size = 10)
     ) +
     labs(
-      x = "Elevation (km)",
+      x = "Latitude (°N)",
       y = "Diversity Index Value",
       color = "Region"  # Update legend title
+    )
+}
+
+## DIVERSITY VS ANNUAL TEMPERATURE (BIOCLIM) PLOT
+make_diversity_temp_annual_plot <- function(data) {
+  plot_data <- data |>
+    unnest(data_with_predictions) |>
+    mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains",
+                                             "Eastern Himalaya", "Central Andes", "Drakensberg")))
+
+  if (length(unique(plot_data$diversity_index)) == 0) {
+    stop("No diversity_index values found in data")
+  }
+
+  ggplot(plot_data, aes(x = annual_temperature_bioclim, y = value, color = region)) +
+    geom_point(alpha = 0.6, size = 2) +
+    geom_line(aes(y = .fitted, linetype = is_significant),
+              linewidth = 1, color = "grey40", show.legend = FALSE) +
+    geom_ribbon(aes(ymin = plo, ymax = phi),
+                alpha = 0.2, color = NA, fill = "grey40") +
+    scale_color_manual(values = create_region_color_mapping()) +
+    scale_linetype_manual(values = c("FALSE" = "dashed", "TRUE" = "solid"), guide = "none") +
+    facet_wrap(~diversity_index, scales = "free_y", labeller = label_value) +
+    theme_bw() +
+    theme(
+      legend.position = "top",
+      legend.box = "horizontal",
+      strip.text = element_text(size = 12, face = "bold"),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10)
+    ) +
+    labs(
+      x = "Annual Mean Temperature (°C)",
+      y = "Diversity Index Value",
+      color = "Region"
     )
 }
 
@@ -126,6 +161,9 @@ make_trait_predictor_plot <- function(data, predictor, x_label) {
     predictor == "gst_chelsa" ~ "gst_1981-2010_chelsa",  # CHELSA growing season temperature
     predictor == "gsp_chelsa" ~ "gsp_1981-2010_chelsa",  # CHELSA growing season precipitation
     predictor == "pet_chelsa" ~ "pet_penman_mean_1981-2010_chelsa",  # CHELSA potential evapotranspiration
+    predictor == "temp_warm_bioclim" ~ "mean_temperture_warmest_quarter_bioclim",  # WorldClim mean temperature warmest quarter
+    predictor == "precip_warm_bioclim" ~ "precipitation_warmest_quarter_bioclim",  # WorldClim precipitation warmest quarter
+    predictor == "diurnal_bioclim" ~ "diurnal_range_bioclim",  # WorldClim diurnal range
     predictor == "diurnal" ~ "bio2_1981-2010_chelsa",  # CHELSA mean diurnal range
     TRUE ~ predictor
   )
