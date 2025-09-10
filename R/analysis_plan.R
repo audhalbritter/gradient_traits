@@ -31,7 +31,7 @@ analysis_plan <- list(
         mutate(elevation_km = elevation_m / 1000) |>
         group_by(diversity_index) |>
         nest() |>
-        mutate(model = purrr::map(.x = data, .f = ~ safelmer(value ~ elevation_km + (1|country), data = .)$result),
+        mutate(model = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + (1|country), data = .)$result),
         result = purrr::map(model, broom.mixed::tidy))
     }
   ),
@@ -42,21 +42,79 @@ analysis_plan <- list(
     command = {
       diversity_model |>
         mutate(
-          prediction = map2(.x = model, .y = data, .f = ~ lmer_prediction(dat = .y, fit = .x, predictor = "elevation_km")),
-          # Extract p-value for elevation_km term to determine line type
-          elevation_pvalue = map_dbl(result, ~ {
-            elev_row <- .x |> filter(term == "elevation_km" & effect == "fixed")
-            if (nrow(elev_row) > 0) {
-              elev_row$p.value
+          prediction = map2(.x = model, .y = data, .f = ~ lmer_prediction(dat = .y, fit = .x, predictor = "latitude_n")),
+          # Extract p-value for latitude_n term to determine line type
+          latitude_pvalue = map_dbl(result, ~ {
+            lat_row <- .x |> filter(term == "latitude_n" & effect == "fixed")
+            if (nrow(lat_row) > 0) {
+              lat_row$p.value
             } else {
               NA_real_
             }
           }),
           # Determine if relationship is significant (p < 0.05)
-          is_significant = elevation_pvalue < 0.05
+          is_significant = latitude_pvalue < 0.05
         ) |>
         mutate(
-          data_with_predictions = map2(.x = data, .y = prediction, .f = ~ bind_cols(.x |> select(-elevation_km, -value), .y))
+          data_with_predictions = map2(.x = data, .y = prediction, .f = ~ bind_cols(.x |> select(-elevation_km, -value, -latitude_n), .y))
+        )
+    }
+  ),
+
+  # diversity model using WorldClim annual temperature (bioclim)
+  tar_target(
+    name = diversity_model_temp_annual,
+    command = {
+      safelmer <- purrr::safely(lmerTest::lmer)
+
+      diversity |>
+        filter(diversity_index != "sum_abundance") |>
+        group_by(diversity_index) |>
+        nest() |>
+        mutate(
+          model = purrr::map(
+            .x = data,
+            .f = ~ safelmer(value ~ annual_temperature_bioclim + (1|country), data = .)$result
+          ),
+          result = purrr::map(model, broom.mixed::tidy)
+        )
+    }
+  ),
+
+
+  # predictions for the annual temperature diversity model
+  tar_target(
+    name = diversity_predictions_temp_annual,
+    command = {
+      diversity_model_temp_annual |>
+        mutate(
+          prediction = map2(
+            .x = model,
+            .y = data,
+            .f = ~ lmer_prediction(
+              dat = .y,
+              fit = .x,
+              predictor = "annual_temperature_bioclim"
+            )
+          ),
+          # Extract p-value for the temperature term to determine line type
+          temp_pvalue = map_dbl(result, ~ {
+            term_row <- .x |>
+              filter(term == "annual_temperature_bioclim" & effect == "fixed")
+            if (nrow(term_row) > 0) term_row$p.value else NA_real_
+          }),
+          is_significant = temp_pvalue < 0.05
+        ) |>
+        mutate(
+          data_with_predictions = map2(
+            .x = data,
+            .y = prediction,
+            .f = ~ bind_cols(
+              .x |>
+                select(-annual_temperature_bioclim, -value),
+              .y
+            )
+          )
         )
     }
   ),
@@ -66,6 +124,7 @@ analysis_plan <- list(
     name = trait_models,
     command = {
       trait_mean |>
+        filter(trait_trans %in% c("dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")) |>
         fit_lmer_set(response = "mean", group_var = "trait_trans") |>
         # make long table
         tidyr::pivot_longer(cols = -c(trait_trans, data),
@@ -75,6 +134,7 @@ analysis_plan <- list(
         # Add glance data back
         left_join(
           trait_mean |>
+            filter(trait_trans %in% c("dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")) |>
             fit_lmer_set(response = "mean", group_var = "trait_trans") |>
             select(trait_trans, starts_with("glance")) |>
             tidyr::pivot_longer(cols = -trait_trans,
@@ -91,7 +151,7 @@ analysis_plan <- list(
     name = trait_results,
     command = {
       trait_models |>
-        filter(bioclim %in% c("lat", "elev", "gsl", "gee", "gsl", "chelsa", "gst", "chelsa", "gsp", "chelsa", "pet", "chelsa")) |>
+        filter(bioclim != "null", !is.na(bioclim)) |>
         rowwise() |>
         mutate(
           result = list({
@@ -122,6 +182,9 @@ analysis_plan <- list(
             bioclim == "gst_chelsa" ~ "gst_1981-2010_chelsa",  # CHELSA growing season temperature
             bioclim == "gsp_chelsa" ~ "gsp_1981-2010_chelsa",  # CHELSA growing season precipitation
             bioclim == "pet_chelsa" ~ "pet_penman_mean_1981-2010_chelsa",  # CHELSA potential evapotranspiration
+            bioclim == "temp_warm_bioclim" ~ "mean_temperture_warmest_quarter_bioclim",  # WorldClim mean temperature warmest quarter
+            bioclim == "precip_warm_bioclim" ~ "precipitation_warmest_quarter_bioclim",  # WorldClim precipitation warmest quarter
+            bioclim == "diurnal_bioclim" ~ "diurnal_range_bioclim",  # WorldClim diurnal range
             TRUE ~ bioclim
           ),
           # Extract p-value for the predictor term to determine line type

@@ -79,6 +79,9 @@ fit_lmer_set <- function(data, response, group_var, random_effect = "country") {
   f_gst_chelsa <- stats::as.formula(paste(response, "~ `gst_1981-2010_chelsa` + (1|", random_effect, ")"))
   f_gsp_chelsa <- stats::as.formula(paste(response, "~ `gsp_1981-2010_chelsa` + (1|", random_effect, ")"))
   f_pet_chelsa <- stats::as.formula(paste(response, "~ `pet_penman_mean_1981-2010_chelsa` + (1|", random_effect, ")"))
+  f_temp_warm_bioclim <- stats::as.formula(paste(response, "~ mean_temperture_warmest_quarter_bioclim + (1|", random_effect, ")"))
+  f_precip_warm_bioclim <- stats::as.formula(paste(response, "~ precipitation_warmest_quarter_bioclim + (1|", random_effect, ")"))
+  f_diurnal_bioclim <- stats::as.formula(paste(response, "~ diurnal_range_bioclim + (1|", random_effect, ")"))
 
   data |>
     dplyr::group_by(.data[[group_var]]) |>
@@ -92,6 +95,9 @@ fit_lmer_set <- function(data, response, group_var, random_effect = "country") {
       model_gst_chelsa  = purrr::map(.x = data, .f = ~ safelmer(f_gst_chelsa,   data = .)$result),
       model_gsp_chelsa  = purrr::map(.x = data, .f = ~ safelmer(f_gsp_chelsa,   data = .)$result),
       model_pet_chelsa  = purrr::map(.x = data, .f = ~ safelmer(f_pet_chelsa,   data = .)$result),
+      model_temp_warm_bioclim = purrr::map(.x = data, .f = ~ safelmer(f_temp_warm_bioclim, data = .)$result),
+      model_precip_warm_bioclim = purrr::map(.x = data, .f = ~ safelmer(f_precip_warm_bioclim, data = .)$result),
+      model_diurnal_bioclim = purrr::map(.x = data, .f = ~ safelmer(f_diurnal_bioclim, data = .)$result),
       glance_null       = purrr::map(model_null,        ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
       glance_lat        = purrr::map(model_lat,         ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
       glance_elev       = purrr::map(model_elev,        ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
@@ -99,6 +105,9 @@ fit_lmer_set <- function(data, response, group_var, random_effect = "country") {
       glance_gsl_chelsa = purrr::map(model_gsl_chelsa,  ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
       glance_gst_chelsa = purrr::map(model_gst_chelsa,  ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
       glance_gsp_chelsa = purrr::map(model_gsp_chelsa,  ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
-      glance_pet_chelsa = purrr::map(model_pet_chelsa,  ~ if(!is.null(.)) broom.mixed::glance(.) else NULL)
+      glance_pet_chelsa = purrr::map(model_pet_chelsa,  ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_temp_warm_bioclim = purrr::map(model_temp_warm_bioclim, ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_precip_warm_bioclim = purrr::map(model_precip_warm_bioclim, ~ if(!is.null(.)) broom.mixed::glance(.) else NULL),
+      glance_diurnal_bioclim = purrr::map(model_diurnal_bioclim, ~ if(!is.null(.)) broom.mixed::glance(.) else NULL)
     )
 }
