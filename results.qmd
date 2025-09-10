@@ -53,10 +53,10 @@ tar_load(chelsa_extracted)
 climate_summary <- chelsa_extracted |>
   group_by(region) |>
   summarise(
-    `Growing Season Length (days)` = round(mean(growing_season_length, na.rm = TRUE), 1),
-    `Growing Season Temperature (°C)` = round(mean(growing_season_temperature, na.rm = TRUE), 1),
-    `Growing Season Precipitation (mm)` = round(mean(growing_season_precipitation, na.rm = TRUE), 1),
-    `Potential Evapotranspiration (mm)` = round(mean(potential_evapotranspiration, na.rm = TRUE), 1),
+    `Growing Season Length (days)` = round(mean(`gsl_1981-2010_chelsa`, na.rm = TRUE), 1),
+    `Growing Season Temperature (°C)` = round(mean(`gst_1981-2010_chelsa`, na.rm = TRUE), 1),
+    `Growing Season Precipitation (mm)` = round(mean(`gsp_1981-2010_chelsa`, na.rm = TRUE), 1),
+    `Potential Evapotranspiration (mm)` = round(mean(`pet_penman_mean_1981-2010_chelsa`, na.rm = TRUE), 1),
     .groups = "drop"
   ) |>
   # Reorder regions from north to south
@@ -94,7 +94,7 @@ climate_summary |>
 #| label: fig-study-sites-map
 #| echo: false
 #| warnings: false
-#| fig-height: 8
+#| fig-height: 6
 
 tar_load(regions_world_map)
 regions_world_map
@@ -152,31 +152,121 @@ trait_pca_fig
 
 \newpage
 
-This figure shows functional leaf traits in relation to latitude. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
-
-```{r}
-#| label: fig-trait-elev
-#| echo: false
-#| warnings: false
-#| fig-height: 8
-
-tar_load(trait_elev_fig)
-trait_elev_fig
-
-```
-
-\newpage
-
-This figure shows functional leaf traits in relation to growing season length. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+This figure shows functional leaf traits in relation to growing season length (GEE). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
 #| label: fig-trait-gsl
 #| echo: false
 #| warnings: false
-#| fig-height: 8
+#| fig-height: 6
 
-tar_load(trait_gsl_fig)
-trait_gsl_fig
+tar_load(trait_climate_gsl_fig)
+trait_climate_gsl_fig
+
+```
+
+\newpage
+
+This figure shows functional leaf traits in relation to growing season length (CHELSA). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-gsl-chelsa
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_climate_gsl_chelsa_fig)
+trait_climate_gsl_chelsa_fig
+
+```
+
+\newpage
+
+This figure shows functional leaf traits in relation to growing season temperature (CHELSA). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-gst
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_climate_gst_fig)
+trait_climate_gst_fig
+
+```
+
+\newpage
+
+This figure shows functional leaf traits in relation to growing season precipitation (CHELSA). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-gsp
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_climate_gsp_fig)
+trait_climate_gsp_fig
+
+```
+
+\newpage
+
+This figure shows functional leaf traits in relation to potential evapotranspiration (CHELSA). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-pet
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_climate_pet_fig)
+trait_climate_pet_fig
+
+```
+
+\newpage
+
+This figure shows functional leaf traits in relation to mean temperature of the warmest quarter (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-temp-warm
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_climate_temp_warm_fig)
+trait_climate_temp_warm_fig
+
+```
+
+\newpage
+
+This figure shows functional leaf traits in relation to precipitation of the warmest quarter (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-precip-warm
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_climate_precip_warm_fig)
+trait_climate_precip_warm_fig
+
+```
+
+\newpage
+
+This figure shows functional leaf traits in relation to mean diurnal range (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-diurnal
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_climate_diurnal_fig)
+trait_climate_diurnal_fig
 
 ```
 
@@ -189,51 +279,60 @@ trait_gsl_fig
 
 library(gt)
 library(dplyr)
+library(tidyr)
 
-tar_load(trait_results)
+tar_load(trait_models_output)
 
-# Create a nice table of trait model results
-trait_results_table <- trait_results |>
+# Create a nice table of trait model results from the new long-format models
+trait_results_table <- trait_models_output |>
+  # Unnest the tidy results
+  unnest(tidy_results) |>
   filter(effect == "fixed", term != "(Intercept)") |>  # Only fixed effects, exclude intercept
   mutate(
-    # Clean up trait names
-    trait_clean = stringr::str_replace_all(trait_trans, "_", " ") |> 
-      stringr::str_to_title(),
-    # Clean up predictor names
+    # Clean up trait names using fancy names
+    trait_clean = case_when(
+      trait_trans == "plant_height_cm_log" ~ "Height cm",
+      trait_trans == "dry_mass_g_log" ~ "Dry mass g",
+      trait_trans == "leaf_area_cm2_log" ~ "Area cm²",
+      trait_trans == "thickness_mm_log" ~ "Thickness mm",
+      trait_trans == "ldmc" ~ "LDMC",
+      trait_trans == "sla_cm2_g" ~ "SLA cm²/g",
+      TRUE ~ stringr::str_replace_all(trait_trans, "_", " ") |> stringr::str_to_title()
+    ),
+    # Clean up predictor names using the climate_variable_clean from the data
     predictor_clean = case_when(
-      term == "latitude_n" ~ "Latitude",
-      term == "elevation_m" ~ "Elevation",
-      term == "growing_season_length" ~ "Growing Season Length (GEE)",
-      term == "gsl_1981-2010_chelsa" ~ "Growing Season Length (CHELSA)",
-      term == "gst_1981-2010_chelsa" ~ "Growing Season Temperature (CHELSA)",
-      term == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation (CHELSA)",
-      term == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration (CHELSA)",
-      term == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
-      term == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
-      term == "diurnal_range_bioclim" ~ "Mean Diurnal Range (WorldClim)",
-      TRUE ~ term
+      climate_variable == "growing_season_length" ~ "Growing Season Length (GEE)",
+      climate_variable == "gsl_1981-2010_chelsa" ~ "Growing Season Length (CHELSA)",
+      climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature (CHELSA)",
+      climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation (CHELSA)",
+      climate_variable == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration (CHELSA)",
+      climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
+      climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
+      climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range (WorldClim)",
+      TRUE ~ climate_variable
     ),
     # Round numeric values
     estimate = round(estimate, 3),
     std.error = round(std.error, 3),
     statistic = round(statistic, 2),
     p.value = round(p.value, 3),
-    # Create significance indicator
+    # Create significance indicator for formatting
     is_significant = p.value < 0.05
   ) |>
-  select(trait_clean, predictor_clean, estimate, std.error, statistic, df, p.value, is_significant) |>
-  arrange(trait_clean, predictor_clean)
+  select(trait_clean, predictor_clean, estimate, std.error, statistic, df, p.value, is_significant)
 
-# Create the gt table
+# Create the gt table with proper ordering
 trait_results_table |>
+  arrange(predictor_clean, trait_clean) |>  # Sort by predictor first, then trait
+  group_by(predictor_clean) |>
   gt() |>
+  cols_hide(columns = c(predictor_clean, is_significant)) |>  # Hide predictor and significance columns
   tab_header(
     title = "Trait Model Results",
     subtitle = "Mixed-effects models showing relationships between functional traits and environmental predictors"
   ) |>
   cols_label(
     trait_clean = "Trait",
-    predictor_clean = "Predictor",
     estimate = "Estimate",
     std.error = "SE",
     statistic = "t-statistic",
@@ -260,10 +359,6 @@ trait_results_table |>
     heading.title.font.size = 14,
     heading.subtitle.font.size = 12,
     column_labels.font.weight = "bold"
-  ) |>
-  tab_footnote(
-    footnote = "Bold rows indicate significant relationships (p < 0.05)",
-    locations = cells_column_labels(columns = trait_clean)
   )
 
 ```
