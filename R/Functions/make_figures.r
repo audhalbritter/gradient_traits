@@ -149,53 +149,69 @@ make_diversity_temp_annual_plot <- function(data) {
     )
 }
 
-## TRAIT VS PREDICTOR PLOT
-make_trait_predictor_plot <- function(data, predictor, x_label) {
+## TRAIT VS CLIMATE PREDICTOR PLOT (for long-format data)
+make_trait_climate_plot <- function(data, climate_variable, data_source = NULL, x_label) {
   
-  # Map bioclim identifier to actual column name
-  predictor_col <- case_when(
-    predictor == "lat" ~ "latitude_n",
-    predictor == "elev" ~ "elevation_m",
-    predictor == "gsl_gee" ~ "growing_season_length",  # GEE growing season length
-    predictor == "gsl_chelsa" ~ "gsl_1981-2010_chelsa",  # CHELSA growing season length
-    predictor == "gst_chelsa" ~ "gst_1981-2010_chelsa",  # CHELSA growing season temperature
-    predictor == "gsp_chelsa" ~ "gsp_1981-2010_chelsa",  # CHELSA growing season precipitation
-    predictor == "pet_chelsa" ~ "pet_penman_mean_1981-2010_chelsa",  # CHELSA potential evapotranspiration
-    predictor == "temp_warm_bioclim" ~ "mean_temperture_warmest_quarter_bioclim",  # WorldClim mean temperature warmest quarter
-    predictor == "precip_warm_bioclim" ~ "precipitation_warmest_quarter_bioclim",  # WorldClim precipitation warmest quarter
-    predictor == "diurnal_bioclim" ~ "diurnal_range_bioclim",  # WorldClim diurnal range
-    predictor == "diurnal" ~ "bio2_1981-2010_chelsa",  # CHELSA mean diurnal range
-    TRUE ~ predictor
-  )
-  
-  # Unnest combined data and filter for this predictor
+  # Filter data for the specific climate variable and optionally by data source
   filtered_data <- data |>
-    unnest(data_with_predictions) |>
-    # Prefer filtering by mapped predictor column name to avoid label mismatches
-    filter(predictor == predictor_col) |>
-    # Ensure region is ordered consistently (north to south)
+    filter(climate_variable == !!climate_variable)
+  
+  # Add data source filter if specified
+  if (!is.null(data_source)) {
+    filtered_data <- filtered_data |>
+      filter(data_source == !!data_source)
+  }
+  
+  # Ensure region is ordered consistently (north to south)
+  filtered_data <- filtered_data |>
     mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
                                              "Eastern Himalaya", "Central Andes", "Drakensberg")))
-
+  
   # Basic checks
-  if (!predictor_col %in% names(filtered_data)) {
-    stop("Predictor column '", predictor_col, "' not found in combined data")
-  }
   if (nrow(filtered_data) == 0) {
-    stop("No data found after filtering for bioclim = '", predictor, "'")
+    stop("No data found for climate variable: ", climate_variable)
   }
-
-  # Plot with prediction line and ribbon from precomputed columns
-  ggplot(filtered_data, aes(x = .data[[predictor_col]], y = mean, color = region)) +
+  
+  # Add trait names to data using the fancy_traits function
+  plot_data <- filtered_data |>
+    fancy_trait_name_dictionary() |>
+    mutate(trait_name = factor(trait_fancy, levels = unique(trait_fancy)))
+  
+  # The significance info should already be in the filtered_data since it comes from the unnested predictions
+  # Let's check if it's there, and if not, add it
+  if (!"is_significant" %in% names(plot_data)) {
+    # Get significance info from the parent data structure
+    significance_info <- data |>
+      filter(climate_variable == !!climate_variable)
+    
+    if (!is.null(data_source)) {
+      significance_info <- significance_info |>
+        filter(data_source == !!data_source)
+    }
+    
+    significance_info <- significance_info |>
+      select(trait_trans, is_significant) |>
+      distinct()
+    
+    # Join significance info to plot data
+    plot_data <- plot_data |>
+      left_join(significance_info, by = "trait_trans")
+  }
+  
+  # Plot with raw data points, prediction line, and confidence intervals
+  ggplot(plot_data, aes(x = climate_value, y = mean, color = region)) +
     geom_point(alpha = 0.6, size = 2) +
     # Add prediction line with different line types based on significance
-    geom_line(aes(y = .fitted, linetype = is_significant), linewidth = 1, color = "grey40", show.legend = FALSE) +
-    geom_ribbon(aes(ymin = plo, ymax = phi), alpha = 0.2, color = NA, fill = "grey40") +
+    geom_line(aes(y = .fitted, linetype = is_significant), 
+              linewidth = 1, color = "grey40", show.legend = FALSE) +
+    # Add confidence intervals
+    geom_ribbon(aes(ymin = plo, ymax = phi), 
+                alpha = 0.2, color = NA, fill = "grey40") +
     scale_color_manual(values = create_region_color_mapping()) +
     # Set line types: solid for significant, dashed for non-significant (no legend)
     scale_linetype_manual(values = c("FALSE" = "dashed", "TRUE" = "solid"),
                          guide = "none") +
-    facet_wrap(~figure_names, scales = "free_y", labeller = label_parsed) +
+    facet_wrap(~trait_name, scales = "free_y", labeller = label_value) +
     theme_bw() +
     theme(
       legend.position = "top",
