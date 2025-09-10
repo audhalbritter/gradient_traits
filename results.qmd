@@ -115,8 +115,8 @@ This figure shows diversity indices (richness, Shannon diversity, and evenness) 
 #| warnings: false
 #| fig-height: 4
 
-tar_load(diversity_elev_fig)
-diversity_elev_fig
+tar_load(diversity_fig)
+diversity_fig
 
 ```
 
@@ -177,5 +177,93 @@ This figure shows functional leaf traits in relation to growing season length. T
 
 tar_load(trait_gsl_fig)
 trait_gsl_fig
+
+```
+
+## Trait Model Results
+
+```{r}
+#| label: tab-trait-results
+#| echo: false
+#| warnings: false
+
+library(gt)
+library(dplyr)
+
+tar_load(trait_results)
+
+# Create a nice table of trait model results
+trait_results_table <- trait_results |>
+  filter(effect == "fixed", term != "(Intercept)") |>  # Only fixed effects, exclude intercept
+  mutate(
+    # Clean up trait names
+    trait_clean = stringr::str_replace_all(trait_trans, "_", " ") |> 
+      stringr::str_to_title(),
+    # Clean up predictor names
+    predictor_clean = case_when(
+      term == "latitude_n" ~ "Latitude",
+      term == "elevation_m" ~ "Elevation",
+      term == "growing_season_length" ~ "Growing Season Length (GEE)",
+      term == "gsl_1981-2010_chelsa" ~ "Growing Season Length (CHELSA)",
+      term == "gst_1981-2010_chelsa" ~ "Growing Season Temperature (CHELSA)",
+      term == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation (CHELSA)",
+      term == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration (CHELSA)",
+      term == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
+      term == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
+      term == "diurnal_range_bioclim" ~ "Mean Diurnal Range (WorldClim)",
+      TRUE ~ term
+    ),
+    # Round numeric values
+    estimate = round(estimate, 3),
+    std.error = round(std.error, 3),
+    statistic = round(statistic, 2),
+    p.value = round(p.value, 3),
+    # Create significance indicator
+    is_significant = p.value < 0.05
+  ) |>
+  select(trait_clean, predictor_clean, estimate, std.error, statistic, df, p.value, is_significant) |>
+  arrange(trait_clean, predictor_clean)
+
+# Create the gt table
+trait_results_table |>
+  gt() |>
+  tab_header(
+    title = "Trait Model Results",
+    subtitle = "Mixed-effects models showing relationships between functional traits and environmental predictors"
+  ) |>
+  cols_label(
+    trait_clean = "Trait",
+    predictor_clean = "Predictor",
+    estimate = "Estimate",
+    std.error = "SE",
+    statistic = "t-statistic",
+    df = "df",
+    p.value = "p-value"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = everything(),
+      rows = is_significant == TRUE
+    )
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_body(columns = c(estimate, std.error, statistic, df, p.value))
+  ) |>
+  tab_options(
+    table.font.size = 11,
+    heading.title.font.size = 14,
+    heading.subtitle.font.size = 12,
+    column_labels.font.weight = "bold"
+  ) |>
+  tab_footnote(
+    footnote = "Bold rows indicate significant relationships (p < 0.05)",
+    locations = cells_column_labels(columns = trait_clean)
+  )
 
 ```
