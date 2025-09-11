@@ -135,7 +135,7 @@ figure_plan <- list(
           y = "Trait Variance",
           title = "Trait Variance vs Growing Season Temperature (CHELSA)"
         ) +
-        theme_minimal() +
+        theme_bw() +
         theme(
           legend.position = "top",
           strip.text = element_text(size = 10),

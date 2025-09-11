@@ -43,8 +43,8 @@ analysis_plan <- list(
         ungroup() |>
         group_by(diversity_index) |>
         nest() |>
-        mutate(model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + (1|country), data = .)$result),
-            model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + I(latitude_n^2) + (1|country), data = .)$result),
+        mutate(model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + (1|site), data = .)$result),
+            model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + I(latitude_n^2) + (1|site), data = .)$result),
             glance_linear = purrr::map(.x = model_linear, .f = ~ broom.mixed::glance(.x)),
             glance_poly = purrr::map(.x = model_poly, .f = ~ broom.mixed::glance(.x)),
             result_linear = purrr::map(model_linear, broom.mixed::tidy),
@@ -111,9 +111,9 @@ analysis_plan <- list(
         nest() |>
         mutate(
           # Linear model
-          model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + (1|country), data = .)$result),
+          model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + (1|site), data = .)$result),
           # Polynomial model (second order)
-          model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + I(annual_temperature_bioclim^2) + (1|country), data = .)$result),
+          model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + I(annual_temperature_bioclim^2) + (1|site), data = .)$result),
           # Glance data for linear model
           glance_linear = purrr::map(.x = model_linear, .f = ~ broom.mixed::glance(.x)),
           # Glance data for polynomial model
@@ -133,6 +133,7 @@ analysis_plan <- list(
         unnest(glance) |>
         # select the best model based on AIC
         filter(AIC == min(AIC, na.rm = TRUE))
+
     }
   ),
 
@@ -252,13 +253,13 @@ analysis_plan <- list(
           # Linear model
           model_linear = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(trait_value ~ climate_value + (1|country), data = .x)
+            result <- safelmer(trait_value ~ climate_value + (1|site), data = .x)
             result$result
           }),
           # Polynomial model (second order)
           model_poly = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(trait_value ~ climate_value + I(climate_value^2) + (1|country), data = .x)
+            result <- safelmer(trait_value ~ climate_value + I(climate_value^2) + (1|site), data = .x)
             result$result
           }),
           # Glance data for linear model
@@ -428,7 +429,7 @@ analysis_plan <- list(
           # Linear model for variance vs growing season temperature
           model = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(trait_value ~ climate_value + (1|country), data = .x)
+            result <- safelmer(trait_value ~ climate_value + (1|site), data = .x)
             result$result
           }),
           # Get tidy results
@@ -482,13 +483,13 @@ analysis_plan <- list(
           # Linear model
           model_linear = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(trait_value ~ climate_value + (1|country), data = .x)
+            result <- safelmer(trait_value ~ climate_value + (1|site), data = .x)
             result$result
           }),
           # Polynomial model (second order)
           model_poly = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(trait_value ~ climate_value + I(climate_value^2) + (1|country), data = .x)
+            result <- safelmer(trait_value ~ climate_value + I(climate_value^2) + (1|site), data = .x)
             result$result
           }),
           # Glance data for linear model

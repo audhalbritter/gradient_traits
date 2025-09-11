@@ -165,6 +165,21 @@ trait_pca_fig
 
 \newpage
 
+This figure shows functional leaf traits in relation to annual temperature (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-annual-temp
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_climate_annual_temp_fig)
+trait_climate_annual_temp_fig
+
+```
+
+\newpage
+
 This figure shows functional leaf traits in relation to growing season length (GEE). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
@@ -175,21 +190,6 @@ This figure shows functional leaf traits in relation to growing season length (G
 
 tar_load(trait_climate_gsl_fig)
 trait_climate_gsl_fig
-
-```
-
-\newpage
-
-This figure shows functional leaf traits in relation to growing season length (CHELSA). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
-
-```{r}
-#| label: fig-trait-gsl-chelsa
-#| echo: false
-#| warnings: false
-#| fig-height: 6
-
-tar_load(trait_climate_gsl_chelsa_fig)
-trait_climate_gsl_chelsa_fig
 
 ```
 
@@ -225,51 +225,6 @@ trait_climate_gsp_fig
 
 \newpage
 
-This figure shows functional leaf traits in relation to potential evapotranspiration (CHELSA). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
-
-```{r}
-#| label: fig-trait-pet
-#| echo: false
-#| warnings: false
-#| fig-height: 6
-
-tar_load(trait_climate_pet_fig)
-trait_climate_pet_fig
-
-```
-
-\newpage
-
-This figure shows functional leaf traits in relation to mean temperature of the warmest quarter (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
-
-```{r}
-#| label: fig-trait-temp-warm
-#| echo: false
-#| warnings: false
-#| fig-height: 6
-
-tar_load(trait_climate_temp_warm_fig)
-trait_climate_temp_warm_fig
-
-```
-
-\newpage
-
-This figure shows functional leaf traits in relation to precipitation of the warmest quarter (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
-
-```{r}
-#| label: fig-trait-precip-warm
-#| echo: false
-#| warnings: false
-#| fig-height: 6
-
-tar_load(trait_climate_precip_warm_fig)
-trait_climate_precip_warm_fig
-
-```
-
-\newpage
-
 This figure shows functional leaf traits in relation to mean diurnal range (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
@@ -280,21 +235,6 @@ This figure shows functional leaf traits in relation to mean diurnal range (Worl
 
 tar_load(trait_climate_diurnal_fig)
 trait_climate_diurnal_fig
-
-```
-
-\newpage
-
-This figure shows functional leaf traits in relation to annual temperature (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
-
-```{r}
-#| label: fig-trait-annual-temp
-#| echo: false
-#| warnings: false
-#| fig-height: 6
-
-tar_load(trait_climate_annual_temp_fig)
-trait_climate_annual_temp_fig
 
 ```
 

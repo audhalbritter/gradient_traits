@@ -23,7 +23,7 @@ lmer_prediction <- function(dat, fit, predictor){
   prediction <- tryCatch({
     mm <- model.matrix(terms(fit), newdat)
     vc <- vcov(fit)
-    re_var <- as.numeric(VarCorr(fit)$country[1])
+    re_var <- as.numeric(VarCorr(fit)$site[1])
     tmp <- newdat %>%
       mutate(pvar1 = diag(mm %*% tcrossprod(vc, mm)),
              tvar1 = pvar1 + re_var,
@@ -68,7 +68,7 @@ lmer_prediction_trait <- function(dat, fit, predictor) {
   prediction <- tryCatch({
     mm <- model.matrix(terms(fit), newdat)
     vc <- vcov(fit)
-    re_var <- as.numeric(VarCorr(fit)$country[1])
+    re_var <- as.numeric(VarCorr(fit)$site[1])
     tmp <- newdat %>%
       mutate(pvar1 = diag(mm %*% tcrossprod(vc, mm)),
              tvar1 = pvar1 + re_var,
