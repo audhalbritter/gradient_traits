@@ -287,6 +287,105 @@ trait_climate_annual_temp_fig
 
 ## Trait Model Results
 
+### Model Quality Overview
+
+This table shows the R² values for all trait-climate relationships, helping identify which models have good explanatory power versus those with poor fit.
+
+```{r}
+#| label: tab-model-quality
+#| echo: false
+#| warnings: false
+
+library(gt)
+library(dplyr)
+
+tar_load(trait_model_r2_summary)
+
+# Create a summary table of model quality
+model_quality_table <- trait_model_r2_summary |>
+  mutate(
+    # Clean up trait names
+    trait_clean = case_when(
+      trait_trans == "plant_height_cm_log" ~ "Height cm",
+      trait_trans == "dry_mass_g_log" ~ "Dry mass g",
+      trait_trans == "leaf_area_cm2_log" ~ "Area cm²",
+      trait_trans == "thickness_mm_log" ~ "Thickness mm",
+      trait_trans == "ldmc" ~ "LDMC",
+      trait_trans == "sla_cm2_g" ~ "SLA cm²/g",
+      TRUE ~ stringr::str_replace_all(trait_trans, "_", " ") |> stringr::str_to_title()
+    ),
+    # Clean up predictor names
+    predictor_clean = case_when(
+      climate_variable == "growing_season_length" ~ "Growing Season Length (GEE)",
+      climate_variable == "gsl_1981-2010_chelsa" ~ "Growing Season Length (CHELSA)",
+      climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature (CHELSA)",
+      climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation (CHELSA)",
+      climate_variable == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration (CHELSA)",
+      climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
+      climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
+      climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range (WorldClim)",
+      climate_variable == "annual_temperature_bioclim" ~ "Annual Temperature (WorldClim)",
+      TRUE ~ climate_variable
+    ),
+    # Round R² values
+    r2_nakagawa = round(r2_nakagawa, 3),
+    r2_conditional = round(r2_conditional, 3),
+    aic = round(aic, 1),
+    # Create quality categories
+    quality = case_when(
+      r2_nakagawa >= 0.3 ~ "Good",
+      r2_nakagawa >= 0.1 ~ "Moderate", 
+      r2_nakagawa >= 0.01 ~ "Poor",
+      TRUE ~ "Very Poor"
+    )
+  ) |>
+  select(trait_clean, predictor_clean, data_source, model_type, r2_nakagawa, r2_conditional, aic, quality, is_significant)
+
+# Create the gt table
+model_quality_table |>
+  arrange(desc(r2_nakagawa)) |>
+  gt() |>
+  tab_header(
+    title = "Trait Model Quality Summary",
+    subtitle = "R² values and model fit statistics for trait-climate relationships"
+  ) |>
+  cols_label(
+    trait_clean = "Trait",
+    predictor_clean = "Climate Variable",
+    r2_nakagawa = "Marginal R²",
+    r2_conditional = "Conditional R²",
+    aic = "AIC",
+    quality = "Quality",
+    is_significant = "Significant"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold", color = "green"),
+    locations = cells_body(
+      columns = everything(),
+      rows = quality == "Good"
+    )
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold", color = "red"),
+    locations = cells_body(
+      columns = everything(),
+      rows = quality == "Very Poor"
+    )
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_options(
+    table.font.size = 10,
+    heading.title.font.size = 14,
+    heading.subtitle.font.size = 12
+  )
+
+```
+
+### Detailed Model Results
+
 ```{r}
 #| label: tab-trait-results
 #| echo: false
