@@ -1,20 +1,15 @@
 figure_plan <- list(
 
-  # trait ordination
-  tar_target(
-    name = trait_pca_fig,
-    command = make_pca_plot(trait_pca)
-  ),
-
-    tar_target(
-    name = trait_pca_full_fig,
-    command = make_pca_plot(trait_pca_full)
-  ),
-
     # Archambault color palette for regions
   tar_target(
     name = archambault_palette,
     command = met.brewer("Archambault", n = 6)
+  ),
+
+    # world map of regions
+  tar_target(
+    name = regions_world_map,
+    command = make_region_world_map(all_coordinates)
   ),
 
   # diversity vs elevation plot
@@ -31,10 +26,15 @@ figure_plan <- list(
         make_diversity_temp_annual_plot(.)
   ),
 
-  # world map of regions
+    # trait ordination
   tar_target(
-    name = regions_world_map,
-    command = make_region_world_map(all_coordinates)
+    name = trait_pca_fig,
+    command = make_pca_plot(trait_pca)
+  ),
+
+    tar_target(
+    name = trait_pca_full_fig,
+    command = make_pca_plot(trait_pca_full)
   ),
 
   # # Trait vs predictor plots
