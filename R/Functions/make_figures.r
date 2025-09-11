@@ -199,7 +199,7 @@ make_trait_climate_plot <- function(data, climate_variable, data_source = NULL, 
   }
   
   # Plot with raw data points, prediction line, and confidence intervals
-  ggplot(plot_data, aes(x = climate_value, y = mean, color = region)) +
+  ggplot(plot_data, aes(x = `climate_value...24`, y = mean, color = region)) +
     geom_point(alpha = 0.6, size = 2) +
     # Add prediction line with different line types based on significance
     geom_line(aes(y = .fitted, linetype = is_significant), 

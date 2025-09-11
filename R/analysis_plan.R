@@ -155,14 +155,28 @@ analysis_plan <- list(
             climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter",
             climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter",
             climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range",
+            climate_variable == "annual_temperature_bioclim" ~ "Annual Temperature",
             TRUE ~ climate_variable
           )
         ) |>
         # Filter out rows with NA climate values
         filter(!is.na(climate_value)) |>
+        # Scale climate variables by climate_variable group to enable back-transformation
+        group_by(climate_variable) |>
+        mutate(
+          # Store original values for back-transformation
+          climate_value_original = climate_value,
+          # Calculate scaling parameters
+          climate_mean = mean(climate_value, na.rm = TRUE),
+          climate_sd = sd(climate_value, na.rm = TRUE),
+          # Scale the climate values (center and scale)
+          climate_value = (climate_value - climate_mean) / climate_sd
+        ) |>
+        ungroup() |>
         # Keep elevation and latitude as separate columns
         select(country:ecosystem, elevation_m, latitude_n, longitude_e, trait_trans, mean, 
-               climate_variable, climate_variable_clean, climate_value, data_source)
+               climate_variable, climate_variable_clean, climate_value, climate_value_original, 
+               climate_mean, climate_sd, data_source)
     }
   ),
 
@@ -277,14 +291,13 @@ analysis_plan <- list(
         ) |>
         ungroup()
     }
-  )
+  ),
 
   # trait model checks
   tar_target(
     name = trait_model_checks,
     command = {
-      trait_models |>
-        filter(bioclim != "null") |>  # Remove null models
+      trait_models_output |>
         rowwise() |>
         mutate(
           model_check = list({
@@ -297,6 +310,44 @@ analysis_plan <- list(
         ) |>
         ungroup() |>
         filter(!is.null(model_check))  # Remove rows with NULL model_check
+    }
+  ),
+
+  # R² summary for trait models
+  tar_target(
+    name = trait_model_r2_summary,
+    command = {
+      trait_models_output |>
+        rowwise() |>
+        mutate(
+          r2_nakagawa = tryCatch({
+            if (!is.null(model)) {
+              r2_result <- performance::r2_nakagawa(model)
+              r2_result$R2_marginal
+            } else {
+              NA_real_
+            }
+          }, error = function(e) NA_real_),
+          r2_conditional = tryCatch({
+            if (!is.null(model)) {
+              r2_result <- performance::r2_nakagawa(model)
+              r2_result$R2_conditional
+            } else {
+              NA_real_
+            }
+          }, error = function(e) NA_real_),
+          aic = tryCatch({
+            if (!is.null(model)) {
+              AIC(model)
+            } else {
+              NA_real_
+            }
+          }, error = function(e) NA_real_)
+        ) |>
+        ungroup() |>
+        select(trait_trans, climate_variable, data_source, model_type, 
+               r2_nakagawa, r2_conditional, aic, is_significant) |>
+        arrange(desc(r2_nakagawa))
     }
   )
 
