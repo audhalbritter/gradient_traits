@@ -25,10 +25,21 @@ transformation_plan <- list(
           .groups = "drop"
         )
       
-      # Then join with CHELSA bioclim+ data
+      # Add bioclim variables to diversity data
       community_agg |>
+        tidylog::left_join(
+          bioclim |> 
+            select(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem,
+                   annual_temperature, mean_temperture_warmest_quarter, precipitation_warmest_quarter, diurnal_range) |>
+            rename(
+              annual_temperature_bioclim = annual_temperature,
+              mean_temperture_warmest_quarter_bioclim = mean_temperture_warmest_quarter,
+              precipitation_warmest_quarter_bioclim = precipitation_warmest_quarter,
+              diurnal_range_bioclim = diurnal_range
+            ),
+          by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)
+        ) |>
         pivot_longer(cols = richness:sum_abundance, names_to = "diversity_index", values_to = "value") |>
-        tidylog::left_join(chelsa_extracted, by = join_by(country, region,gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)) |>
         # Ensure region is ordered consistently (north to south)
         mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
                                                  "Eastern Himalaya", "Central Andes", "Drakensberg"))) |>
@@ -134,7 +145,20 @@ transformation_plan <- list(
             "dn15_permil"
           )
         )) |>
+        tidylog::left_join(gee_growing_season_length, by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)) |>
         tidylog::left_join(chelsa_extracted, by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)) |>
+        tidylog::left_join(
+          bioclim |> 
+            select(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem,
+                   annual_temperature, mean_temperture_warmest_quarter, precipitation_warmest_quarter, diurnal_range) |>
+            rename(
+              annual_temperature_bioclim = annual_temperature,
+              mean_temperture_warmest_quarter_bioclim = mean_temperture_warmest_quarter,
+              precipitation_warmest_quarter_bioclim = precipitation_warmest_quarter,
+              diurnal_range_bioclim = diurnal_range
+            ),
+          by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)
+        ) |>
         # Ensure region is ordered consistently (north to south)
         mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
                                                  "Eastern Himalaya", "Central Andes", "Drakensberg")))

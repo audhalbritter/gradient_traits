@@ -47,17 +47,11 @@ tar_load(trait_model_checks)
 #| results: asis
 
 diversity_model_checks |> 
-  select(diversity_index, bioclim, model_check) |> 
-  pwalk(.f = function(diversity_index, bioclim, model_check, ...){
+  select(diversity_index, model_check) |> 
+  pwalk(.f = function(diversity_index, model_check, ...){
   # Create a nice header with spacing
   cat("\n\n")
-  cat(paste("###", stringr::str_to_title(diversity_index), "-", 
-            case_when(
-              bioclim == "lat" ~ "Latitude",
-              bioclim == "anntemp" ~ "Annual Temperature", 
-              bioclim == "temprange" ~ "Temperature Range",
-              TRUE ~ bioclim
-            ), "\n\n"))
+  cat(paste("###", stringr::str_to_title(diversity_index), "- Elevation", "\n\n"))
   
   # Print the model check plots
   print(model_check)
@@ -83,6 +77,16 @@ trait_model_checks |>
   cat(paste("###", stringr::str_replace_all(trait_trans, "_", " ") |> stringr::str_to_title(), "-", 
             case_when(
               bioclim == "lat" ~ "Latitude",
+              bioclim == "elev" ~ "Elevation",
+              bioclim == "gsl_gee" ~ "Growing Season Length (GEE)",
+              bioclim == "gsl_chelsa" ~ "Growing Season Length (CHELSA)",
+              bioclim == "gst_chelsa" ~ "Growing Season Temperature (CHELSA)",
+              bioclim == "gsp_chelsa" ~ "Growing Season Precipitation (CHELSA)",
+              bioclim == "pet_chelsa" ~ "Potential Evapotranspiration (CHELSA)",
+              bioclim == "temp_warm_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
+              bioclim == "precip_warm_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
+              bioclim == "diurnal_bioclim" ~ "Mean Diurnal Range (WorldClim)",
+              bioclim == "diurnal" ~ "Mean Diurnal Range (CHELSA)",
               bioclim == "anntemp" ~ "Annual Temperature", 
               bioclim == "temprange" ~ "Temperature Range",
               TRUE ~ bioclim

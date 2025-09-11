@@ -1,4 +1,4 @@
-# Output plan for QMD files
+# Output plan for QMD files (kept in repository, excluded from combined plan by default)
 
 output_plan <- list(
 
@@ -15,3 +15,5 @@ output_plan <- list(
   )
 
 )
+
+ 

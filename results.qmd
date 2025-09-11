@@ -2,7 +2,7 @@
 title: "Understanding community assemblage using species and functional diversity across elevational gradients from the tropics to the arctic"
 format:
     html:
-      self-contained: true
+      self-contained: false
   # pdf:
   #   documentclass: article
 editor: visual
@@ -39,10 +39,62 @@ The following diversity indices were calculated: Shannon diversity, Shannon even
 Size traits were log transformed. Trait means and higher moments were calculated using a trait imputation and bootstrapping with traitstrap (Maitner et al. 2023).
 
 ```{r}
-#| label: study-sites-map
+#| label: tab-climate-summary
 #| echo: false
 #| warnings: false
-#| fig-height: 12
+
+library(gt)
+library(dplyr)
+
+# Load CHELSA climate data
+tar_load(chelsa_extracted)
+
+# Create summary table of climate variables by region
+climate_summary <- chelsa_extracted |>
+  group_by(region) |>
+  summarise(
+    `Growing Season Length (days)` = round(mean(`gsl_1981-2010_chelsa`, na.rm = TRUE), 1),
+    `Growing Season Temperature (°C)` = round(mean(`gst_1981-2010_chelsa`, na.rm = TRUE), 1),
+    `Growing Season Precipitation (mm)` = round(mean(`gsp_1981-2010_chelsa`, na.rm = TRUE), 1),
+    `Potential Evapotranspiration (mm)` = round(mean(`pet_penman_mean_1981-2010_chelsa`, na.rm = TRUE), 1),
+    .groups = "drop"
+  ) |>
+  # Reorder regions from north to south
+  mutate(region = factor(region, levels = c("Svalbard", "Southern Scandes", "Rocky Mountains", 
+                                           "Eastern Himalaya", "Central Andes", "Drakensberg"))) |>
+  arrange(region)
+
+# Create nice table with gt
+climate_summary |>
+  gt() |>
+  tab_header(
+    title = "Climate Summary by Region",
+    subtitle = "Average growing season conditions across study sites"
+  ) |>
+  cols_label(
+    region = "Region"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_body(columns = everything())
+  ) |>
+  tab_options(
+    table.font.size = 12,
+    heading.title.font.size = 14,
+    heading.subtitle.font.size = 12
+  )
+
+```
+
+```{r}
+#| label: fig-study-sites-map
+#| echo: false
+#| warnings: false
+#| fig-height: 6
 
 tar_load(regions_world_map)
 regions_world_map
@@ -53,92 +105,40 @@ regions_world_map
 
 ## Results
 
-### Environmental Variables
-
-This correlation matrix shows the relationships between bioclimatic variables across all study sites. Temperature-related variables (annual temperature, temperature range, diurnal range) show strong positive correlations with each other, while precipitation variables show more complex patterns.
-
-```{r}
-#| label: bioclim-correlation
-#| echo: false
-#| warnings: false
-#| fig-height: 8
-#| fig-width: 8
-
-tar_load(bioclim_correlation_fig)
-bioclim_correlation_fig
-
-```
-
-\newpage
-
-This PCA shows the main patterns in bioclimatic variation across our study sites. The first two principal components capture the major environmental gradients that drive community assembly patterns.
-
-```{r}
-#| label: bioclim-pca
-#| echo: false
-#| warnings: false
-#| fig-height: 6
-
-tar_load(bioclim_pca_fig)
-bioclim_pca_fig
-
-```
-
-\newpage
-
 ### Diversity
 
 This figure shows diversity indices (richness, Shannon diversity, and evenness) across the latitudinal gradient. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: diversity-lat
+#| label: fig-diversity
 #| echo: false
 #| warnings: false
 #| fig-height: 4
 
-tar_load(diversity_lat_fig)
-diversity_lat_fig
+tar_load(diversity_fig)
+diversity_fig
 
 ```
 
-\newpage
-
-This figure shows diversity indices in relation to annual temperature. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+This figure shows diversity indices (richness, Shannon diversity, and evenness) across mean annual temperature. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: diversity-anntemp
+#| label: fig-diversity-temp
 #| echo: false
 #| warnings: false
 #| fig-height: 4
 
-tar_load(diversity_anntemp_fig)
-diversity_anntemp_fig
+tar_load(diversity_temp_annual_fig)
+diversity_temp_annual_fig
 
 ```
-
-\newpage
-
-This figure shows diversity indices in relation to temperature annual range. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
-
-```{r}
-#| label: diversity-temprange
-#| echo: false
-#| warnings: false
-#| fig-height: 4
-
-tar_load(diversity_temprange_fig)
-diversity_temprange_fig
-
-```
-
-\newpage
 
 ### Functional leaf traits
 
 This figure shows the multivariate trait space for a subset of traits available across all regions. The ecosystems are well separated in trait space, with clear differentiation between regions.
 
 ```{r}
-#| label: trait-pca-full
+#| label: fig-trait-pca-full
 #| echo: false
 #| warnings: false
 #| fig-height: 6
@@ -153,7 +153,7 @@ trait_pca_full_fig
 This figure shows the multivariate trait space including chemical traits. Norway is not part of this figure, because we do not have the chemical traits yet. The ecosystems are well separated in trait space, with the temperate and sub-tropic regions showing some overlap.
 
 ```{r}
-#| label: trait-pca
+#| label: fig-trait-pca
 #| echo: false
 #| warnings: false
 #| fig-height: 6
@@ -165,47 +165,287 @@ trait_pca_fig
 
 \newpage
 
-This figure shows functional leaf traits in relation to latitude. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+This figure shows functional leaf traits in relation to annual temperature (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: trait-lat
+#| label: fig-trait-annual-temp
 #| echo: false
 #| warnings: false
-#| fig-height: 8
+#| fig-height: 6
 
-tar_load(trait_lat_fig)
-trait_lat_fig
+tar_load(trait_climate_annual_temp_fig)
+trait_climate_annual_temp_fig
 
 ```
 
 \newpage
 
-This figure shows functional leaf traits in relation to annual temperature. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+This figure shows functional leaf traits in relation to growing season length (GEE). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: trait-anntemp
+#| label: fig-trait-gsl
 #| echo: false
 #| warnings: false
-#| fig-height: 8
+#| fig-height: 6
 
-tar_load(trait_anntemp_fig)
-trait_anntemp_fig
+tar_load(trait_climate_gsl_fig)
+trait_climate_gsl_fig
 
 ```
 
 \newpage
 
-This figure shows functional leaf traits in relation to temperature annual range. The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+This figure shows functional leaf traits in relation to growing season temperature (CHELSA). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: trait-temprange
+#| label: fig-trait-gst
 #| echo: false
 #| warnings: false
-#| fig-height: 8
+#| fig-height: 6
 
-tar_load(trait_temprange_fig)
-trait_temprange_fig
+tar_load(trait_climate_gst_fig)
+trait_climate_gst_fig
 
 ```
 
 \newpage
+
+This figure shows functional leaf traits in relation to growing season precipitation (CHELSA). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-gsp
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_climate_gsp_fig)
+trait_climate_gsp_fig
+
+```
+
+\newpage
+
+This figure shows functional leaf traits in relation to mean diurnal range (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-diurnal
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_climate_diurnal_fig)
+trait_climate_diurnal_fig
+
+```
+
+\newpage
+
+This figure shows trait variance in relation to growing season temperature (CHELSA). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-variance-gst
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_variance_gst_fig)
+trait_variance_gst_fig
+
+```
+
+## Trait Model Results
+
+### Model Quality Overview
+
+This table shows the R² values for all trait-climate relationships, helping identify which models have good explanatory power versus those with poor fit.
+
+```{r}
+#| label: tab-model-quality
+#| echo: false
+#| warnings: false
+
+library(gt)
+library(dplyr)
+
+tar_load(trait_model_r2_summary)
+
+# Create a summary table of model quality
+model_quality_table <- trait_model_r2_summary |>
+  mutate(
+    # Clean up trait names
+    trait_clean = case_when(
+      trait_trans == "plant_height_cm_log" ~ "Height cm",
+      trait_trans == "dry_mass_g_log" ~ "Dry mass g",
+      trait_trans == "leaf_area_cm2_log" ~ "Area cm²",
+      trait_trans == "thickness_mm_log" ~ "Thickness mm",
+      trait_trans == "ldmc" ~ "LDMC",
+      trait_trans == "sla_cm2_g" ~ "SLA cm²/g",
+      trait_trans == "c_percent" ~ "C %",
+      trait_trans == "n_percent" ~ "N %",
+      TRUE ~ stringr::str_replace_all(trait_trans, "_", " ") |> stringr::str_to_title()
+    ),
+    # Clean up predictor names
+    predictor_clean = case_when(
+      climate_variable == "growing_season_length" ~ "Growing Season Length (GEE)",
+      climate_variable == "gsl_1981-2010_chelsa" ~ "Growing Season Length (CHELSA)",
+      climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature (CHELSA)",
+      climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation (CHELSA)",
+      climate_variable == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration (CHELSA)",
+      climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
+      climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
+      climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range (WorldClim)",
+      climate_variable == "annual_temperature_bioclim" ~ "Annual Temperature (WorldClim)",
+      TRUE ~ climate_variable
+    ),
+    # Round R² values
+    r2_nakagawa = round(r2_nakagawa, 3),
+    r2_conditional = round(r2_conditional, 3),
+    aic = round(aic, 1),
+    # Create quality categories
+    quality = case_when(
+      r2_nakagawa >= 0.3 ~ "Good",
+      r2_nakagawa >= 0.1 ~ "Moderate", 
+      r2_nakagawa >= 0.01 ~ "Poor",
+      TRUE ~ "Very Poor"
+    )
+  ) |>
+  select(trait_clean, predictor_clean, data_source, model_type, r2_nakagawa, r2_conditional, aic, quality, is_significant)
+
+# Create the gt table
+model_quality_table |>
+  arrange(desc(r2_nakagawa)) |>
+  gt() |>
+  tab_header(
+    title = "Trait Model Quality Summary",
+    subtitle = "R² values and model fit statistics for trait-climate relationships"
+  ) |>
+  cols_label(
+    trait_clean = "Trait",
+    predictor_clean = "Climate Variable",
+    r2_nakagawa = "Marginal R²",
+    r2_conditional = "Conditional R²",
+    aic = "AIC",
+    quality = "Quality",
+    is_significant = "Significant"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold", color = "green"),
+    locations = cells_body(
+      columns = everything(),
+      rows = quality == "Good"
+    )
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold", color = "red"),
+    locations = cells_body(
+      columns = everything(),
+      rows = quality == "Very Poor"
+    )
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_options(
+    table.font.size = 10,
+    heading.title.font.size = 14,
+    heading.subtitle.font.size = 12
+  )
+
+```
+
+### Detailed Model Results
+
+```{r}
+#| label: tab-trait-results
+#| echo: false
+#| warnings: false
+
+library(gt)
+library(dplyr)
+library(tidyr)
+
+tar_load(trait_models_output)
+
+# Create a nice table of trait model results from the new long-format models
+trait_results_table <- trait_models_output |>
+  # Unnest the tidy results
+  unnest(tidy_results) |>
+  filter(effect == "fixed", term != "(Intercept)") |>  # Only fixed effects, exclude intercept
+  mutate(
+    # Clean up trait names using fancy names
+    trait_clean = case_when(
+      trait_trans == "plant_height_cm_log" ~ "Height cm",
+      trait_trans == "dry_mass_g_log" ~ "Dry mass g",
+      trait_trans == "leaf_area_cm2_log" ~ "Area cm²",
+      trait_trans == "thickness_mm_log" ~ "Thickness mm",
+      trait_trans == "ldmc" ~ "LDMC",
+      trait_trans == "sla_cm2_g" ~ "SLA cm²/g",
+      trait_trans == "c_percent" ~ "C %",
+      trait_trans == "n_percent" ~ "N %",
+      TRUE ~ stringr::str_replace_all(trait_trans, "_", " ") |> stringr::str_to_title()
+    ),
+    # Clean up predictor names using the climate_variable_clean from the data
+    predictor_clean = case_when(
+      climate_variable == "growing_season_length" ~ "Growing Season Length (GEE)",
+      climate_variable == "gsl_1981-2010_chelsa" ~ "Growing Season Length (CHELSA)",
+      climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature (CHELSA)",
+      climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation (CHELSA)",
+      climate_variable == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration (CHELSA)",
+      climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
+      climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
+      climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range (WorldClim)",
+      climate_variable == "annual_temperature_bioclim" ~ "Annual Temperature (WorldClim)",
+      TRUE ~ climate_variable
+    ),
+    # Round numeric values
+    estimate = round(estimate, 3),
+    std.error = round(std.error, 3),
+    statistic = round(statistic, 2),
+    p.value = round(p.value, 3),
+    # Create significance indicator for formatting
+    is_significant = p.value < 0.05
+  ) |>
+  select(trait_clean, predictor_clean, estimate, std.error, statistic, df, p.value, is_significant)
+
+# Create the gt table with proper ordering
+trait_results_table |>
+  arrange(predictor_clean, trait_clean) |>  # Sort by predictor first, then trait
+  group_by(predictor_clean) |>
+  gt() |>
+  cols_hide(columns = c(predictor_clean, is_significant)) |>  # Hide predictor and significance columns
+  tab_header(
+    title = "Trait Model Results",
+    subtitle = "Mixed-effects models showing relationships between functional traits and environmental predictors"
+  ) |>
+  cols_label(
+    trait_clean = "Trait",
+    estimate = "Estimate",
+    std.error = "SE",
+    statistic = "t-statistic",
+    df = "df",
+    p.value = "p-value"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = everything(),
+      rows = is_significant == TRUE
+    )
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_body(columns = c(estimate, std.error, statistic, df, p.value))
+  ) |>
+  tab_options(
+    table.font.size = 11,
+    heading.title.font.size = 14,
+    heading.subtitle.font.size = 12,
+    column_labels.font.weight = "bold"
+  )
+
+```

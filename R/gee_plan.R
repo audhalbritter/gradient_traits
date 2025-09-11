@@ -204,111 +204,7 @@ gee_plan <- list(
     }
   ),
 
-  # Explore available GEE datasets for additional bioclim variables
-  tar_target(
-    name = gee_dataset_exploration,
-    command = {
-      # Ensure GEE is initialized
-      if (!requireNamespace("rgee", quietly = TRUE)) {
-        stop("Package rgee is not installed.")
-      }
-      ok <- tryCatch({ rgee::ee$Date$now()$getInfo(); TRUE }, error = function(e) FALSE)
-      if (!ok) {
-        tryCatch({
-          rgee::ee_Initialize(drive = FALSE, gcs = FALSE)
-        }, error = function(e) {
-          stop("Google Earth Engine is not initialized.")
-        })
-      }
-      
-      # Search for datasets related to our variables
-      datasets_to_check <- list(
-        "Growing Season Temperature" = c(
-          "MODIS/006/MOD11A2",  # Land Surface Temperature
-          "MODIS/006/MOD21A2",  # Land Surface Temperature (newer)
-          "ECMWF/ERA5_LAND/MONTHLY",  # ERA5-Land monthly
-          "IDAHO_EPSCOR/TERRACLIMATE"  # TerraClimate
-        ),
-        "Growing Season Precipitation" = c(
-          "MODIS/006/MOD16A2",  # Evapotranspiration
-          "ECMWF/ERA5_LAND/MONTHLY",  # ERA5-Land monthly
-          "IDAHO_EPSCOR/TERRACLIMATE",  # TerraClimate
-          "UCSB-CHG/CHIRPS/DAILY"  # CHIRPS precipitation
-        ),
-        "Potential Evapotranspiration" = c(
-          "MODIS/006/MOD16A2",  # Evapotranspiration
-          "ECMWF/ERA5_LAND/MONTHLY",  # ERA5-Land monthly
-          "IDAHO_EPSCOR/TERRACLIMATE"  # TerraClimate
-        ),
-        "Vapor Pressure Deficit" = c(
-          "ECMWF/ERA5_LAND/MONTHLY",  # ERA5-Land monthly
-          "IDAHO_EPSCOR/TERRACLIMATE"  # TerraClimate
-        ),
-        "Diurnal Range" = c(
-          "MODIS/006/MOD11A2",  # Land Surface Temperature
-          "ECMWF/ERA5_LAND/MONTHLY",  # ERA5-Land monthly
-          "IDAHO_EPSCOR/TERRACLIMATE"  # TerraClimate
-        )
-      )
-      
-      # Function to check dataset availability and bands
-      check_dataset <- function(dataset_id) {
-        tryCatch({
-          # Try as ImageCollection first (most common)
-          collection <- rgee::ee$ImageCollection(dataset_id)
-          first_image <- collection$first()
-          bands <- first_image$bandNames()$getInfo()
-          return(list(
-            dataset = dataset_id,
-            type = "ImageCollection",
-            bands = bands,
-            available = TRUE
-          ))
-        }, error = function(e1) {
-          tryCatch({
-            # Try as Image if ImageCollection fails
-            image <- rgee::ee$Image(dataset_id)
-            bands <- image$bandNames()$getInfo()
-            return(list(
-              dataset = dataset_id,
-              type = "Image",
-              bands = bands,
-              available = TRUE
-            ))
-          }, error = function(e2) {
-            return(list(
-              dataset = dataset_id,
-              type = "Unknown",
-              bands = character(0),
-              available = FALSE,
-              error = paste("ImageCollection:", e1$message, "| Image:", e2$message)
-            ))
-          })
-        })
-      }
-      
-      # Check all datasets
-      results <- list()
-      for (variable in names(datasets_to_check)) {
-        cat("Checking datasets for", variable, ":\n")
-        variable_results <- list()
-        for (dataset in datasets_to_check[[variable]]) {
-          result <- check_dataset(dataset)
-          variable_results[[dataset]] <- result
-          if (result$available) {
-            cat("  ✓", dataset, "- Bands:", paste(result$bands, collapse = ", "), "\n")
-          } else {
-            cat("  ✗", dataset, "- Error:", result$error, "\n")
-          }
-        }
-        results[[variable]] <- variable_results
-      }
-      
-      return(results)
-    }
-  ),
-
-  # Growing-season window (start/end DOY and months) per site from VIIRS phenology
+  # Growing-season window (start/end DOY and months) per site using ERA5 temperature data
   tar_target(
     name = gee_gs_window,
     command = {
@@ -317,7 +213,7 @@ gee_plan <- list(
       if (!ok) rgee::ee_Initialize(drive = FALSE, gcs = FALSE)
 
       coords_all <- all_coordinates |>
-        dplyr::distinct(longitude_e, latitude_n) |>
+        dplyr::distinct(longitude_e, latitude_n, country, region, gradient, site, plot_id, elevation_m, ecosystem) |>
         dplyr::filter(!is.na(longitude_e), !is.na(latitude_n))
       if (nrow(coords_all) == 0) return(tibble())
 
@@ -327,35 +223,76 @@ gee_plan <- list(
         })
       )
 
-      viirs <- rgee::ee$ImageCollection("NOAA/VIIRS/001/VNP22Q2")$filterDate("2018-01-01", "2023-12-31")$median()
-      bands <- viirs$bandNames()$getInfo()
-      if (!all(c("Onset_Greenness_Increase_1","Onset_Greenness_Decrease_1") %in% bands)) return(tibble())
-
-      img <- viirs$select(c("Onset_Greenness_Increase_1","Onset_Greenness_Decrease_1"))
-      samp <- img$sampleRegions(collection = pts, scale = 500, geometries = FALSE)
+      # Extract monthly temperature data from ERA5 for 2020 (to avoid transfer limits)
+      era5 <- rgee::ee$ImageCollection("ECMWF/ERA5/MONTHLY")$filterDate("2020-01-01", "2020-12-31")$select("mean_2m_air_temperature")
+      
+      # Sample temperature data for all months
+      samp <- era5$map(function(img){
+        img$sampleRegions(collection = pts, scale = 25000, geometries = FALSE)
+      })$flatten()
+      
       info <- samp$getInfo()
       if (length(info$features) == 0) return(tibble())
-      rows <- lapply(info$features, function(f){
+      
+      # Process temperature data with error handling and debugging
+      temp_data <- lapply(info$features, function(f){
         p <- f$properties
+        if (is.null(p) || length(p) == 0) return(NULL)
         data.frame(
-          longitude_e = p$longitude_e,
-          latitude_n = p$latitude_n,
-          gs_start_doy = as.numeric(p$Onset_Greenness_Increase_1),
-          gs_end_doy = as.numeric(p$Onset_Greenness_Decrease_1)
+          longitude_e = ifelse(is.null(p$longitude_e), NA, p$longitude_e),
+          latitude_n = ifelse(is.null(p$latitude_n), NA, p$latitude_n),
+          temp_c = ifelse(is.null(p$mean_2m_air_temperature), NA, as.numeric(p$mean_2m_air_temperature) - 273.15),
+          date = ifelse(is.null(p$`system:time_start`), NA, as.character(p$`system:time_start`))
         )
       })
-      out <- dplyr::bind_rows(rows) |>
+      temp_data <- temp_data[!sapply(temp_data, is.null)]
+      if (length(temp_data) == 0) return(tibble())
+      temp_data <- dplyr::bind_rows(temp_data)
+      
+      
+      # Calculate growing season using improved algorithm (based on NuskeAlbert method)
+      gs_data <- temp_data |>
+        dplyr::group_by(longitude_e, latitude_n) |>
+        dplyr::slice_head(n = 12) |>  # Ensure we only have 12 records per site
         dplyr::mutate(
-          gs_length_days = (gs_end_doy - gs_start_doy) %% 366,
-          gs_start_month = floor((pmax(1, gs_start_doy) - 1)/30.5) + 1,
-          gs_end_month = floor((pmax(1, gs_end_doy) - 1)/30.5) + 1,
-          gs_start_month = pmin(pmax(gs_start_month,1),12),
-          gs_end_month = pmin(pmax(gs_end_month,1),12)
+          # Assign months 1-12 based on original order
+          month = row_number()
         ) |>
-        dplyr::left_join(all_coordinates, by = c("longitude_e","latitude_n")) |>
+        dplyr::arrange(month) |>
+        dplyr::summarise(
+          # Find first and last months above threshold (allowing for gaps)
+          first_above = ifelse(any(temp_c > 0), min(month[temp_c > 0]), NA),
+          last_above = ifelse(any(temp_c > 0), max(month[temp_c > 0]), NA),
+          # Find the month with the highest temperature (likely peak growing season)
+          peak_month = month[which.max(temp_c)],
+          # Calculate mean temperature during growing months
+          mean_growing_temp = mean(temp_c[temp_c > 0], na.rm = TRUE),
+          # Count months above threshold
+          months_above_threshold = sum(temp_c > 0, na.rm = TRUE),
+          # Debug: add temperature info
+          min_temp = min(temp_c, na.rm = TRUE),
+          max_temp = max(temp_c, na.rm = TRUE),
+          .groups = "drop"
+        ) |>
+        dplyr::mutate(
+          # Define growing season start and end
+          gs_start_month = first_above,
+          gs_end_month = last_above,
+          # Handle cases where no growing season found
+          gs_start_month = ifelse(is.infinite(gs_start_month) | is.na(gs_start_month), NA, gs_start_month),
+          gs_end_month = ifelse(is.infinite(gs_end_month) | is.na(gs_end_month), NA, gs_end_month),
+          # Convert months to approximate DOY (middle of month) - simplified
+          gs_start_doy = ifelse(!is.na(gs_start_month), gs_start_month * 30 - 15, NA),  # Approximate DOY
+          gs_end_doy = ifelse(!is.na(gs_end_month), gs_end_month * 30 - 15, NA),        # Approximate DOY
+          # Calculate growing season length in days (approximate)
+          gs_length_days = ifelse(!is.na(gs_start_month) & !is.na(gs_end_month), 
+                                 (gs_end_month - gs_start_month + 1) * 30, NA)  # Approximate 30 days per month
+        ) |>
+        dplyr::left_join(all_coordinates, by = c("longitude_e", "latitude_n")) |>
         dplyr::select(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem,
                       gs_start_doy, gs_end_doy, gs_length_days, gs_start_month, gs_end_month)
-      out
+      
+      gs_data
     }
   ),
 
