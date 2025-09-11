@@ -29,10 +29,36 @@ analysis_plan <- list(
       diversity |>
         filter(diversity_index != "sum_abundance") |>
         mutate(elevation_km = elevation_m / 1000) |>
+        # Standardize latitude for better model convergence
+        group_by(diversity_index) |>
+        mutate(
+          # Store original values for back-transformation
+          latitude_original = latitude_n,
+          # Calculate scaling parameters
+          latitude_mean = mean(latitude_n, na.rm = TRUE),
+          latitude_sd = sd(latitude_n, na.rm = TRUE),
+          # Scale the latitude values (center and scale)
+          latitude_n = (latitude_n - latitude_mean) / latitude_sd
+        ) |>
+        ungroup() |>
         group_by(diversity_index) |>
         nest() |>
-        mutate(model = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + (1|country), data = .)$result),
-        result = purrr::map(model, broom.mixed::tidy))
+        mutate(model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + (1|country), data = .)$result),
+            model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + I(latitude_n^2) + (1|country), data = .)$result),
+            glance_linear = purrr::map(.x = model_linear, .f = ~ broom.mixed::glance(.x)),
+            glance_poly = purrr::map(.x = model_poly, .f = ~ broom.mixed::glance(.x)),
+            result_linear = purrr::map(model_linear, broom.mixed::tidy),
+            result_poly = purrr::map(model_poly, broom.mixed::tidy)) |>
+        # Pivot to long format to stack linear and polynomial models
+        tidyr::pivot_longer(
+          cols = c(model_linear, model_poly, glance_linear, glance_poly, result_linear, result_poly),
+          names_sep = "_",
+          names_to = c(".value", "model_type")
+        ) |>
+        # Unnest glance data to access AIC values
+        unnest(glance) |>
+        # select the best model based on AIC
+        filter(AIC == min(AIC, na.rm = TRUE))
     }
   ),
 
@@ -56,7 +82,7 @@ analysis_plan <- list(
           is_significant = latitude_pvalue < 0.05
         ) |>
         mutate(
-          data_with_predictions = map2(.x = data, .y = prediction, .f = ~ bind_cols(.x |> select(-elevation_km, -value, -latitude_n), .y))
+          data_with_predictions = map2(.x = data, .y = prediction, .f = ~ bind_cols(.x |> select(-elevation_km, -latitude_n, -latitude_original, -latitude_mean, -latitude_sd), .y))
         )
     }
   ),
@@ -69,15 +95,44 @@ analysis_plan <- list(
 
       diversity |>
         filter(diversity_index != "sum_abundance") |>
+        # Standardize annual temperature for better model convergence
+        group_by(diversity_index) |>
+        mutate(
+          # Store original values for back-transformation
+          annual_temperature_original = annual_temperature_bioclim,
+          # Calculate scaling parameters
+          annual_temperature_mean = mean(annual_temperature_bioclim, na.rm = TRUE),
+          annual_temperature_sd = sd(annual_temperature_bioclim, na.rm = TRUE),
+          # Scale the temperature values (center and scale)
+          annual_temperature_bioclim = (annual_temperature_bioclim - annual_temperature_mean) / annual_temperature_sd
+        ) |>
+        ungroup() |>
         group_by(diversity_index) |>
         nest() |>
         mutate(
-          model = purrr::map(
-            .x = data,
-            .f = ~ safelmer(value ~ annual_temperature_bioclim + (1|country), data = .)$result
-          ),
-          result = purrr::map(model, broom.mixed::tidy)
-        )
+          # Linear model
+          model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + (1|country), data = .)$result),
+          # Polynomial model (second order)
+          model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + I(annual_temperature_bioclim^2) + (1|country), data = .)$result),
+          # Glance data for linear model
+          glance_linear = purrr::map(.x = model_linear, .f = ~ broom.mixed::glance(.x)),
+          # Glance data for polynomial model
+          glance_poly = purrr::map(.x = model_poly, .f = ~ broom.mixed::glance(.x)),
+          # Tidy results for linear model
+          result_linear = purrr::map(model_linear, broom.mixed::tidy),
+          # Tidy results for polynomial model
+          result_poly = purrr::map(model_poly, broom.mixed::tidy)
+        ) |>
+        # Pivot to long format to stack linear and polynomial models
+        tidyr::pivot_longer(
+          cols = c(model_linear, model_poly, glance_linear, glance_poly, result_linear, result_poly),
+          names_sep = "_",
+          names_to = c(".value", "model_type")
+        ) |>
+        # Unnest glance data to access AIC values
+        unnest(glance) |>
+        # select the best model based on AIC
+        filter(AIC == min(AIC, na.rm = TRUE))
     }
   ),
 
@@ -111,7 +166,7 @@ analysis_plan <- list(
             .y = prediction,
             .f = ~ bind_cols(
               .x |>
-                select(-annual_temperature_bioclim, -value),
+                select(-annual_temperature_bioclim, -annual_temperature_original, -annual_temperature_mean, -annual_temperature_sd),
               .y
             )
           )
@@ -173,8 +228,10 @@ analysis_plan <- list(
           climate_value = (climate_value - climate_mean) / climate_sd
         ) |>
         ungroup() |>
+        # Rename mean to trait_value for consistency with prediction function
+        rename(trait_value = mean) |>
         # Keep elevation and latitude as separate columns
-        select(country:ecosystem, elevation_m, latitude_n, longitude_e, trait_trans, mean, 
+        select(country:ecosystem, elevation_m, latitude_n, longitude_e, trait_trans, trait_value, 
                climate_variable, climate_variable_clean, climate_value, climate_value_original, 
                climate_mean, climate_sd, data_source)
     }
@@ -186,7 +243,7 @@ analysis_plan <- list(
     command = {
       trait_mean_long |>
         # Filter for the same traits as trait_models
-        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")) |>
+        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g", "c_percent", "n_percent")) |>
         # Group by trait and climate variable
         group_by(trait_trans, climate_variable, data_source) |>
         nest() |>
@@ -195,13 +252,13 @@ analysis_plan <- list(
           # Linear model
           model_linear = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(mean ~ climate_value + (1|country), data = .x)
+            result <- safelmer(trait_value ~ climate_value + (1|country), data = .x)
             result$result
           }),
           # Polynomial model (second order)
           model_poly = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(mean ~ climate_value + I(climate_value^2) + (1|country), data = .x)
+            result <- safelmer(trait_value ~ climate_value + I(climate_value^2) + (1|country), data = .x)
             result$result
           }),
           # Glance data for linear model
@@ -250,13 +307,9 @@ analysis_plan <- list(
           }),
           # Extract p-value for climate_value term to determine significance
           climate_pvalue = purrr::map_dbl(tidy_results, ~ {
-            if (!is.null(.x)) {
-              climate_row <- .x |> filter(term == "climate_value" & effect == "fixed")
-              if (nrow(climate_row) > 0) {
-                climate_row$p.value
-              } else {
-                NA_real_
-              }
+            climate_row <- .x |> filter(term == "climate_value" & effect == "fixed")
+            if (nrow(climate_row) > 0) {
+              climate_row$p.value
             } else {
               NA_real_
             }
@@ -267,14 +320,8 @@ analysis_plan <- list(
           predictions = purrr::map2(data, model, ~ {
             safe_pred <- purrr::safely(lmer_prediction_trait)
             pred_result <- safe_pred(dat = .x, fit = .y, predictor = "climate_value")
-            if (!is.null(pred_result$result)) {
-              # Since lmer_prediction_trait now only returns prediction columns, we can simply bind columns
-              # Bind original data with predictions (rows are in same order)
-              result <- bind_cols(.x, pred_result$result)
-              return(result)
-            } else {
-              return(NULL)
-            }
+            # Remove climate_value from original data to avoid duplicates when binding
+            bind_cols(.x |> select(-climate_value), pred_result$result)
           })
         )
     }
@@ -300,13 +347,7 @@ analysis_plan <- list(
       trait_models_output |>
         rowwise() |>
         mutate(
-          model_check = list({
-            if (!is.null(model)) {
-              performance::check_model(model)
-            } else {
-              NULL
-            }
-          })
+          model_check = list(performance::check_model(model))
         ) |>
         ungroup() |>
         filter(!is.null(model_check))  # Remove rows with NULL model_check
@@ -348,6 +389,167 @@ analysis_plan <- list(
         select(trait_trans, climate_variable, data_source, model_type, 
                r2_nakagawa, r2_conditional, aic, is_significant) |>
         arrange(desc(r2_nakagawa))
+    }
+  ),
+
+  # Trait variance analysis - variance vs growing season temperature (CHELSA)
+  tar_target(
+    name = trait_variance_data,
+    command = {
+      trait_mean |>
+        # Filter for growing season temperature (CHELSA) data
+        filter(!is.na(`gst_1981-2010_chelsa`)) |>
+        # Select relevant columns including variance
+        select(country:ecosystem, trait_trans, var, `gst_1981-2010_chelsa`) |>
+        # Provide a duplicate 'mean' column equal to variance for downstream compatibility
+        mutate(trait_value = var) |>
+        # Scale the climate variable
+        group_by(trait_trans) |>
+        mutate(
+          climate_value_original = `gst_1981-2010_chelsa`,
+          climate_mean = mean(`gst_1981-2010_chelsa`, na.rm = TRUE),
+          climate_sd = sd(`gst_1981-2010_chelsa`, na.rm = TRUE),
+          climate_value = (`gst_1981-2010_chelsa` - climate_mean) / climate_sd
+        ) |>
+        ungroup() |>
+        # Filter for the same traits as trait_models
+        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g", "c_percent", "n_percent"))
+    }
+  ),
+
+  # Trait variance model
+  tar_target(
+    name = trait_variance_model,
+    command = {
+      trait_variance_data |>
+        group_by(trait_trans) |>
+        nest() |>
+        mutate(
+          # Linear model for variance vs growing season temperature
+          model = purrr::map(data, ~ {
+            safelmer <- purrr::safely(lmerTest::lmer)
+            result <- safelmer(trait_value ~ climate_value + (1|country), data = .x)
+            result$result
+          }),
+          # Get tidy results
+          tidy_results = purrr::map(model, ~ {
+            safe_tidy <- purrr::safely(broom.mixed::tidy)
+            result <- safe_tidy(.x)
+            result$result
+          }),
+          # Extract p-value for climate_value term
+          climate_pvalue = purrr::map_dbl(tidy_results, ~ {
+            if (!is.null(.x)) {
+              climate_row <- .x |> filter(term == "climate_value" & effect == "fixed")
+              if (nrow(climate_row) > 0) {
+                climate_row$p.value
+              } else {
+                NA_real_
+              }
+            } else {
+              NA_real_
+            }
+          }),
+          # Determine if relationship is significant
+          is_significant = climate_pvalue < 0.05
+        )
+    }
+  ),
+
+  # Trait variance model checks
+  tar_target(
+    name = trait_variance_model_checks,
+    command = {
+      trait_variance_model |>
+        rowwise() |>
+        mutate(
+          model_check = list(performance::check_model(model))
+        ) |>
+        ungroup() |>
+        filter(!is.null(model_check))
+    }
+  ),
+
+
+  # Trait variance models (linear and polynomial), best model selection, and output
+  tar_target(
+    name = trait_variance_all,
+    command = {
+      trait_variance_data |>
+        group_by(trait_trans) |>
+        nest() |>
+        mutate(
+          # Linear model
+          model_linear = purrr::map(data, ~ {
+            safelmer <- purrr::safely(lmerTest::lmer)
+            result <- safelmer(trait_value ~ climate_value + (1|country), data = .x)
+            result$result
+          }),
+          # Polynomial model (second order)
+          model_poly = purrr::map(data, ~ {
+            safelmer <- purrr::safely(lmerTest::lmer)
+            result <- safelmer(trait_value ~ climate_value + I(climate_value^2) + (1|country), data = .x)
+            result$result
+          }),
+          # Glance data for linear model
+          glance_linear = purrr::map(model_linear, ~ {
+            safe_glance <- purrr::safely(broom.mixed::glance)
+            result <- safe_glance(.x)
+            result$result
+          }),
+          # Glance data for polynomial model
+          glance_poly = purrr::map(model_poly, ~ {
+            safe_glance <- purrr::safely(broom.mixed::glance)
+            result <- safe_glance(.x)
+            result$result
+          })
+        ) |>
+        # Pivot to long format to stack linear and polynomial models
+        tidyr::pivot_longer(
+          cols = c(model_linear, model_poly, glance_linear, glance_poly),
+          names_sep = "_",
+          names_to = c(".value", "model_type")
+        )
+    }
+  ),
+
+  tar_target(
+    name = trait_variance_best,
+    command = {
+      trait_variance_all |>
+        unnest(glance) |>
+        dplyr::select(trait_trans:model, AIC) |>
+        filter(AIC == min(AIC)) |>
+        select(-AIC)
+    }
+  ),
+
+  tar_target(
+    name = trait_variance_output,
+    command = {
+      trait_variance_best |>
+        mutate(
+          tidy_results = purrr::map(model, ~ {
+            safe_tidy <- purrr::safely(broom.mixed::tidy)
+            result <- safe_tidy(.x)
+            result$result
+          }),
+          climate_pvalue = purrr::map_dbl(tidy_results, ~ {
+            climate_row <- .x |> filter(term == "climate_value" & effect == "fixed")
+            if (nrow(climate_row) > 0) {
+              climate_row$p.value
+            } else {
+              NA_real_
+            }
+          }),
+          is_significant = climate_pvalue < 0.05,
+          predictions = purrr::map2(data, model, ~ {
+            safe_pred <- purrr::safely(lmer_prediction_trait)
+            pred_result <- safe_pred(dat = .x, fit = .y, predictor = "climate_value")
+            # Remove climate_value from original data to avoid duplicates when binding
+            bind_cols(.x |> select(-climate_value), pred_result$result)
+          })
+        )
     }
   )
 

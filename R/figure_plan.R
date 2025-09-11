@@ -42,7 +42,7 @@ figure_plan <- list(
   tar_target(
     name = trait_climate_gsl_fig,
     command = trait_models_output |>
-        unnest(predictions) |>
+        unnest(predictions) |> 
         make_trait_climate_plot(climate_variable = "growing_season_length", data_source = "GEE", x_label = "Growing Season Length (days)")
   ),
 
@@ -106,8 +106,43 @@ figure_plan <- list(
   tar_target(
     name = trait_climate_annual_temp_fig,
     command = trait_models_output |>
+      unnest(predictions) |>
+      make_trait_climate_plot(climate_variable = "annual_temperature_bioclim", data_source = "WorldClim", x_label = "Annual Temperature (°C)")
+  ),
+
+  # Trait variance vs growing season temperature figure
+  tar_target(
+    name = trait_variance_gst_fig,
+    command = {
+      trait_variance_output |>
         unnest(predictions) |>
-        make_trait_climate_plot(climate_variable = "annual_temperature_bioclim", data_source = "WorldClim", x_label = "Annual Temperature (°C)")
+        # Add trait fancy names for plotting
+        fancy_trait_name_dictionary() |>
+        # Create the plot
+        ggplot(aes(x = climate_value, y = trait_value, color = region)) +
+        geom_point(alpha = 0.6, size = 2) +
+        # Add prediction line with different line types based on significance
+        geom_line(aes(y = .fitted, linetype = is_significant), 
+                  linewidth = 1, color = "grey40", show.legend = FALSE) +
+        # Add confidence intervals
+        geom_ribbon(aes(ymin = plo, ymax = phi), 
+                    alpha = 0.2, color = NA, fill = "grey40") +
+        facet_wrap(~trait_fancy, scales = "free_y") +
+        scale_color_manual(values = create_region_color_mapping()) +
+        scale_linetype_manual(values = c("FALSE" = "dashed", "TRUE" = "solid")) +
+        labs(
+          x = "Growing Season Temperature (°C)",
+          y = "Trait Variance",
+          title = "Trait Variance vs Growing Season Temperature (CHELSA)"
+        ) +
+        theme_minimal() +
+        theme(
+          legend.position = "top",
+          strip.text = element_text(size = 10),
+          axis.text = element_text(size = 9),
+          axis.title = element_text(size = 11)
+        )
+    }
   )
 
 )
