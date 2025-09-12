@@ -186,7 +186,7 @@ analysis_plan <- list(
             # GEE variables
             growing_season_length,
             # CHELSA variables
-            `gsl_1981-2010_chelsa`, `gst_1981-2010_chelsa`, `gsp_1981-2010_chelsa`, `pet_penman_mean_1981-2010_chelsa`,
+            `gsl_1981-2010_chelsa`, `gst_1981-2010_chelsa`, `gsp_1981-2010_chelsa`, `pet_penman_mean_1981-2010_chelsa`, `vpd_mean_1981-2010_chelsa`,
             # WorldClim bioclim variables
             mean_temperture_warmest_quarter_bioclim, precipitation_warmest_quarter_bioclim, diurnal_range_bioclim, annual_temperature_bioclim
           ),
@@ -197,7 +197,7 @@ analysis_plan <- list(
         mutate(
           data_source = case_when(
             climate_variable == "growing_season_length" ~ "GEE",
-            climate_variable %in% c("gsl_1981-2010_chelsa", "gst_1981-2010_chelsa", "gsp_1981-2010_chelsa", "pet_penman_mean_1981-2010_chelsa") ~ "CHELSA",
+            climate_variable %in% c("gsl_1981-2010_chelsa", "gst_1981-2010_chelsa", "gsp_1981-2010_chelsa", "pet_penman_mean_1981-2010_chelsa", "vpd_mean_1981-2010_chelsa") ~ "CHELSA",
             climate_variable %in% c("mean_temperture_warmest_quarter_bioclim", "precipitation_warmest_quarter_bioclim", "diurnal_range_bioclim", "annual_temperature_bioclim") ~ "WorldClim",
             TRUE ~ "Other"
           ),
@@ -208,6 +208,7 @@ analysis_plan <- list(
             climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature",
             climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation",
             climate_variable == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration",
+            climate_variable == "vpd_mean_1981-2010_chelsa" ~ "Vapour Pressure Deficit",
             climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter",
             climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter",
             climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range",
@@ -244,7 +245,7 @@ analysis_plan <- list(
     command = {
       trait_mean_long |>
         # Filter for the same traits as trait_models
-        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g", "c_percent", "n_percent")) |>
+        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")) |>
         # Group by trait and climate variable
         group_by(trait_trans, climate_variable, data_source) |>
         nest() |>
@@ -393,28 +394,28 @@ analysis_plan <- list(
     }
   ),
 
-  # Trait variance analysis - variance vs growing season temperature (CHELSA)
+  # Trait variance analysis - variance vs annual temperature (WorldClim)
   tar_target(
     name = trait_variance_data,
     command = {
       trait_mean |>
-        # Filter for growing season temperature (CHELSA) data
-        filter(!is.na(`gst_1981-2010_chelsa`)) |>
+        # Filter for annual temperature (WorldClim) data
+        filter(!is.na(annual_temperature_bioclim)) |>
         # Select relevant columns including variance
-        select(country:ecosystem, trait_trans, var, `gst_1981-2010_chelsa`) |>
+        select(country:ecosystem, trait_trans, var, annual_temperature_bioclim) |>
         # Provide a duplicate 'mean' column equal to variance for downstream compatibility
         mutate(trait_value = var) |>
         # Scale the climate variable
         group_by(trait_trans) |>
         mutate(
-          climate_value_original = `gst_1981-2010_chelsa`,
-          climate_mean = mean(`gst_1981-2010_chelsa`, na.rm = TRUE),
-          climate_sd = sd(`gst_1981-2010_chelsa`, na.rm = TRUE),
-          climate_value = (`gst_1981-2010_chelsa` - climate_mean) / climate_sd
+          climate_value_original = annual_temperature_bioclim,
+          climate_mean = mean(annual_temperature_bioclim, na.rm = TRUE),
+          climate_sd = sd(annual_temperature_bioclim, na.rm = TRUE),
+          climate_value = (annual_temperature_bioclim - climate_mean) / climate_sd
         ) |>
         ungroup() |>
         # Filter for the same traits as trait_models
-        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g", "c_percent", "n_percent"))
+        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g"))
     }
   ),
 
