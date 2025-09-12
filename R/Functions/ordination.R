@@ -66,9 +66,32 @@ make_pca_plot <- function(trait_pca){
   # eigenvalues
   e_B <- eigenvals(trait_pca[[3]])/sum(eigenvals(trait_pca[[3]]))
 
-  trait_pca[[1]] %>% 
-    ggplot(aes(x = PC1, y = PC2, colour = region)) +
-    geom_point(size = 2) +
+  # Add elevation categories within each gradient
+  # First, get unique sites with their elevation rankings
+  site_elevation_categories <- trait_pca[[1]] %>%
+    select(country, gradient, site, elevation_m) %>%
+    distinct() %>%
+    group_by(country, gradient) %>%
+    mutate(
+      elevation_rank = rank(elevation_m),
+      n_sites = n(),
+      elevation_category = case_when(
+        elevation_rank == 1 ~ "Low",
+        elevation_rank == n_sites ~ "High", 
+        TRUE ~ "Middle"
+      ),
+      elevation_category = factor(elevation_category, levels = c("Low", "Middle", "High"))
+    ) %>%
+    ungroup() %>%
+    select(country, gradient, site, elevation_category)
+  
+  # Join back to the full PCA data
+  pca_sites_with_elevation <- trait_pca[[1]] %>%
+    left_join(site_elevation_categories, by = c("country", "gradient", "site"))
+
+  pca_sites_with_elevation %>% 
+    ggplot(aes(x = PC1, y = PC2, colour = region, shape = elevation_category)) +
+    geom_point(size = 2.5) +
     coord_equal() +
     stat_ellipse(aes(group = region)) +
     geom_segment(data = trait_pca[[2]],
@@ -89,10 +112,14 @@ make_pca_plot <- function(trait_pca){
               inherit.aes = FALSE,
               show.legend = FALSE, parse = TRUE) +
     scale_colour_manual(values = create_region_color_mapping(), drop = FALSE) +
+    scale_shape_manual(name = "Elevation", 
+                       values = c("Low" = 25, "Middle" = 21, "High" = 24), # down triangle, circle, up triangle
+                       labels = c("Low" = "Lowest", "Middle" = "Middle", "High" = "Highest")) +
     scale_linetype_manual(name = "", values = c("solid", "dashed", "dotted")) +
     labs(x = glue("PCA1 ({round(e_B[1] * 100, 1)}%)"),
          y = glue("PCA2 ({round(e_B[2] * 100, 1)}%)"),
          colour = "Region") +
-    theme_bw()
+    theme_bw() +
+    theme(legend.position = "right")
 
 }
