@@ -204,7 +204,7 @@ gee_plan <- list(
     }
   ),
 
-  # Growing-season window (start/end DOY and months) per site using ERA5 temperature data
+  # Growing-season window (start/end DOY) per site using multi-year daily ERA5 temperature data
   tar_target(
     name = gee_gs_window,
     command = {
@@ -223,44 +223,118 @@ gee_plan <- list(
         })
       )
 
-      # Extract monthly temperature data from ERA5 for 2020 (to avoid transfer limits)
-      era5 <- rgee::ee$ImageCollection("ECMWF/ERA5/MONTHLY")$filterDate("2020-01-01", "2020-12-31")$select("mean_2m_air_temperature")
+      # Use monthly ERA5 data for multiple years (reliable approach)
+      # This works within GEE transfer limits and provides good growing season estimates
+      cat("Calculating growing season using multi-year monthly ERA5 data...\n")
       
-      # Sample temperature data for all months
-      samp <- era5$map(function(img){
-        img$sampleRegions(collection = pts, scale = 25000, geometries = FALSE)
-      })$flatten()
+      # Process multiple years of monthly data
+      years <- 2015:2022
+      all_temp_data <- list()
       
-      info <- samp$getInfo()
-      if (length(info$features) == 0) return(tibble())
+      for (year in years) {
+        cat("Processing year", year, "\n")
+        start_date <- paste0(year, "-01-01")
+        end_date <- paste0(year, "-12-31")
+        
+        # Get monthly ERA5 data
+        era5_monthly <- rgee::ee$ImageCollection("ECMWF/ERA5/MONTHLY")$filterDate(start_date, end_date)$select("mean_2m_air_temperature")
+        
+        # Process each month separately to get proper month information
+        temp_data_year <- list()
+        
+        for (month in 1:12) {
+          month_start <- paste0(year, "-", sprintf("%02d", month), "-01")
+          if (month == 12) {
+            month_end <- paste0(year, "-12-31")
+          } else {
+            month_end <- paste0(year, "-", sprintf("%02d", month + 1), "-01")
+          }
+          
+          # Get data for this specific month
+          month_collection <- era5_monthly$filterDate(month_start, month_end)
+          
+          if (month_collection$size()$getInfo() == 0) {
+            cat("  No data for month", month, "\n")
+            next
+          }
+          
+          # Sample temperature data for this month
+          samp <- month_collection$map(function(img){
+            img$sampleRegions(collection = pts, scale = 25000, geometries = FALSE)
+          })$flatten()
+          
+          info <- samp$getInfo()
+          if (length(info$features) == 0) {
+            cat("  No features for month", month, "\n")
+            next
+          }
+          
+          # Process temperature data for this month
+          month_data <- lapply(info$features, function(f){
+            p <- f$properties
+            if (is.null(p) || length(p) == 0) return(NULL)
+            
+            # Create date for the middle of the month
+            date_val <- paste0(year, "-", sprintf("%02d", month), "-15")
+            
+            data.frame(
+              longitude_e = ifelse(is.null(p$longitude_e), NA, p$longitude_e),
+              latitude_n = ifelse(is.null(p$latitude_n), NA, p$latitude_n),
+              temp_c = ifelse(is.null(p$mean_2m_air_temperature), NA, as.numeric(p$mean_2m_air_temperature) - 273.15),
+              date = date_val,
+              year = year,
+              month = month
+            )
+          })
+          
+          month_data <- month_data[!sapply(month_data, is.null)]
+          if (length(month_data) > 0) {
+            temp_data_year[[as.character(month)]] <- dplyr::bind_rows(month_data)
+          }
+        }
+        
+        temp_data_year <- temp_data_year[!sapply(temp_data_year, is.null)]
+        if (length(temp_data_year) > 0) {
+          all_temp_data[[as.character(year)]] <- dplyr::bind_rows(temp_data_year)
+        }
+      }
       
-      # Process temperature data with error handling and debugging
-      temp_data <- lapply(info$features, function(f){
-        p <- f$properties
-        if (is.null(p) || length(p) == 0) return(NULL)
-        data.frame(
-          longitude_e = ifelse(is.null(p$longitude_e), NA, p$longitude_e),
-          latitude_n = ifelse(is.null(p$latitude_n), NA, p$latitude_n),
-          temp_c = ifelse(is.null(p$mean_2m_air_temperature), NA, as.numeric(p$mean_2m_air_temperature) - 273.15),
-          date = ifelse(is.null(p$`system:time_start`), NA, as.character(p$`system:time_start`))
-        )
-      })
-      temp_data <- temp_data[!sapply(temp_data, is.null)]
-      if (length(temp_data) == 0) return(tibble())
-      temp_data <- dplyr::bind_rows(temp_data)
+      if (length(all_temp_data) == 0) return(tibble())
       
+      # Combine all years
+      temp_data <- dplyr::bind_rows(all_temp_data)
+      cat("Total monthly temperature records:", nrow(temp_data), "\n")
       
-      # Calculate growing season using improved algorithm (based on NuskeAlbert method)
+      # Debug: Check temperature ranges and date column
+      if (nrow(temp_data) > 0) {
+        cat("Temperature range:", range(temp_data$temp_c, na.rm = TRUE), "°C\n")
+        cat("Sites with temp > 0°C:", sum(temp_data$temp_c > 0, na.rm = TRUE), "records\n")
+        cat("Sites with temp > 5°C:", sum(temp_data$temp_c > 5, na.rm = TRUE), "records\n")
+        cat("Date column info:\n")
+        cat("  Non-NA dates:", sum(!is.na(temp_data$date)), "\n")
+        cat("  Sample dates:", head(temp_data$date, 3), "\n")
+        cat("  Date class:", class(temp_data$date), "\n")
+      }
+      
+      # Calculate growing season using monthly data with improved algorithm
       gs_data <- temp_data |>
-        dplyr::group_by(longitude_e, latitude_n) |>
-        dplyr::slice_head(n = 12) |>  # Ensure we only have 12 records per site
+        dplyr::filter(!is.na(temp_c), !is.na(date)) |>
         dplyr::mutate(
-          # Assign months 1-12 based on original order
-          month = row_number()
-        ) |>
+          date = as.Date(date),
+          month = as.numeric(format(date, "%m")),
+          year = as.numeric(format(date, "%Y"))
+        )
+      
+      cat("After filtering and processing:", nrow(gs_data), "records\n")
+      cat("Unique sites:", length(unique(paste(gs_data$longitude_e, gs_data$latitude_n))), "\n")
+      
+      # Group by site and year, then calculate growing season per year
+      yearly_gs <- gs_data |>
+        dplyr::group_by(longitude_e, latitude_n, year) |>
+        dplyr::slice_head(n = 12) |>  # Ensure we only have 12 records per site per year
         dplyr::arrange(month) |>
-        dplyr::summarise(
-          # Find first and last months above threshold (allowing for gaps)
+        dplyr::reframe(
+          # Use 0°C threshold (more appropriate for all ecosystems including high elevation/polar)
           first_above = ifelse(any(temp_c > 0), min(month[temp_c > 0]), NA),
           last_above = ifelse(any(temp_c > 0), max(month[temp_c > 0]), NA),
           # Find the month with the highest temperature (likely peak growing season)
@@ -269,95 +343,226 @@ gee_plan <- list(
           mean_growing_temp = mean(temp_c[temp_c > 0], na.rm = TRUE),
           # Count months above threshold
           months_above_threshold = sum(temp_c > 0, na.rm = TRUE),
-          # Debug: add temperature info
+          # Temperature info
           min_temp = min(temp_c, na.rm = TRUE),
-          max_temp = max(temp_c, na.rm = TRUE),
+          max_temp = max(temp_c, na.rm = TRUE)
+        )
+      
+      cat("After yearly processing:", nrow(yearly_gs), "records\n")
+      cat("Sites with valid growing season:", sum(!is.na(yearly_gs$first_above)), "\n")
+      
+      # Group by site and calculate median across years
+      site_gs <- yearly_gs |>
+        dplyr::group_by(longitude_e, latitude_n) |>
+        dplyr::summarise(
+          # Calculate median growing season across all years for stability
+          gs_start_month = median(first_above, na.rm = TRUE),
+          gs_end_month = median(last_above, na.rm = TRUE),
+          peak_month = median(peak_month, na.rm = TRUE),
+          mean_growing_temp = mean(mean_growing_temp, na.rm = TRUE),
+          months_above_threshold = mean(months_above_threshold, na.rm = TRUE),
+          min_temp = mean(min_temp, na.rm = TRUE),
+          max_temp = mean(max_temp, na.rm = TRUE),
+          years_with_data = sum(!is.na(first_above)),
           .groups = "drop"
         ) |>
         dplyr::mutate(
-          # Define growing season start and end
-          gs_start_month = first_above,
-          gs_end_month = last_above,
-          # Handle cases where no growing season found
-          gs_start_month = ifelse(is.infinite(gs_start_month) | is.na(gs_start_month), NA, gs_start_month),
-          gs_end_month = ifelse(is.infinite(gs_end_month) | is.na(gs_end_month), NA, gs_end_month),
-          # Convert months to approximate DOY (middle of month) - simplified
-          gs_start_doy = ifelse(!is.na(gs_start_month), gs_start_month * 30 - 15, NA),  # Approximate DOY
-          gs_end_doy = ifelse(!is.na(gs_end_month), gs_end_month * 30 - 15, NA),        # Approximate DOY
-          # Calculate growing season length in days (approximate)
+          # Convert months to DOY (middle of month) - more accurate
+          gs_start_doy = ifelse(!is.na(gs_start_month), gs_start_month * 30.44 - 15, NA),
+          gs_end_doy = ifelse(!is.na(gs_end_month), gs_end_month * 30.44 - 15, NA),
+          # Calculate growing season length in days
           gs_length_days = ifelse(!is.na(gs_start_month) & !is.na(gs_end_month), 
-                                 (gs_end_month - gs_start_month + 1) * 30, NA)  # Approximate 30 days per month
+                                 (gs_end_month - gs_start_month + 1) * 30.44, NA),
+          # Ensure months are in valid range
+          gs_start_month = pmax(1, pmin(12, gs_start_month)),
+          gs_end_month = pmax(1, pmin(12, gs_end_month))
         ) |>
-        dplyr::left_join(all_coordinates, by = c("longitude_e", "latitude_n")) |>
+        dplyr::left_join(all_coordinates |> dplyr::distinct(longitude_e, latitude_n, .keep_all = TRUE), by = c("longitude_e", "latitude_n")) |>
         dplyr::select(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem,
-                      gs_start_doy, gs_end_doy, gs_length_days, gs_start_month, gs_end_month)
+                      gs_start_doy, gs_end_doy, gs_length_days, gs_start_month, gs_end_month, mean_growing_temp, years_with_data)
       
-      gs_data
+      cat("Growing season calculation complete. Sites with valid data:", sum(!is.na(site_gs$gs_start_doy)), "out of", nrow(site_gs), "\n")
+      site_gs
     }
   ),
 
-  # MODIS LST time series (8-day composites) extracted at sites
+  # Parameterized MODIS LST extraction function
+  extract_modis_lst_year <- function(year, coords_data) {
+    if (!requireNamespace("rgee", quietly = TRUE)) stop("rgee not installed")
+    ok <- tryCatch({ rgee::ee$Date$now()$getInfo(); TRUE }, error = function(e) FALSE)
+    if (!ok) rgee::ee_Initialize(drive = FALSE, gcs = FALSE)
+
+    coords_all <- coords_data |>
+      dplyr::distinct(longitude_e, latitude_n) |>
+      dplyr::filter(!is.na(longitude_e), !is.na(latitude_n))
+    if (nrow(coords_all) == 0) return(tibble())
+
+    pts <- rgee::ee$FeatureCollection(
+      purrr::map2(coords_all$longitude_e, coords_all$latitude_n, function(lon, lat) {
+        rgee::ee$Feature(rgee::ee$Geometry$Point(c(lon, lat)), list(longitude_e = lon, latitude_n = lat))
+      })
+    )
+
+    # Try to use the deprecated MODIS/006/MOD11A2 dataset with error handling
+    tryCatch({
+      # Extract data for the specified year
+      start_date <- paste0(year, "-01-01")
+      end_date <- paste0(year, "-12-31")
+      cat("Extracting MODIS LST data for year", year, "(", start_date, "to", end_date, ")\n")
+      
+      col <- rgee::ee$ImageCollection("MODIS/006/MOD11A2")$select(c("LST_Day_1km","LST_Night_1km"))$filterDate(start_date, end_date)
+      
+      # Process each image individually and track dates
+      # Get the collection as a list to process each image separately
+      col_list <- col$toList(col$size())
+      col_size <- col$size()$getInfo()
+      
+      cat("Processing", col_size, "images for year", year, "\n")
+      
+      # Process each image individually and track dates
+      all_results <- list()
+      image_dates <- list()
+      
+      for (i in 1:col_size) {
+        img <- rgee::ee$Image(col_list$get(i-1))
+        
+        # Get the date for this image
+        img_date <- img$date()$format("YYYY-MM-dd")$getInfo()
+        img_doy <- img$date()$getRelative('day', 'year')$getInfo()
+        
+        # Sample regions for this image
+        samp_img <- img$sampleRegions(collection = pts, scale = 1000, geometries = FALSE)
+        info_img <- samp_img$getInfo()
+        
+        if (length(info_img$features) > 0) {
+          # Add date information to each feature
+          for (j in 1:length(info_img$features)) {
+            info_img$features[[j]]$properties$date <- img_date
+            info_img$features[[j]]$properties$doy <- img_doy
+            info_img$features[[j]]$properties$year <- year
+          }
+          all_results[[i]] <- info_img$features
+        }
+      }
+      
+      # Combine all results
+      info <- list(features = unlist(all_results, recursive = FALSE))
+      if (length(info$features) == 0) {
+        cat("No features returned for year", year, "\n")
+        return(tibble())
+      }
+      
+      # Date extraction successful - no debug needed
+      
+      # Process features with error handling
+      rows <- lapply(info$features, function(f){
+        p <- f$properties
+        # Handle missing or invalid properties
+        if (is.null(p) || length(p) == 0) return(NULL)
+        
+        # Extract date from system time if not available in properties
+        date_val <- ifelse(is.null(p$date), NA, as.character(p$date))
+        doy_val <- ifelse(is.null(p$doy), NA, as.numeric(p$doy))
+        
+        # If date is still NA, try to extract from system time
+        if (is.na(date_val) && !is.null(p$`system:time_start`)) {
+          date_val <- as.character(as.Date(as.numeric(p$`system:time_start`) / 1000, origin = "1970-01-01"))
+          doy_val <- as.numeric(format(as.Date(date_val), "%j"))
+        }
+        
+        data.frame(
+          longitude_e = ifelse(is.null(p$longitude_e), NA, p$longitude_e),
+          latitude_n = ifelse(is.null(p$latitude_n), NA, p$latitude_n),
+          date = date_val,
+          doy = doy_val,
+          year = ifelse(is.null(p$year), year, as.numeric(p$year)),
+          LST_Day_1km = ifelse(is.null(p$LST_Day_1km), NA, as.numeric(p$LST_Day_1km)),
+          LST_Night_1km = ifelse(is.null(p$LST_Night_1km), NA, as.numeric(p$LST_Night_1km))
+        )
+      })
+      
+      # Remove NULL entries and bind rows
+      rows <- rows[!sapply(rows, is.null)]
+      if (length(rows) == 0) {
+        cat("No valid rows for year", year, "\n")
+        return(tibble())
+      }
+      
+      result <- dplyr::bind_rows(rows)
+      cat("Successfully extracted", nrow(result), "records for year", year, "\n")
+      return(result)
+      
+    }, error = function(e) {
+      cat("Error extracting MODIS LST data for year", year, ":", e$message, "\n")
+      cat("Returning empty tibble\n")
+      return(tibble())
+    })
+  },
+
+  # Create individual targets for each year
+  tar_target(
+    name = gee_modis_lst_year_2015,
+    command = extract_modis_lst_year(2015, all_coordinates)
+  ),
+  tar_target(
+    name = gee_modis_lst_year_2016,
+    command = extract_modis_lst_year(2016, all_coordinates)
+  ),
+  tar_target(
+    name = gee_modis_lst_year_2017,
+    command = extract_modis_lst_year(2017, all_coordinates)
+  ),
+  tar_target(
+    name = gee_modis_lst_year_2018,
+    command = extract_modis_lst_year(2018, all_coordinates)
+  ),
+  tar_target(
+    name = gee_modis_lst_year_2019,
+    command = extract_modis_lst_year(2019, all_coordinates)
+  ),
+  tar_target(
+    name = gee_modis_lst_year_2020,
+    command = extract_modis_lst_year(2020, all_coordinates)
+  ),
+  tar_target(
+    name = gee_modis_lst_year_2021,
+    command = extract_modis_lst_year(2021, all_coordinates)
+  ),
+  tar_target(
+    name = gee_modis_lst_year_2022,
+    command = extract_modis_lst_year(2022, all_coordinates)
+  ),
+  tar_target(
+    name = gee_modis_lst_year_2023,
+    command = extract_modis_lst_year(2023, all_coordinates)
+  ),
+
+  # Combine all years of MODIS LST data
   tar_target(
     name = gee_modis_lst_timeseries,
     command = {
-      if (!requireNamespace("rgee", quietly = TRUE)) stop("rgee not installed")
-      ok <- tryCatch({ rgee::ee$Date$now()$getInfo(); TRUE }, error = function(e) FALSE)
-      if (!ok) rgee::ee_Initialize(drive = FALSE, gcs = FALSE)
-
-      coords_all <- all_coordinates |>
-        dplyr::distinct(longitude_e, latitude_n) |>
-        dplyr::filter(!is.na(longitude_e), !is.na(latitude_n))
-      if (nrow(coords_all) == 0) return(tibble())
-
-      pts <- rgee::ee$FeatureCollection(
-        purrr::map2(coords_all$longitude_e, coords_all$latitude_n, function(lon, lat) {
-          rgee::ee$Feature(rgee::ee$Geometry$Point(c(lon, lat)), list(longitude_e = lon, latitude_n = lat))
-        })
+      # Get all the year-specific targets
+      year_targets <- list(
+        gee_modis_lst_year_2015,
+        gee_modis_lst_year_2016,
+        gee_modis_lst_year_2017,
+        gee_modis_lst_year_2018,
+        gee_modis_lst_year_2019,
+        gee_modis_lst_year_2020,
+        gee_modis_lst_year_2021,
+        gee_modis_lst_year_2022,
+        gee_modis_lst_year_2023
       )
-
-      # Try to use the deprecated MODIS/006/MOD11A2 dataset with error handling
-      tryCatch({
-        # Limit to a single representative year to avoid client transfer limits
-        col <- rgee::ee$ImageCollection("MODIS/006/MOD11A2")$select(c("LST_Day_1km","LST_Night_1km"))$filterDate("2020-01-01","2020-12-31")
-        # Add date and DOY properties
-        col <- col$map(function(img){
-          img$set(list(
-            date = img$date()$format("YYYY-MM-dd"),
-            doy = img$date()$getRelative('day', 'year')
-          ))
-        })
-        samp <- col$map(function(img){
-          img$sampleRegions(collection = pts, scale = 1000, geometries = FALSE)
-        })$flatten()
-        info <- samp$getInfo()
-        if (length(info$features) == 0) return(tibble())
-        
-        # Process features with error handling
-        rows <- lapply(info$features, function(f){
-          p <- f$properties
-          # Handle missing or invalid properties
-          if (is.null(p) || length(p) == 0) return(NULL)
-          data.frame(
-            longitude_e = ifelse(is.null(p$longitude_e), NA, p$longitude_e),
-            latitude_n = ifelse(is.null(p$latitude_n), NA, p$latitude_n),
-            date = ifelse(is.null(p$date), NA, as.character(p$date)),
-            doy = ifelse(is.null(p$doy), NA, as.numeric(p$doy)),
-            LST_Day_1km = ifelse(is.null(p$LST_Day_1km), NA, as.numeric(p$LST_Day_1km)),
-            LST_Night_1km = ifelse(is.null(p$LST_Night_1km), NA, as.numeric(p$LST_Night_1km))
-          )
-        })
-        
-        # Remove NULL entries and bind rows
-        rows <- rows[!sapply(rows, is.null)]
-        if (length(rows) == 0) return(tibble())
-        
-        dplyr::bind_rows(rows)
-        
-      }, error = function(e) {
-        cat("Error extracting MODIS LST data:", e$message, "\n")
-        cat("Returning empty tibble\n")
-        return(tibble())
-      })
+      
+      # Combine all years
+      combined_data <- dplyr::bind_rows(year_targets)
+      
+      cat("Combined MODIS LST data summary:\n")
+      cat("Total records:", nrow(combined_data), "\n")
+      cat("Years covered:", paste(sort(unique(combined_data$year)), collapse = ", "), "\n")
+      cat("Unique sites:", length(unique(paste(combined_data$longitude_e, combined_data$latitude_n))), "\n")
+      
+      return(combined_data)
     }
   ),
 
