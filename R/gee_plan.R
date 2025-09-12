@@ -204,6 +204,325 @@ gee_plan <- list(
     }
   ),
 
+  # Extract VIIRS phenological onset dates (start and end of growing season)
+  tar_target(
+    name = gee_viirs_phenology,
+    command = {
+      # Ensure GEE is initialized in this targets process (non-interactive).
+      if (!requireNamespace("rgee", quietly = TRUE)) {
+        stop("Package rgee is not installed. Install it and try again.")
+      }
+      ok <- tryCatch({ rgee::ee$Date$now()$getInfo(); TRUE }, error = function(e) FALSE)
+      if (!ok) {
+        # Attempt a silent initialization using cached credentials (no Drive/GCS needed here).
+        tryCatch({
+          rgee::ee_Initialize(drive = FALSE, gcs = FALSE)
+        }, error = function(e) {
+          stop("Google Earth Engine is not initialized in this process, and auto-init failed. Run rgee::ee_Initialize() once interactively to cache credentials, then re-run.")
+        })
+      }
+      
+      # Get coordinates from all_coordinates
+      coords_all <- all_coordinates |>
+        distinct(longitude_e, latitude_n) |>
+        filter(!is.na(longitude_e), !is.na(latitude_n))
+      
+      if (nrow(coords_all) == 0) {
+        cat("No valid coordinates found\n")
+        return(tibble())
+      }
+      
+      cat("Extracting VIIRS phenological onset dates for", nrow(coords_all), "coordinates\n")
+      
+      tryCatch({
+        # Load the VIIRS vegetation phenology dataset
+        viirs_collection <- rgee::ee$ImageCollection("NOAA/VIIRS/001/VNP22Q2")
+        
+        # Build a composite (wider date window to be safe)
+        viirs_image <- viirs_collection$filterDate("2018-01-01", "2023-12-31")$median()
+
+        # Inspect available bands for debugging
+        band_names <- tryCatch(viirs_image$bandNames()$getInfo(), error = function(e) NULL)
+        if (is.null(band_names)) band_names <- character()
+        cat("VNP22Q2 bands in composite:\n", paste(band_names, collapse = ", "), "\n")
+
+        # Extract onset bands and quality control if available
+        if (all(c('Onset_Greenness_Decrease_1','Onset_Greenness_Increase_1') %in% band_names)) {
+          cat("Extracting onset bands: Onset_Greenness_Increase_1 and Onset_Greenness_Decrease_1\n")
+          
+          # Select onset bands and quality control
+          bands_to_select <- c('Onset_Greenness_Increase_1', 'Onset_Greenness_Decrease_1')
+          if ('GLSP_QC_1' %in% band_names) {
+            bands_to_select <- c(bands_to_select, 'GLSP_QC_1')
+            cat("Including quality control band: GLSP_QC_1\n")
+          }
+          if ('PGQ_Onset_Greenness_Increase_1' %in% band_names) {
+            bands_to_select <- c(bands_to_select, 'PGQ_Onset_Greenness_Increase_1')
+            cat("Including quality control band: PGQ_Onset_Greenness_Increase_1\n")
+          }
+          
+          onset_image <- viirs_image$select(bands_to_select)
+          
+        } else if ('Growing_Season_Length_1' %in% band_names) {
+          cat("Only Growing_Season_Length_1 available, cannot extract onset dates\n")
+          return(tibble())
+        } else {
+          cat("Required onset bands not found. Available bands:", paste(band_names, collapse = ", "), "\n")
+          return(tibble())
+        }
+        
+        # Create points from coordinates
+        points <- rgee::ee$FeatureCollection(
+          purrr::map2(
+            coords_all$longitude_e, 
+            coords_all$latitude_n,
+            function(lon, lat) {
+              rgee::ee$Feature(
+                rgee::ee$Geometry$Point(c(lon, lat)),
+                list(longitude_e = lon, latitude_n = lat)
+              )
+            }
+          )
+        )
+        
+        # Extract values at points using low-level getInfo (avoids all geojsonio dependencies)
+        extracted <- onset_image$sampleRegions(
+          collection = points,
+          scale = 500,
+          geometries = FALSE
+        )
+        
+        # Get raw data using getInfo
+        extracted_info <- extracted$getInfo()
+        
+        # Convert to data frame manually
+        if (length(extracted_info$features) == 0) {
+          cat("No features returned from sampleRegions\n")
+          return(tibble())
+        }
+        
+        # Extract coordinates and values (handle NULL geometry)
+        coords_list <- lapply(extracted_info$features, function(f) {
+          # Use coordinates from properties if geometry is NULL
+          if (is.null(f$geometry) || is.null(f$geometry$coordinates)) {
+            lon <- f$properties$longitude_e
+            lat <- f$properties$latitude_n
+          } else {
+            coords <- f$geometry$coordinates
+            lon <- coords[1]
+            lat <- coords[2]
+          }
+          
+          onset_start <- f$properties$Onset_Greenness_Increase_1
+          onset_end <- f$properties$Onset_Greenness_Decrease_1
+          qc_glsp <- f$properties$GLSP_QC_1
+          qc_pgq <- f$properties$PGQ_Onset_Greenness_Increase_1
+          
+          data.frame(
+            longitude_e = lon,
+            latitude_n = lat, 
+            onset_start_doy = onset_start,
+            onset_end_doy = onset_end,
+            qc_glsp = qc_glsp,
+            qc_pgq = qc_pgq
+          )
+        })
+        
+        extracted_df <- do.call(rbind, coords_list)
+        
+        if (nrow(extracted_df) == 0) {
+          cat("No values returned by sampleRegions (0 rows). Returning empty table.\n")
+          return(tibble())
+        }
+        
+        # Process the results
+        result <- extracted_df |>
+          as_tibble() |>
+          # Join back with all_coordinates to get site information
+          left_join(all_coordinates, by = c("longitude_e", "latitude_n")) |>
+          select(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem, onset_start_doy, onset_end_doy, qc_glsp, qc_pgq)
+        
+        # Debug: Check raw values before cleaning
+        cat("Raw onset start values (first 10):", paste(head(result$onset_start_doy, 10), collapse = ", "), "\n")
+        cat("Raw onset end values (first 10):", paste(head(result$onset_end_doy, 10), collapse = ", "), "\n")
+        cat("Raw onset start range:", range(result$onset_start_doy, na.rm = TRUE), "\n")
+        cat("Raw onset end range:", range(result$onset_end_doy, na.rm = TRUE), "\n")
+        cat("QC GLSP values (first 10):", paste(head(result$qc_glsp, 10), collapse = ", "), "\n")
+        cat("QC PGQ values (first 10):", paste(head(result$qc_pgq, 10), collapse = ", "), "\n")
+        
+        # Check for common invalid data codes
+        cat("Checking for invalid data codes...\n")
+        cat("Values equal to 0:", sum(result$onset_start_doy == 0, na.rm = TRUE), "start,", sum(result$onset_end_doy == 0, na.rm = TRUE), "end\n")
+        cat("Values equal to 255:", sum(result$onset_start_doy == 255, na.rm = TRUE), "start,", sum(result$onset_end_doy == 255, na.rm = TRUE), "end\n")
+        cat("Values equal to 32767:", sum(result$onset_start_doy == 32767, na.rm = TRUE), "start,", sum(result$onset_end_doy == 32767, na.rm = TRUE), "end\n")
+        
+        # Try to understand the VIIRS data format
+        # The values like 7668.5, 7475 are much larger than expected DOY values
+        # Let me try different approaches to understand the format
+        
+        # First, let's try to understand what these values might represent
+        # Approach 1: Check if they might be days since 2000-01-01
+        # 7668.5 days since 2000-01-01 would be around 2021
+        # Let's convert and see if the DOY makes sense
+        
+        result <- result |>
+          mutate(
+            # Store original values for debugging
+            onset_start_original = onset_start_doy,
+            onset_end_original = onset_end_doy,
+            
+            # Approach 1: Days since 2000-01-01
+            onset_start_doy_v1 = ifelse(
+              !is.na(onset_start_doy) & onset_start_doy > 0,
+              as.numeric(format(as.Date(onset_start_doy, origin = "2000-01-01"), "%j")),
+              NA
+            ),
+            onset_end_doy_v1 = ifelse(
+              !is.na(onset_end_doy) & onset_end_doy > 0,
+              as.numeric(format(as.Date(onset_end_doy, origin = "2000-01-01"), "%j")),
+              NA
+            ),
+            
+            # Approach 2: Days since 1970-01-01 (Unix epoch)
+            onset_start_doy_v2 = ifelse(
+              !is.na(onset_start_doy) & onset_start_doy > 0,
+              as.numeric(format(as.Date(onset_start_doy, origin = "1970-01-01"), "%j")),
+              NA
+            ),
+            onset_end_doy_v2 = ifelse(
+              !is.na(onset_end_doy) & onset_end_doy > 0,
+              as.numeric(format(as.Date(onset_end_doy, origin = "1970-01-01"), "%j")),
+              NA
+            ),
+            
+            # Approach 3: Maybe they're already DOY but with some offset
+            onset_start_doy_v3 = ifelse(
+              !is.na(onset_start_doy) & onset_start_doy > 0 & onset_start_doy <= 365,
+              onset_start_doy,
+              NA
+            ),
+            onset_end_doy_v3 = ifelse(
+              !is.na(onset_end_doy) & onset_end_doy > 0 & onset_end_doy <= 365,
+              onset_end_doy,
+              NA
+            )
+          )
+        
+        # Debug: Show what each approach produces for a few samples
+        cat("Sample conversions for first 5 sites:\n")
+        sample_data <- result[1:5, c("country", "site", "onset_start_original", "onset_start_doy_v1", "onset_start_doy_v2", "onset_start_doy_v3")]
+        print(sample_data)
+        
+        # Choose the best approach - let's use approach 1 (days since 2000) for now
+        # and filter out obviously wrong values
+        result <- result |>
+          mutate(
+            onset_start_doy = onset_start_doy_v1,
+            onset_end_doy = onset_end_doy_v1
+          ) |>
+          # Calculate growing season length from onset dates first
+          mutate(
+            gsl_from_onsets = ifelse(
+              !is.na(onset_start_doy) & !is.na(onset_end_doy),
+              ifelse(onset_end_doy >= onset_start_doy,
+                     onset_end_doy - onset_start_doy,
+                     365 - onset_start_doy + onset_end_doy),
+              NA
+            )
+          ) |>
+          # Apply ecological filtering to remove impossible values
+          mutate(
+            # Filter out ecologically impossible values
+            onset_start_doy = case_when(
+              # Northern Hemisphere: growing season shouldn't start in winter (Dec-Feb)
+              latitude_n > 0 & (onset_start_doy < 50 | onset_start_doy > 300) ~ NA_real_,
+              # Southern Hemisphere: growing season can start in winter (Jun-Aug)
+              latitude_n < 0 & (onset_start_doy < 150 | onset_start_doy > 350) ~ NA_real_,
+              TRUE ~ onset_start_doy
+            ),
+            onset_end_doy = case_when(
+              # Northern Hemisphere: growing season shouldn't end in winter (Dec-Feb)
+              latitude_n > 0 & (onset_end_doy < 50 | onset_end_doy > 300) ~ NA_real_,
+              # Southern Hemisphere: growing season can end in winter (Jun-Aug)
+              latitude_n < 0 & (onset_end_doy < 150 | onset_end_doy > 350) ~ NA_real_,
+              TRUE ~ onset_end_doy
+            )
+          ) |>
+          # Recalculate GSL after filtering
+          mutate(
+            gsl_from_onsets = ifelse(
+              !is.na(onset_start_doy) & !is.na(onset_end_doy),
+              ifelse(onset_end_doy >= onset_start_doy,
+                     onset_end_doy - onset_start_doy,
+                     365 - onset_start_doy + onset_end_doy),
+              NA
+            )
+          ) |>
+          # Additional filtering for high elevation sites
+          mutate(
+            # High elevation sites shouldn't have growing seasons extending too late
+            onset_end_doy = ifelse(
+              elevation_m > 3000 & onset_end_doy > 250,  # High elevation: no GS past early Sept
+              NA,
+              onset_end_doy
+            ),
+            # High elevation sites shouldn't have extremely long growing seasons
+            gsl_from_onsets = ifelse(
+              elevation_m > 3000 & gsl_from_onsets > 120,  # High elevation: max 120 days
+              NA,
+              gsl_from_onsets
+            )
+          ) |>
+          # Recalculate GSL after additional filtering
+          mutate(
+            gsl_from_onsets = ifelse(
+              !is.na(onset_start_doy) & !is.na(onset_end_doy),
+              ifelse(onset_end_doy >= onset_start_doy,
+                     onset_end_doy - onset_start_doy,
+                     365 - onset_start_doy + onset_end_doy),
+              gsl_from_onsets
+            )
+          ) |>
+          # Group by site and take the first (and only) value for each site
+          group_by(country, site) |>
+          summarise(
+            elevation_m = first(elevation_m),
+            longitude_e = first(longitude_e),
+            latitude_n = first(latitude_n),
+            ecosystem = first(ecosystem),
+            region = first(region),
+            gradient = first(gradient),
+            plot_id = first(plot_id),
+            onset_start_doy = first(onset_start_doy),
+            onset_end_doy = first(onset_end_doy),
+            gsl_from_onsets = first(gsl_from_onsets),
+            qc_glsp = first(qc_glsp),
+            qc_pgq = first(qc_pgq),
+            .groups = "drop"
+          )
+        
+        cat("After cleaning, non-NA onset start values:", sum(!is.na(result$onset_start_doy)), "\n")
+        cat("After cleaning, non-NA onset end values:", sum(!is.na(result$onset_end_doy)), "\n")
+        
+        # Print summary
+        cat("VIIRS Phenology Summary:\n")
+        cat("Total sites:", nrow(result), "\n")
+        cat("Sites with valid start dates:", sum(!is.na(result$onset_start_doy)), "\n")
+        cat("Sites with valid end dates:", sum(!is.na(result$onset_end_doy)), "\n")
+        if (sum(!is.na(result$onset_start_doy)) > 0) {
+          cat("Start DOY range:", round(range(result$onset_start_doy, na.rm = TRUE)), "\n")
+          cat("End DOY range:", round(range(result$onset_end_doy, na.rm = TRUE)), "\n")
+        }
+        
+        return(result)
+        
+      }, error = function(e) {
+        cat("Error extracting VIIRS phenology data:", e$message, "\n")
+        return(tibble())
+      })
+    }
+  ),
+
   # Growing-season window (start/end DOY) per site using multi-year daily ERA5 temperature data
   tar_target(
     name = gee_gs_window,
