@@ -20,17 +20,17 @@ options(clustermq.scheduler = "multicore")
 tar_source()
 # source("other_functions.R") # Source other scripts as needed.
 
-#Combine target plans
+# Combine target plans
 combined_plan <- c(
   download_plan,
   import_plan,
   bioclim_plan,
-  #gee_plan,
   cleaning_plan,
-  transformation_plan
-  #analysis_plan,
-  #figure_plan,
-  #output_plan
+  transformation_plan,
+  itv_plan
+  # analysis_plan,
+  # figure_plan,
+  # output_plan
   # si_figures_plan#,
-  #manuscript_plan
+  # manuscript_plan
 )
