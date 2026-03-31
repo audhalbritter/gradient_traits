@@ -66,34 +66,35 @@ make_pca_plot <- function(trait_pca){
   # eigenvalues
   e_B <- eigenvals(trait_pca[[3]])/sum(eigenvals(trait_pca[[3]]))
 
-  # Add elevation categories within each gradient
-  # First, get unique sites with their elevation rankings
-  site_elevation_categories <- trait_pca[[1]] %>%
-    select(country, gradient, site, elevation_m) %>%
-    distinct() %>%
-    group_by(country, gradient) %>%
+  # Add relative elevation within each region
+  # First, average elevation by site, then calculate percentiles within region
+  site_elevation_relative <- trait_pca[[1]] %>%
+    select(country, region, gradient, site, elevation_m) %>%
+    # Average elevation by site (in case there are multiple plots per site)
+    group_by(country, region, gradient, site) %>%
+    summarise(elevation_m = mean(elevation_m, na.rm = TRUE), .groups = "drop") %>%
+    # Now calculate percentiles within region
+    group_by(region) %>%
     mutate(
-      elevation_rank = rank(elevation_m),
-      n_sites = n(),
-      elevation_category = case_when(
-        elevation_rank == 1 ~ "Low",
-        elevation_rank == n_sites ~ "High", 
-        TRUE ~ "Middle"
-      ),
-      elevation_category = factor(elevation_category, levels = c("Low", "Middle", "High"))
+      # Calculate percentile rank within region (0-100)
+      elevation_percentile = percent_rank(elevation_m) * 100,
+      # Calculate standardized elevation within region (mean=0, sd=1)
+      elevation_std = (elevation_m - mean(elevation_m)) / sd(elevation_m),
+      # Calculate position within elevation range (0-1)
+      elevation_range_pos = (elevation_m - min(elevation_m)) / (max(elevation_m) - min(elevation_m))
     ) %>%
     ungroup() %>%
-    select(country, gradient, site, elevation_category)
+    select(country, region, gradient, site, elevation_percentile, elevation_std, elevation_range_pos)
   
   # Join back to the full PCA data
   pca_sites_with_elevation <- trait_pca[[1]] %>%
-    left_join(site_elevation_categories, by = c("country", "gradient", "site"))
+    left_join(site_elevation_relative, by = c("country", "region", "gradient", "site"))
 
   pca_sites_with_elevation %>% 
-    ggplot(aes(x = PC1, y = PC2, colour = region, shape = elevation_category)) +
-    geom_point(size = 2.5) +
+    ggplot(aes(x = PC1, y = PC2, colour = region, size = elevation_percentile)) +
+    geom_point(alpha = 0.8) +
     coord_equal() +
-    stat_ellipse(aes(group = region)) +
+    stat_ellipse(aes(group = region), alpha = 0.3) +
     geom_segment(data = trait_pca[[2]],
                  aes(x = 0, y = 0, xend = PC1, yend = PC2, linetype = class),
                  colour = "grey40",
@@ -112,9 +113,10 @@ make_pca_plot <- function(trait_pca){
               inherit.aes = FALSE,
               show.legend = FALSE, parse = TRUE) +
     scale_colour_manual(values = create_region_color_mapping(), drop = FALSE) +
-    scale_shape_manual(name = "Elevation", 
-                       values = c("Low" = 25, "Middle" = 21, "High" = 24), # down triangle, circle, up triangle
-                       labels = c("Low" = "Lowest", "Middle" = "Middle", "High" = "Highest")) +
+    scale_size_continuous(name = "Elevation\nPercentile", 
+                          range = c(1, 4),
+                          breaks = c(0, 25, 50, 75, 100),
+                          labels = c("0%", "25%", "50%", "75%", "100%")) +
     scale_linetype_manual(name = "", values = c("solid", "dashed", "dotted")) +
     labs(x = glue("PCA1 ({round(e_B[1] * 100, 1)}%)"),
          y = glue("PCA2 ({round(e_B[2] * 100, 1)}%)"),
