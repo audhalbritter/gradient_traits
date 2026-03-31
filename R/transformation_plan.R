@@ -87,13 +87,7 @@ transformation_plan <- list(
         )
       ) |>
       # order traits
-      mutate(trait_trans = factor(trait_trans, levels = c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g", "c_percent", "n_percent", "cn_ratio", "p_percent", "np_ratio", "dc13_permil", "dn15_permil"))) |>
-      # categorize traits as chemical or morphological
-      mutate(trait_category = if_else(
-        trait_trans %in% c("c_percent", "n_percent", "cn_ratio", "p_percent", "np_ratio", "dc13_permil", "dn15_permil"),
-        "chemical",
-        "morphological"
-      ))
+      mutate(trait_trans = factor(trait_trans, levels = c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g", "c_percent", "n_percent", "cn_ratio", "p_percent", "np_ratio", "dc13_permil", "dn15_permil")))
   ),
 
 
