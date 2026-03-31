@@ -107,12 +107,20 @@ figure_plan <- list(
     name = trait_climate_annual_temp_fig,
     command = trait_models_output |>
       unnest(predictions) |>
-      make_trait_climate_plot(climate_variable = "annual_temperature_bioclim", data_source = "WorldClim", x_label = "Annual Temperature (°C)")
+      make_trait_climate_plot(climate_variable = "annual_temperature_bioclim", data_source = "WorldClim", x_label = "Annual Mean Temperature (°C)")
   ),
 
-  # Trait variance vs growing season temperature figure
+  # Vapour Pressure Deficit (CHELSA)
   tar_target(
-    name = trait_variance_gst_fig,
+    name = trait_climate_vpd_fig,
+    command = trait_models_output |>
+      unnest(predictions) |>
+      make_trait_climate_plot(climate_variable = "vpd_mean_1981-2010_chelsa", data_source = "CHELSA", x_label = "Vapour Pressure Deficit (Pa)")
+  ),
+
+  # Trait variance vs annual temperature figure
+  tar_target(
+    name = trait_variance_annual_temp_fig,
     command = {
       trait_variance_output |>
         unnest(predictions) |>
@@ -128,12 +136,11 @@ figure_plan <- list(
         geom_ribbon(aes(ymin = plo, ymax = phi), 
                     alpha = 0.2, color = NA, fill = "grey40") +
         facet_wrap(~trait_fancy, scales = "free_y") +
-        scale_color_manual(values = create_region_color_mapping()) +
+        scale_color_manual(values = create_region_color_mapping(), name = "Region") +
         scale_linetype_manual(values = c("FALSE" = "dashed", "TRUE" = "solid")) +
         labs(
-          x = "Growing Season Temperature (°C)",
+          x = "Annual Mean Temperature (°C)",
           y = "Trait Variance",
-          title = "Trait Variance vs Growing Season Temperature (CHELSA)"
         ) +
         theme_bw() +
         theme(

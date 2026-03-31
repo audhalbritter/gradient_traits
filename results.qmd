@@ -46,17 +46,19 @@ Size traits were log transformed. Trait means and higher moments were calculated
 library(gt)
 library(dplyr)
 
-# Load CHELSA climate data
+# Load CHELSA and bioclim climate data
 tar_load(chelsa_extracted)
+tar_load(bioclim)
 
 # Create summary table of climate variables by region
 climate_summary <- chelsa_extracted |>
+  left_join(bioclim |> select(plot_id, annual_temperature, annual_precipitation), by = "plot_id") |>
   group_by(region) |>
   summarise(
     `Growing Season Length (days)` = round(mean(`gsl_1981-2010_chelsa`, na.rm = TRUE), 1),
     `Growing Season Temperature (°C)` = round(mean(`gst_1981-2010_chelsa`, na.rm = TRUE), 1),
-    `Growing Season Precipitation (mm)` = round(mean(`gsp_1981-2010_chelsa`, na.rm = TRUE), 1),
-    `Potential Evapotranspiration (mm)` = round(mean(`pet_penman_mean_1981-2010_chelsa`, na.rm = TRUE), 1),
+    `Annual Temperature (°C)` = round(mean(annual_temperature, na.rm = TRUE), 1),
+    `Annual Precipitation (mm)` = round(mean(annual_precipitation, na.rm = TRUE), 1),
     .groups = "drop"
   ) |>
   # Reorder regions from north to south
@@ -240,16 +242,31 @@ trait_climate_diurnal_fig
 
 \newpage
 
-This figure shows trait variance in relation to growing season temperature (CHELSA). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+This figure shows functional leaf traits in relation to vapour pressure deficit (CHELSA). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
 
 ```{r}
-#| label: fig-trait-variance-gst
+#| label: fig-trait-vpd
 #| echo: false
 #| warnings: false
 #| fig-height: 6
 
-tar_load(trait_variance_gst_fig)
-trait_variance_gst_fig
+tar_load(trait_climate_vpd_fig)
+trait_climate_vpd_fig
+
+```
+
+\newpage
+
+This figure shows trait variance in relation to annual temperature (WorldClim). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
+
+```{r}
+#| label: fig-trait-variance-annual-temp
+#| echo: false
+#| warnings: false
+#| fig-height: 6
+
+tar_load(trait_variance_annual_temp_fig)
+trait_variance_annual_temp_fig
 
 ```
 
@@ -291,6 +308,7 @@ model_quality_table <- trait_model_r2_summary |>
       climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature (CHELSA)",
       climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation (CHELSA)",
       climate_variable == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration (CHELSA)",
+      climate_variable == "vpd_mean_1981-2010_chelsa" ~ "Vapour Pressure Deficit (CHELSA)",
       climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
       climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
       climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range (WorldClim)",
@@ -392,6 +410,7 @@ trait_results_table <- trait_models_output |>
       climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature (CHELSA)",
       climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation (CHELSA)",
       climate_variable == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration (CHELSA)",
+      climate_variable == "vpd_mean_1981-2010_chelsa" ~ "Vapour Pressure Deficit (CHELSA)",
       climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
       climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
       climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range (WorldClim)",

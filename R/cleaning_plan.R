@@ -20,14 +20,14 @@ cleaning_plan <- list(
   tar_target(
     name = community_pe,
     command = clean_pe_community(raw_community_pe) |>
-      filter(gradient != "B")
+      filter(gradient != "B" | site == "pe_B_QUE")
   ),
 
   # clean traits
   tar_target(
     name = traits_pe,
     command = clean_pe_traits(raw_traits_pe) |>
-      filter(gradient != "B")
+      filter(gradient != "B" | site == "pe_B_QUE")
   ),
 
   # China

@@ -145,7 +145,6 @@ transformation_plan <- list(
             "dn15_permil"
           )
         )) |>
-        tidylog::left_join(gee_growing_season_length, by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)) |>
         tidylog::left_join(chelsa_extracted, by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)) |>
         tidylog::left_join(
           bioclim |> 
