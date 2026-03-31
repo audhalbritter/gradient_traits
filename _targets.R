@@ -25,12 +25,12 @@ combined_plan <- c(
   download_plan,
   import_plan,
   bioclim_plan,
-  gee_plan,
+  #gee_plan,
   cleaning_plan,
-  transformation_plan,
-  analysis_plan,
-  figure_plan,
-  output_plan
+  transformation_plan
+  #analysis_plan,
+  #figure_plan,
+  #output_plan
   # si_figures_plan#,
   #manuscript_plan
 )
