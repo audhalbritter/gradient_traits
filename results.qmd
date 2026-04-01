@@ -150,7 +150,7 @@ diversity_temp_annual_fig
 
 ```
 
-### ITV
+### The importance of intraspecific trait variation (ITV)
 
 ```{r}
 #| label: fig-itv-variance
@@ -217,21 +217,6 @@ This figure shows functional leaf traits in relation to annual temperature (Worl
 
 tar_load(trait_climate_annual_temp_fig)
 trait_climate_annual_temp_fig
-
-```
-
-\newpage
-
-This figure shows functional leaf traits in relation to growing season length (GEE). The solid grey line represents the marginal prediction from mixed-effects models, while points are colored by region.
-
-```{r}
-#| label: fig-trait-gsl
-#| echo: false
-#| warnings: false
-#| fig-height: 6
-
-tar_load(trait_climate_gsl_fig)
-trait_climate_gsl_fig
 
 ```
 

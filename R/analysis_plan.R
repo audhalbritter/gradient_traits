@@ -238,6 +238,86 @@ analysis_plan <- list(
     }
   ),
 
+  # Step 1: Fit both Linear and Polynomial regional models for all trait/climate pairs
+  tar_target(
+    name = trait_models_region_all,
+    command = {
+      trait_mean_long |>
+        # Same trait filter as global models
+        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")) |>
+        group_by(trait_trans, climate_variable, data_source) |>
+        nest() |>
+        mutate(
+          # Linear model (additive, parallel slopes)
+          model_linear = purrr::map(data, ~ {
+            safelmer <- purrr::safely(lmerTest::lmer)
+            result <- safelmer(trait_value ~ climate_value + region + (1 | site), data = .x)
+            result$result
+          }),
+          # Polynomial model (additive, parallel curvature)
+          model_poly = purrr::map(data, ~ {
+            safelmer <- purrr::safely(lmerTest::lmer)
+            result <- safelmer(trait_value ~ (climate_value + I(climate_value^2)) + region + (1 | site), data = .x)
+            result$result
+          }),
+          # Glance data for AIC comparison
+          glance_linear = purrr::map(model_linear, ~ {
+            safe_glance <- purrr::safely(broom.mixed::glance)
+            result <- safe_glance(.x)
+            result$result
+          }),
+          glance_poly = purrr::map(model_poly, ~ {
+            safe_glance <- purrr::safely(broom.mixed::glance)
+            result <- safe_glance(.x)
+            result$result
+          })
+        ) |>
+        # Stack linear and poly models
+        tidyr::pivot_longer(
+          cols = c(model_linear, model_poly, glance_linear, glance_poly),
+          names_sep = "_",
+          names_to = c(".value", "model_type")
+        )
+    }
+  ),
+
+  # Step 2: Select the best regional model based on AIC
+  tar_target(
+    name = trait_models_region_best,
+    command = {
+      trait_models_region_all |>
+        unnest(glance) |>
+        group_by(trait_trans, climate_variable, data_source) |>
+        filter(AIC == min(AIC, na.rm = TRUE)) |>
+        slice(1) |> # Tie-breaker
+        select(-AIC) |>
+        ungroup()
+    }
+  ),
+
+  # Step 3: Generate smooth predictions and tidy summaries for the best regional models
+  tar_target(
+    name = trait_models_region_output,
+    command = {
+      trait_models_region_best |>
+        mutate(
+          # Extract tidy Results
+          tidy_results = purrr::map(model, ~ {
+            safe_tidy <- purrr::safely(broom.mixed::tidy)
+            result <- safe_tidy(.x)
+            result$result
+          }),
+          # Check for overall significance (p < 0.05 for any term involving climate_value)
+          is_significant = purrr::map_lgl(tidy_results, ~ {
+            if (is.null(.x)) return(FALSE)
+            any(.x$p.value[grepl("climate_value", .x$term) & .x$effect == "fixed"] < 0.05, na.rm = TRUE)
+          }),
+          # Generate smooth predictions for plotting
+          predictions = purrr::map2(model, data, ~ lmer_prediction_smooth(fit = .x, dat = .y))
+        )
+    }
+  ),
+
   # trait models with long format climate data
   tar_target(
     name = trait_models_all,
@@ -288,9 +368,11 @@ analysis_plan <- list(
     command = {
       trait_models_all |>
         unnest(glance) |>
-        dplyr::select(trait_trans:model, AIC) |>
-        filter(AIC == min(AIC)) |>
-        select(-AIC)
+        group_by(trait_trans, climate_variable, data_source) |>
+        filter(AIC == min(AIC, na.rm = TRUE)) |>
+        slice(1) |> 
+        select(-AIC) |>
+        ungroup()
     }
   ),
   tar_target(
@@ -315,12 +397,9 @@ analysis_plan <- list(
           }),
           # Determine if relationship is significant (p < 0.05)
           is_significant = climate_pvalue < 0.05,
-          # Add predictions for the best models
-          predictions = purrr::map2(data, model, ~ {
-            safe_pred <- purrr::safely(lmer_prediction_trait)
-            pred_result <- safe_pred(dat = .x, fit = .y, predictor = "climate_value")
-            # Remove climate_value from original data to avoid duplicates when binding
-            bind_cols(.x |> select(-climate_value), pred_result$result)
+          # Add predictions for the best models (using smooth prediction for plotting)
+          predictions = purrr::map2(model, data, ~ {
+            lmer_prediction_global_smooth(fit = .x, dat = .y)
           })
         )
     }
