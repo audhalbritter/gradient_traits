@@ -309,7 +309,9 @@ analysis_plan <- list(
           }),
           # Check for overall significance (p < 0.05 for any term involving climate_value)
           is_significant = purrr::map_lgl(tidy_results, ~ {
-            if (is.null(.x)) return(FALSE)
+            if (is.null(.x)) {
+              return(FALSE)
+            }
             any(.x$p.value[grepl("climate_value", .x$term) & .x$effect == "fixed"] < 0.05, na.rm = TRUE)
           }),
           # Generate smooth predictions for plotting
@@ -370,7 +372,7 @@ analysis_plan <- list(
         unnest(glance) |>
         group_by(trait_trans, climate_variable, data_source) |>
         filter(AIC == min(AIC, na.rm = TRUE)) |>
-        slice(1) |> 
+        slice(1) |>
         select(-AIC) |>
         ungroup()
     }
@@ -429,55 +431,6 @@ analysis_plan <- list(
         ) |>
         ungroup() |>
         filter(!is.null(model_check)) # Remove rows with NULL model_check
-    }
-  ),
-
-  # R² summary for trait models
-  tar_target(
-    name = trait_model_r2_summary,
-    command = {
-      trait_models_output |>
-        rowwise() |>
-        mutate(
-          r2_nakagawa = tryCatch(
-            {
-              if (!is.null(model)) {
-                r2_result <- performance::r2_nakagawa(model)
-                r2_result$R2_marginal
-              } else {
-                NA_real_
-              }
-            },
-            error = function(e) NA_real_
-          ),
-          r2_conditional = tryCatch(
-            {
-              if (!is.null(model)) {
-                r2_result <- performance::r2_nakagawa(model)
-                r2_result$R2_conditional
-              } else {
-                NA_real_
-              }
-            },
-            error = function(e) NA_real_
-          ),
-          aic = tryCatch(
-            {
-              if (!is.null(model)) {
-                AIC(model)
-              } else {
-                NA_real_
-              }
-            },
-            error = function(e) NA_real_
-          )
-        ) |>
-        ungroup() |>
-        select(
-          trait_trans, climate_variable, data_source, model_type,
-          r2_nakagawa, r2_conditional, aic, is_significant
-        ) |>
-        arrange(desc(r2_nakagawa))
     }
   ),
 
