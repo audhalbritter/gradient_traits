@@ -156,7 +156,7 @@ itv_plan <- list(
         geom_col() +
         geom_hline(yintercept = 0, colour = "grey", linetype = "dashed") +
         coord_flip() +
-        scale_fill_manual(name = "Process", values = c("ITV" = "#FFD500", "turnover" = "#005BBB")) +
+        scale_fill_manual(name = "Process", values = c("ITV" = "#005BBB", "turnover" = "#FFD500")) +
         scale_x_discrete(limits = rev, labels = scales::label_parse()) +
         lims(y = c(-1, 1)) +
         labs(x = "", y = "Relative contribution to variance") +
