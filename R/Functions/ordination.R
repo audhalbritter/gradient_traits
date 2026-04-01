@@ -91,8 +91,8 @@ make_pca_plot <- function(trait_pca){
     left_join(site_elevation_relative, by = c("country", "region", "gradient", "site"))
 
   pca_sites_with_elevation %>% 
-    ggplot(aes(x = PC1, y = PC2, colour = region, size = elevation_percentile)) +
-    geom_point(alpha = 0.8) +
+    ggplot(aes(x = PC1, y = PC2, colour = region)) +
+    geom_point(aes(size = elevation_percentile), alpha = 0.8) +
     coord_equal() +
     stat_ellipse(aes(group = region), alpha = 0.3) +
     geom_segment(data = trait_pca[[2]],
