@@ -6,20 +6,20 @@ analysis_plan <- list(
   tar_target(
     name = trait_pca,
     command = make_trait_pca(trait_mean |>
-    # norway and sa needs to be removed for now because no chem traits, ch needs removed because no plant height
-    filter(!country %in% c("no", "sa")) |>
-    filter(!trait_trans %in% c("plant_height_cm_log")))
+      # norway and sa needs to be removed for now because no chem traits, ch needs removed because no plant height
+      filter(!country %in% c("no", "sa")) |>
+      filter(!trait_trans %in% c("plant_height_cm_log")))
   ),
 
-    # ordination with all countries, fewer traits
-    tar_target(
+  # ordination with all countries, fewer traits
+  tar_target(
     name = trait_pca_full,
-    command = make_trait_pca(trait_mean |> 
-    # remove incomplete traits
-    filter(trait_trans %in% c("dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")))
+    command = make_trait_pca(trait_mean |>
+      # remove incomplete traits
+      filter(trait_trans %in% c("dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")))
   ),
 
-# Run models
+  # Run models
   # diversity model
   tar_target(
     name = diversity_model,
@@ -43,12 +43,14 @@ analysis_plan <- list(
         ungroup() |>
         group_by(diversity_index) |>
         nest() |>
-        mutate(model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + (1|site), data = .)$result),
-            model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + I(latitude_n^2) + (1|site), data = .)$result),
-            glance_linear = purrr::map(.x = model_linear, .f = ~ broom.mixed::glance(.x)),
-            glance_poly = purrr::map(.x = model_poly, .f = ~ broom.mixed::glance(.x)),
-            result_linear = purrr::map(model_linear, broom.mixed::tidy),
-            result_poly = purrr::map(model_poly, broom.mixed::tidy)) |>
+        mutate(
+          model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + (1 | site), data = .)$result),
+          model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ latitude_n + I(latitude_n^2) + (1 | site), data = .)$result),
+          glance_linear = purrr::map(.x = model_linear, .f = ~ broom.mixed::glance(.x)),
+          glance_poly = purrr::map(.x = model_poly, .f = ~ broom.mixed::glance(.x)),
+          result_linear = purrr::map(model_linear, broom.mixed::tidy),
+          result_poly = purrr::map(model_poly, broom.mixed::tidy)
+        ) |>
         # Pivot to long format to stack linear and polynomial models
         tidyr::pivot_longer(
           cols = c(model_linear, model_poly, glance_linear, glance_poly, result_linear, result_poly),
@@ -111,9 +113,9 @@ analysis_plan <- list(
         nest() |>
         mutate(
           # Linear model
-          model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + (1|site), data = .)$result),
+          model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + (1 | site), data = .)$result),
           # Polynomial model (second order)
-          model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + I(annual_temperature_bioclim^2) + (1|site), data = .)$result),
+          model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + I(annual_temperature_bioclim^2) + (1 | site), data = .)$result),
           # Glance data for linear model
           glance_linear = purrr::map(.x = model_linear, .f = ~ broom.mixed::glance(.x)),
           # Glance data for polynomial model
@@ -133,7 +135,6 @@ analysis_plan <- list(
         unnest(glance) |>
         # select the best model based on AIC
         filter(AIC == min(AIC, na.rm = TRUE))
-
     }
   ),
 
@@ -183,8 +184,6 @@ analysis_plan <- list(
         # Pivot climate variables to long format
         pivot_longer(
           cols = c(
-            # GEE variables
-            growing_season_length,
             # CHELSA variables
             `gsl_1981-2010_chelsa`, `gst_1981-2010_chelsa`, `gsp_1981-2010_chelsa`, `pet_penman_mean_1981-2010_chelsa`, `vpd_mean_1981-2010_chelsa`,
             # WorldClim bioclim variables
@@ -196,14 +195,12 @@ analysis_plan <- list(
         # Add data source column
         mutate(
           data_source = case_when(
-            climate_variable == "growing_season_length" ~ "GEE",
             climate_variable %in% c("gsl_1981-2010_chelsa", "gst_1981-2010_chelsa", "gsp_1981-2010_chelsa", "pet_penman_mean_1981-2010_chelsa", "vpd_mean_1981-2010_chelsa") ~ "CHELSA",
             climate_variable %in% c("mean_temperture_warmest_quarter_bioclim", "precipitation_warmest_quarter_bioclim", "diurnal_range_bioclim", "annual_temperature_bioclim") ~ "WorldClim",
             TRUE ~ "Other"
           ),
           # Clean up climate variable names for display
           climate_variable_clean = case_when(
-            climate_variable == "growing_season_length" ~ "Growing Season Length",
             climate_variable == "gsl_1981-2010_chelsa" ~ "Growing Season Length",
             climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature",
             climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation",
@@ -233,9 +230,11 @@ analysis_plan <- list(
         # Rename mean to trait_value for consistency with prediction function
         rename(trait_value = mean) |>
         # Keep elevation and latitude as separate columns
-        select(country:ecosystem, elevation_m, latitude_n, longitude_e, trait_trans, trait_value, 
-               climate_variable, climate_variable_clean, climate_value, climate_value_original, 
-               climate_mean, climate_sd, data_source)
+        select(
+          country:ecosystem, elevation_m, latitude_n, longitude_e, trait_trans, trait_value,
+          climate_variable, climate_variable_clean, climate_value, climate_value_original,
+          climate_mean, climate_sd, data_source
+        )
     }
   ),
 
@@ -254,13 +253,13 @@ analysis_plan <- list(
           # Linear model
           model_linear = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(trait_value ~ climate_value + (1|site), data = .x)
+            result <- safelmer(trait_value ~ climate_value + (1 | site), data = .x)
             result$result
           }),
           # Polynomial model (second order)
           model_poly = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(trait_value ~ climate_value + I(climate_value^2) + (1|site), data = .x)
+            result <- safelmer(trait_value ~ climate_value + I(climate_value^2) + (1 | site), data = .x)
             result$result
           }),
           # Glance data for linear model
@@ -284,7 +283,6 @@ analysis_plan <- list(
         )
     }
   ),
-
   tar_target(
     name = trait_models_best,
     command = {
@@ -295,7 +293,6 @@ analysis_plan <- list(
         select(-AIC)
     }
   ),
-
   tar_target(
     name = trait_models_output,
     command = {
@@ -352,7 +349,7 @@ analysis_plan <- list(
           model_check = list(performance::check_model(model))
         ) |>
         ungroup() |>
-        filter(!is.null(model_check))  # Remove rows with NULL model_check
+        filter(!is.null(model_check)) # Remove rows with NULL model_check
     }
   ),
 
@@ -363,33 +360,44 @@ analysis_plan <- list(
       trait_models_output |>
         rowwise() |>
         mutate(
-          r2_nakagawa = tryCatch({
-            if (!is.null(model)) {
-              r2_result <- performance::r2_nakagawa(model)
-              r2_result$R2_marginal
-            } else {
-              NA_real_
-            }
-          }, error = function(e) NA_real_),
-          r2_conditional = tryCatch({
-            if (!is.null(model)) {
-              r2_result <- performance::r2_nakagawa(model)
-              r2_result$R2_conditional
-            } else {
-              NA_real_
-            }
-          }, error = function(e) NA_real_),
-          aic = tryCatch({
-            if (!is.null(model)) {
-              AIC(model)
-            } else {
-              NA_real_
-            }
-          }, error = function(e) NA_real_)
+          r2_nakagawa = tryCatch(
+            {
+              if (!is.null(model)) {
+                r2_result <- performance::r2_nakagawa(model)
+                r2_result$R2_marginal
+              } else {
+                NA_real_
+              }
+            },
+            error = function(e) NA_real_
+          ),
+          r2_conditional = tryCatch(
+            {
+              if (!is.null(model)) {
+                r2_result <- performance::r2_nakagawa(model)
+                r2_result$R2_conditional
+              } else {
+                NA_real_
+              }
+            },
+            error = function(e) NA_real_
+          ),
+          aic = tryCatch(
+            {
+              if (!is.null(model)) {
+                AIC(model)
+              } else {
+                NA_real_
+              }
+            },
+            error = function(e) NA_real_
+          )
         ) |>
         ungroup() |>
-        select(trait_trans, climate_variable, data_source, model_type, 
-               r2_nakagawa, r2_conditional, aic, is_significant) |>
+        select(
+          trait_trans, climate_variable, data_source, model_type,
+          r2_nakagawa, r2_conditional, aic, is_significant
+        ) |>
         arrange(desc(r2_nakagawa))
     }
   ),
@@ -430,7 +438,7 @@ analysis_plan <- list(
           # Linear model for variance vs growing season temperature
           model = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(trait_value ~ climate_value + (1|site), data = .x)
+            result <- safelmer(trait_value ~ climate_value + (1 | site), data = .x)
             result$result
           }),
           # Get tidy results
@@ -484,13 +492,13 @@ analysis_plan <- list(
           # Linear model
           model_linear = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(trait_value ~ climate_value + (1|site), data = .x)
+            result <- safelmer(trait_value ~ climate_value + (1 | site), data = .x)
             result$result
           }),
           # Polynomial model (second order)
           model_poly = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(trait_value ~ climate_value + I(climate_value^2) + (1|site), data = .x)
+            result <- safelmer(trait_value ~ climate_value + I(climate_value^2) + (1 | site), data = .x)
             result$result
           }),
           # Glance data for linear model
@@ -514,7 +522,6 @@ analysis_plan <- list(
         )
     }
   ),
-
   tar_target(
     name = trait_variance_best,
     command = {
@@ -525,7 +532,6 @@ analysis_plan <- list(
         select(-AIC)
     }
   ),
-
   tar_target(
     name = trait_variance_output,
     command = {
@@ -554,5 +560,4 @@ analysis_plan <- list(
         )
     }
   )
-
 )
