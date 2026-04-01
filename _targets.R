@@ -27,10 +27,10 @@ combined_plan <- c(
   bioclim_plan,
   cleaning_plan,
   transformation_plan,
-  itv_plan
-  # analysis_plan,
-  # figure_plan,
-  # output_plan
+  itv_plan,
+  analysis_plan,
+  figure_plan,
+  output_plan
   # si_figures_plan#,
   # manuscript_plan
 )
