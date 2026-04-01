@@ -334,3 +334,36 @@ make_trait_comparison_plot <- function(region_output, global_output, raw_data, c
     x_label = x_label
   )
 }
+
+# Ridgeline plot to show trait distributions by region and elevation
+make_trait_ridgeline_plot <- function(data) {
+  # Load library within function to ensure it's available in the targets worker
+  library(ggridges)
+
+  data |>
+    # Add fancy names
+    fancy_trait_name_dictionary() |>
+    # Bin elevation into 500m increments for cleaner ridgelines
+    mutate(elevation_bin = cut(elevation_m,
+      breaks = seq(0, 6000, by = 500),
+      labels = paste0(seq(0, 5500, by = 500), "-", seq(500, 6000, by = 500), " m")
+    )) |>
+    filter(!is.na(elevation_bin)) |>
+    ggplot(aes(x = trait_value, y = elevation_bin, fill = region, colour = region)) +
+    geom_density_ridges(alpha = 0.7, scale = 1.2, rel_min_height = 0.01) +
+    facet_wrap(~trait_fancy, scales = "free_x", ncol = 3) +
+    scale_fill_manual(values = create_region_color_mapping(), name = "Region") +
+    scale_colour_manual(values = create_region_color_mapping(), name = "Region") +
+    labs(
+      x = "Log Transformed Trait Value",
+      y = "Elevation (m)",
+      title = "Trait Distributions across Elevation Gradients",
+      subtitle = "Ridgelines showing density of trait values per region and elevation band"
+    ) +
+    theme_ridges() +
+    theme(
+      legend.position = "top",
+      strip.text = element_text(face = "bold"),
+      axis.title = element_text(size = 8)
+    )
+}
