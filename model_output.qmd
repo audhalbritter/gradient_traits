@@ -46,12 +46,16 @@ tar_load(trait_model_checks)
 #| echo: false
 #| results: asis
 
-diversity_model_checks |> 
-  select(diversity_index, model_check) |> 
-  pwalk(.f = function(diversity_index, model_check, ...){
-  # Create a nice header with spacing
+diversity_model_checks |>
+  select(diversity_index, model_check) |>
+  pwalk(.f = function(diversity_index, model_check, ...) {
   cat("\n\n")
-  cat(paste("###", stringr::str_to_title(diversity_index), "- Elevation", "\n\n"))
+  diversity_heading <- if (identical(diversity_index, "diversity")) {
+    "Shannon diversity"
+  } else {
+    stringr::str_to_title(diversity_index)
+  }
+  cat(paste("###", diversity_heading, "- latitude", "\n\n"))
   
   # Print the model check plots
   print(model_check)

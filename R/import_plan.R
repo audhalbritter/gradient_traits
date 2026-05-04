@@ -192,7 +192,7 @@ import_plan <- list(
 
   # import downscaled climate data
   tar_target(
-    name = downscaled_climate_data,
+    name = downscaled_climate_raw,
     command = read_csv("data/downscaled_climate.csv")
   )
 

@@ -26,9 +26,9 @@ library(dplyr)
 
 ## Introduction
 
-Species and functional diversity are different metrics describing biodiversity and ecosystem function and they are affected by both abiotic and biotic filtering as well as the regional species pool. Species richness and functional diversity are expected to decrease towards high elevation and the arctic, due to stronger environmental filtering and fewer species in the species pool. These metrics can be used to understand how plant communities respond to different filters and how communities assembly along broad environmental gradients.
+Species and functional diversity are different metrics describing biodiversity and ecosystem function and they are affected by both abiotic and biotic filtering as well as the regional species pool. Shannon diversity and functional diversity are expected to vary along elevation and latitude with environmental filtering and regional species pools. These metrics can be used to understand how plant communities respond to different filters and how communities assemble along broad environmental gradients.
 
-We assessed plant species diversity (i.e. species richness, evenness) and functional diversity (i.e. community weighted means and variance in leaf functional traits) along five elevational gradients in the arctic (Svalbard), boreal (Norway), , temperate (Colorado), sub-tropics (China) and tropic mountains (Peru). Specifically, we ask how plant communities respond to the environmental drivers along elevational gradients in terms of species and functional diversity? And how consistent these patterns are across a broad latitudinal gradient from the tropics to the arctic?
+We assessed plant species diversity (Shannon diversity and sum of cover; richness and evenness are not used because plot sizes differ across studies) and functional diversity (i.e. community weighted means and variance in leaf functional traits) along five elevational gradients in the arctic (Svalbard), boreal (Norway), temperate (Colorado), sub-tropics (China) and tropic mountains (Peru). Specifically, we ask how plant communities respond to the environmental drivers along elevational gradients in terms of species and functional diversity, and how consistent these patterns are across a broad latitudinal gradient from the tropics to the arctic.
 
 ## Methods
 
@@ -36,7 +36,7 @@ We used species community composition and functional leaf trait data from all PF
 
 For some ecosystems there are several gradients, representing different management or environmental conditions. In Peru there is a gradient with more recent burning (B). In Svalbard there is a gradient with nutrient input from sea birds (N). For Norway there could be a separate gradient for grazing (G), but this is not included yet. I am unsure if we want to have these gradients or not.
 
-The following diversity indices were calculated: Shannon diversity, Shannon evenness, species richness ( number of species) and sum of cover.
+The following diversity indices were calculated: Shannon diversity (`vegan::diversity` on cover) and sum of cover. Species richness and evenness were not calculated because plot sizes are not comparable across regions.
 
 Size traits were log transformed. Trait means and higher moments were calculated using a trait imputation and bootstrapping with traitstrap (Maitner et al. 2023).
 
@@ -112,14 +112,14 @@ regions_world_map
 
 ### Plant diversity
 
-Results on diversity indices (richness, Shannon diversity, and evenness) across the latitudinal gradient.
+Results on Shannon diversity across the latitudinal gradient (mixed models use latitude and annual mean temperature as predictors).
 
 ```{r}
 #| label: fig-diversity
 #| echo: false
 #| warnings: false
 #| fig-height: 4
-#| fig-cap: "The relationship between latitude and plant diversity including species richness, Shannon diversity and evenness. The points show the raw data, while the line is the model prediction. The colours indicate the different regions. The linetype indicates a significant (solid) and non-significant (dashed) relationships."
+#| fig-cap: "The relationship between latitude and Shannon diversity (cover-based). The points show the raw data, while the line is the model prediction. Colours indicate regions; linetype indicates a significant (solid) vs non-significant (dashed) relationship."
 
 tar_load(diversity_fig)
 diversity_fig
@@ -131,7 +131,7 @@ diversity_fig
 #| echo: false
 #| warnings: false
 #| fig-height: 4
-#| fig-cap: "The relationship between annual mean temperature and plant diversity including species richness, Shannon diversity and evenness. The points show the raw data, while the line is the model prediction. The colours indicate the different regions. The linetype indicates a significant (solid) and non-significant (dashed) relationships."
+#| fig-cap: "The relationship between annual mean temperature (WorldClim) and Shannon diversity (cover-based). The points show raw data; the line is the model prediction. Colours indicate regions; linetype indicates significance of the temperature slope."
 
 tar_load(diversity_temp_annual_fig)
 diversity_temp_annual_fig

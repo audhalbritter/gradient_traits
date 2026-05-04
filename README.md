@@ -4,7 +4,7 @@ This repository contains the code and data pipeline for analyzing plant communit
 
 ## Project Overview
 
-We assess plant species diversity (species richness, evenness) and functional diversity (community weighted means and variance in leaf functional traits) along five elevational gradients in the following ecosystems/countries:
+We assess plant species diversity (Shannon diversity and sum of cover; richness and evenness are omitted because plot sizes differ across studies) and functional diversity (community weighted means and variance in leaf functional traits) along five elevational gradients in the following ecosystems/countries:
 
 - **Arctic:** Svalbard (PFTC4)
 - **Boreal:** Norway (PFTC6)

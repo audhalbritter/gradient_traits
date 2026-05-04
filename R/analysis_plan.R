@@ -27,7 +27,7 @@ analysis_plan <- list(
       safelmer <- purrr::safely(lmerTest::lmer)
 
       diversity |>
-        filter(diversity_index != "sum_abundance") |>
+        filter(diversity_index == "diversity") |>
         mutate(elevation_km = elevation_m / 1000) |>
         # Standardize latitude for better model convergence
         group_by(diversity_index) |>
@@ -96,7 +96,7 @@ analysis_plan <- list(
       safelmer <- purrr::safely(lmerTest::lmer)
 
       diversity |>
-        filter(diversity_index != "sum_abundance") |>
+        filter(diversity_index == "diversity") |>
         # Standardize annual temperature for better model convergence
         group_by(diversity_index) |>
         mutate(

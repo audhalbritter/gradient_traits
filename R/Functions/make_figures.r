@@ -88,41 +88,40 @@ make_diversity_plot <- function(data) {
     stop("No diversity_index values found in data")
   }
 
-  # Create the plot using modern ggplot2 syntax
-  ggplot(plot_data, aes(x = latitude_n, y = value, color = region)) +
-    # Add points for each plot
+  n_idx <- length(unique(plot_data$diversity_index))
+
+  gg <- ggplot(plot_data, aes(x = latitude_n, y = value, color = region)) +
     geom_point(alpha = 0.6, size = 2) +
-    # Add prediction line from lmer model with different line types based on significance
     geom_line(aes(x = latitude_n, y = .fitted, linetype = is_significant),
       linewidth = 1, color = "grey40", show.legend = FALSE
     ) +
-    # Add confidence intervals
     geom_ribbon(aes(x = latitude_n, ymin = plo, ymax = phi),
       alpha = 0.2, color = NA, fill = "grey40"
     ) +
-    # Use consistent color palette based on latitude
     scale_color_manual(values = create_region_color_mapping()) +
-    # Set line types: solid for significant, dashed for non-significant (no legend)
     scale_linetype_manual(
       values = c("FALSE" = "dashed", "TRUE" = "solid"),
       guide = "none"
     ) +
-    # Facet by diversity index
-    facet_wrap(~diversity_index, scales = "free_y", labeller = label_value) +
-    # Theme
     theme_bw() +
     theme(
-      legend.position = "top", # Move legend to top
-      legend.box = "horizontal", # Split legend across multiple rows
+      legend.position = "top",
+      legend.box = "horizontal",
       strip.text = element_text(size = 12, face = "bold"),
       axis.title = element_text(size = 12),
       axis.text = element_text(size = 10)
     ) +
     labs(
       x = "Latitude (°N)",
-      y = "Diversity Index Value",
-      color = "Region" # Update legend title
+      y = "Shannon diversity",
+      color = "Region"
     )
+
+  if (n_idx > 1L) {
+    gg <- gg + facet_wrap(~diversity_index, scales = "free_y", labeller = label_value)
+  }
+
+  gg
 }
 
 ## DIVERSITY VS ANNUAL TEMPERATURE (BIOCLIM) PLOT
@@ -138,7 +137,9 @@ make_diversity_temp_annual_plot <- function(data) {
     stop("No diversity_index values found in data")
   }
 
-  ggplot(plot_data, aes(x = annual_temperature_bioclim, y = value, color = region)) +
+  n_idx <- length(unique(plot_data$diversity_index))
+
+  gg <- ggplot(plot_data, aes(x = annual_temperature_bioclim, y = value, color = region)) +
     geom_point(alpha = 0.6, size = 2) +
     geom_line(aes(y = .fitted, linetype = is_significant),
       linewidth = 1, color = "grey40", show.legend = FALSE
@@ -148,7 +149,6 @@ make_diversity_temp_annual_plot <- function(data) {
     ) +
     scale_color_manual(values = create_region_color_mapping()) +
     scale_linetype_manual(values = c("FALSE" = "dashed", "TRUE" = "solid"), guide = "none") +
-    facet_wrap(~diversity_index, scales = "free_y", labeller = label_value) +
     theme_bw() +
     theme(
       legend.position = "top",
@@ -159,9 +159,15 @@ make_diversity_temp_annual_plot <- function(data) {
     ) +
     labs(
       x = "Annual Mean Temperature (°C)",
-      y = "Diversity Index Value",
+      y = "Shannon diversity",
       color = "Region"
     )
+
+  if (n_idx > 1L) {
+    gg <- gg + facet_wrap(~diversity_index, scales = "free_y", labeller = label_value)
+  }
+
+  gg
 }
 
 ## TRAIT VS CLIMATE PREDICTOR PLOT (for long-format data)
