@@ -337,9 +337,6 @@ make_trait_comparison_plot <- function(region_output, global_output, raw_data, c
 
 # Ridgeline plot to show trait distributions by region and elevation
 make_trait_ridgeline_plot <- function(data) {
-  # Load library within function to ensure it's available in the targets worker
-  library(ggridges)
-
   data |>
     # Add fancy names
     fancy_trait_name_dictionary() |>
@@ -356,14 +353,11 @@ make_trait_ridgeline_plot <- function(data) {
     scale_colour_manual(values = create_region_color_mapping(), name = "Region") +
     labs(
       x = "Log Transformed Trait Value",
-      y = "Elevation (m)",
-      title = "Trait Distributions across Elevation Gradients",
-      subtitle = "Ridgelines showing density of trait values per region and elevation band"
+      y = ""
     ) +
-    theme_ridges() +
+    theme_bw() +
     theme(
       legend.position = "top",
-      strip.text = element_text(face = "bold"),
       axis.title = element_text(size = 8)
     )
 }
