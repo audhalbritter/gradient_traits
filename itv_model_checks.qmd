@@ -1,0 +1,48 @@
+---
+title: "ITV Model Assumptions Checks"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+editor: visual
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup, include=FALSE}
+library(targets)
+library(performance)
+library(see)
+library(ggplot2)
+
+# This allows you to run chunks interactively outside the pipeline
+tar_config_set(store = "_targets")
+```
+
+```{r load-checks}
+# Load the model checks target created by our pipeline
+tar_load(itv_model_checks)
+```
+
+## Intraspecific Trait Variation: Diagnostic Plots
+
+Below are the graphical diagnostic checks for each trait's linear mixed model (`value_trans ~ 1 + (1|region/site) + (1|taxon)`). These plots evaluate assumptions such as the normality of residuals, homoscedasticity, and random effect distributions.
+
+```{r plot-checks, results='asis', fig.width=10, fig.height=12}
+for (i in 1:nrow(itv_model_checks)) {
+  trait <- itv_model_checks$trait_trans[i]
+  category <- itv_model_checks$class[i]
+  
+  # Print markdown heading for the trait
+  cat("\n\n### Trait:", as.character(trait), "(", as.character(category), ")\n\n")
+  
+  # Extract and print the check_model plot object
+  plot_obj <- itv_model_checks$model_check[[i]]
+  
+  # Print the plot so Quarto correctly captures the output during the loop
+  print(plot_obj)
+}
+```
