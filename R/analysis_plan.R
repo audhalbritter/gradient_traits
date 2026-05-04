@@ -70,7 +70,7 @@ analysis_plan <- list(
     command = {
       diversity_model |>
         mutate(
-          prediction = map2(.x = model, .y = data, .f = ~ lmer_prediction(dat = .y, fit = .x, predictor = "latitude_n")),
+          prediction = map2(.x = model, .y = data, .f = ~ lmer_prediction(dat = .y, fit = .x)),
           # Extract p-value for latitude_n term to determine line type
           latitude_pvalue = map_dbl(result, ~ {
             lat_row <- .x |> filter(term == "latitude_n" & effect == "fixed")
@@ -89,86 +89,79 @@ analysis_plan <- list(
     }
   ),
 
-  # diversity model using WorldClim annual temperature (bioclim)
+  # Shannon diversity vs downscaled climate: same pattern as trait_mean_long (pivot + nest by climate_variable)
   tar_target(
-    name = diversity_model_temp_annual,
+    name = diversity_climate_long,
+    command = {
+      diversity |>
+        filter(diversity_index == "diversity") |>
+        tidyr::pivot_longer(
+          cols = c(ds_t2m, ds_vpd),
+          names_to = "climate_variable",
+          values_to = "climate_value"
+        ) |>
+        filter(!is.na(climate_value)) |>
+        group_by(climate_variable) |>
+        mutate(
+          climate_value_original = climate_value,
+          climate_mean = mean(climate_value, na.rm = TRUE),
+          climate_sd = sd(climate_value, na.rm = TRUE),
+          climate_value = (climate_value - climate_mean) / climate_sd
+        ) |>
+        ungroup()
+    }
+  ),
+
+  tar_target(
+    name = diversity_model_ds_climate,
     command = {
       safelmer <- purrr::safely(lmerTest::lmer)
 
-      diversity |>
-        filter(diversity_index == "diversity") |>
-        # Standardize annual temperature for better model convergence
-        group_by(diversity_index) |>
+      diversity_climate_long |>
+        group_by(diversity_index, climate_variable) |>
+        tidyr::nest() |>
         mutate(
-          # Store original values for back-transformation
-          annual_temperature_original = annual_temperature_bioclim,
-          # Calculate scaling parameters
-          annual_temperature_mean = mean(annual_temperature_bioclim, na.rm = TRUE),
-          annual_temperature_sd = sd(annual_temperature_bioclim, na.rm = TRUE),
-          # Scale the temperature values (center and scale)
-          annual_temperature_bioclim = (annual_temperature_bioclim - annual_temperature_mean) / annual_temperature_sd
-        ) |>
-        ungroup() |>
-        group_by(diversity_index) |>
-        nest() |>
-        mutate(
-          # Linear model
-          model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + (1 | site), data = .)$result),
-          # Polynomial model (second order)
-          model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ annual_temperature_bioclim + I(annual_temperature_bioclim^2) + (1 | site), data = .)$result),
-          # Glance data for linear model
+          model_linear = purrr::map(.x = data, .f = ~ safelmer(value ~ climate_value + (1 | site), data = .)$result),
+          model_poly = purrr::map(.x = data, .f = ~ safelmer(value ~ climate_value + I(climate_value^2) + (1 | site), data = .)$result),
           glance_linear = purrr::map(.x = model_linear, .f = ~ broom.mixed::glance(.x)),
-          # Glance data for polynomial model
           glance_poly = purrr::map(.x = model_poly, .f = ~ broom.mixed::glance(.x)),
-          # Tidy results for linear model
           result_linear = purrr::map(model_linear, broom.mixed::tidy),
-          # Tidy results for polynomial model
           result_poly = purrr::map(model_poly, broom.mixed::tidy)
         ) |>
-        # Pivot to long format to stack linear and polynomial models
         tidyr::pivot_longer(
           cols = c(model_linear, model_poly, glance_linear, glance_poly, result_linear, result_poly),
           names_sep = "_",
           names_to = c(".value", "model_type")
         ) |>
-        # Unnest glance data to access AIC values
         unnest(glance) |>
-        # select the best model based on AIC
-        filter(AIC == min(AIC, na.rm = TRUE))
+        group_by(diversity_index, climate_variable) |>
+        filter(AIC == min(AIC, na.rm = TRUE)) |>
+        ungroup()
     }
   ),
 
-
-  # predictions for the annual temperature diversity model
   tar_target(
-    name = diversity_predictions_temp_annual,
+    name = diversity_predictions_ds_climate,
     command = {
-      diversity_model_temp_annual |>
+      diversity_model_ds_climate |>
         mutate(
-          prediction = map2(
+          prediction = purrr::map2(
             .x = model,
             .y = data,
-            .f = ~ lmer_prediction(
-              dat = .y,
-              fit = .x,
-              predictor = "annual_temperature_bioclim"
-            )
+            .f = ~ lmer_prediction_diversity_climate(dat = .y, fit = .x, predictor = "climate_value")
           ),
-          # Extract p-value for the temperature term to determine line type
-          temp_pvalue = map_dbl(result, ~ {
+          climate_pvalue = purrr::map_dbl(result, ~ {
             term_row <- .x |>
-              filter(term == "annual_temperature_bioclim" & effect == "fixed")
+              dplyr::filter(term == "climate_value" & effect == "fixed")
             if (nrow(term_row) > 0) term_row$p.value else NA_real_
           }),
-          is_significant = temp_pvalue < 0.05
-        ) |>
-        mutate(
-          data_with_predictions = map2(
+          is_significant = climate_pvalue < 0.05,
+          data_with_predictions = purrr::map2(
             .x = data,
             .y = prediction,
-            .f = ~ bind_cols(
+            .f = ~ dplyr::bind_cols(
               .x |>
-                select(-annual_temperature_bioclim, -annual_temperature_original, -annual_temperature_mean, -annual_temperature_sd),
+                dplyr::select(-climate_value, -climate_value_original, -climate_mean, -climate_sd),
               .y
             )
           )
@@ -181,35 +174,16 @@ analysis_plan <- list(
     name = trait_mean_long,
     command = {
       trait_mean |>
-        # Pivot climate variables to long format
         pivot_longer(
-          cols = c(
-            # CHELSA variables
-            `gsl_1981-2010_chelsa`, `gst_1981-2010_chelsa`, `gsp_1981-2010_chelsa`, `pet_penman_mean_1981-2010_chelsa`, `vpd_mean_1981-2010_chelsa`,
-            # WorldClim bioclim variables
-            mean_temperture_warmest_quarter_bioclim, precipitation_warmest_quarter_bioclim, diurnal_range_bioclim, annual_temperature_bioclim
-          ),
+          cols = c(ds_t2m, ds_vpd),
           names_to = "climate_variable",
           values_to = "climate_value"
         ) |>
-        # Add data source column
         mutate(
-          data_source = case_when(
-            climate_variable %in% c("gsl_1981-2010_chelsa", "gst_1981-2010_chelsa", "gsp_1981-2010_chelsa", "pet_penman_mean_1981-2010_chelsa", "vpd_mean_1981-2010_chelsa") ~ "CHELSA",
-            climate_variable %in% c("mean_temperture_warmest_quarter_bioclim", "precipitation_warmest_quarter_bioclim", "diurnal_range_bioclim", "annual_temperature_bioclim") ~ "WorldClim",
-            TRUE ~ "Other"
-          ),
-          # Clean up climate variable names for display
+          data_source = "Downscaled",
           climate_variable_clean = case_when(
-            climate_variable == "gsl_1981-2010_chelsa" ~ "Growing Season Length",
-            climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature",
-            climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation",
-            climate_variable == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration",
-            climate_variable == "vpd_mean_1981-2010_chelsa" ~ "Vapour Pressure Deficit",
-            climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter",
-            climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter",
-            climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range",
-            climate_variable == "annual_temperature_bioclim" ~ "Annual Temperature",
+            climate_variable == "ds_t2m" ~ "Mean annual temperature at 2 m (downscaled)",
+            climate_variable == "ds_vpd" ~ "Vapour pressure deficit (downscaled)",
             TRUE ~ climate_variable
           )
         ) |>
@@ -243,8 +217,7 @@ analysis_plan <- list(
     name = trait_models_region_all,
     command = {
       trait_mean_long |>
-        # Same trait filter as global models
-        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")) |>
+        filter(trait_trans %in% trait_trans_mean_for_climate) |>
         group_by(trait_trans, climate_variable, data_source) |>
         nest() |>
         mutate(
@@ -325,8 +298,7 @@ analysis_plan <- list(
     name = trait_models_all,
     command = {
       trait_mean_long |>
-        # Filter for the same traits as trait_models
-        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")) |>
+        filter(trait_trans %in% trait_trans_mean_for_climate) |>
         # Group by trait and climate variable
         group_by(trait_trans, climate_variable, data_source) |>
         nest() |>
@@ -434,28 +406,23 @@ analysis_plan <- list(
     }
   ),
 
-  # Trait variance analysis - variance vs annual temperature (WorldClim)
+  # Trait variance vs climate (uses downscaled T2m only; variance modelling optional downstream)
   tar_target(
     name = trait_variance_data,
     command = {
       trait_mean |>
-        # Filter for annual temperature (WorldClim) data
-        filter(!is.na(annual_temperature_bioclim)) |>
-        # Select relevant columns including variance
-        select(country:ecosystem, trait_trans, var, annual_temperature_bioclim) |>
-        # Provide a duplicate 'mean' column equal to variance for downstream compatibility
+        filter(!is.na(ds_t2m)) |>
+        select(country:ecosystem, trait_trans, var, ds_t2m) |>
         mutate(trait_value = var) |>
-        # Scale the climate variable
         group_by(trait_trans) |>
         mutate(
-          climate_value_original = annual_temperature_bioclim,
-          climate_mean = mean(annual_temperature_bioclim, na.rm = TRUE),
-          climate_sd = sd(annual_temperature_bioclim, na.rm = TRUE),
-          climate_value = (annual_temperature_bioclim - climate_mean) / climate_sd
+          climate_value_original = ds_t2m,
+          climate_mean = mean(ds_t2m, na.rm = TRUE),
+          climate_sd = sd(ds_t2m, na.rm = TRUE),
+          climate_value = (ds_t2m - climate_mean) / climate_sd
         ) |>
         ungroup() |>
-        # Filter for the same traits as trait_models
-        filter(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g"))
+        filter(trait_trans %in% trait_trans_mean_for_climate)
     }
   ),
 

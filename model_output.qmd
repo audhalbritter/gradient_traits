@@ -80,6 +80,8 @@ trait_model_checks |>
   cat("\n\n")
   cat(paste("###", stringr::str_replace_all(trait_trans, "_", " ") |> stringr::str_to_title(), "-", 
             case_when(
+              climate_variable == "ds_t2m" ~ "Mean annual temperature at 2 m (downscaled)",
+              climate_variable == "ds_vpd" ~ "Vapour pressure deficit (downscaled)",
               climate_variable == "growing_season_length" ~ "Growing Season Length (GEE)",
               climate_variable == "gsl_1981-2010_chelsa" ~ "Growing Season Length (CHELSA)",
               climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature (CHELSA)",

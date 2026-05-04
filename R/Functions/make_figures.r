@@ -72,8 +72,38 @@ make_region_world_map <- function(coords) {
     ggplot2::labs(x = "Longitude", y = "Latitude")
 }
 
+## DOWNSCALED T2m VS LATITUDE (Methods diagnostic; matches diversity point styling)
+make_downscaled_t2m_latitude_plot <- function(dat) {
+  plot_data <- dat |>
+    mutate(region = factor(region, levels = c(
+      "Svalbard", "Southern Scandes", "Rocky Mountains",
+      "Eastern Himalaya", "Central Andes", "Drakensberg"
+    )))
+
+  ggplot(plot_data, aes(x = latitude_n, y = T2m, color = region)) +
+    geom_point(alpha = 0.6, size = 2) +
+    scale_color_manual(values = create_region_color_mapping()) +
+    theme_bw() +
+    theme(
+      legend.position = "top",
+      legend.box = "horizontal",
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10)
+    ) +
+    labs(
+      x = "Latitude (°N)",
+      y = "Mean annual temperature at 2 m (°C)",
+      color = "Region"
+    )
+}
+
 ## DIVERSITY VS PREDICTOR PLOT
-make_diversity_plot <- function(data) {
+make_diversity_plot <- function(data, compact = FALSE) {
+  pt <- if (compact) 1.2 else 2
+  lw <- if (compact) 0.65 else 1
+  title_txt <- if (compact) 10 else 12
+  axis_txt <- if (compact) 8 else 10
+
   # Unnest the data_with_predictions to get the combined data
   plot_data <- data |>
     unnest(data_with_predictions) |>
@@ -91,9 +121,9 @@ make_diversity_plot <- function(data) {
   n_idx <- length(unique(plot_data$diversity_index))
 
   gg <- ggplot(plot_data, aes(x = latitude_n, y = value, color = region)) +
-    geom_point(alpha = 0.6, size = 2) +
+    geom_point(alpha = 0.6, size = pt) +
     geom_line(aes(x = latitude_n, y = .fitted, linetype = is_significant),
-      linewidth = 1, color = "grey40", show.legend = FALSE
+      linewidth = lw, color = "grey40", show.legend = FALSE
     ) +
     geom_ribbon(aes(x = latitude_n, ymin = plo, ymax = phi),
       alpha = 0.2, color = NA, fill = "grey40"
@@ -107,9 +137,9 @@ make_diversity_plot <- function(data) {
     theme(
       legend.position = "top",
       legend.box = "horizontal",
-      strip.text = element_text(size = 12, face = "bold"),
-      axis.title = element_text(size = 12),
-      axis.text = element_text(size = 10)
+      strip.text = element_text(size = title_txt, face = "bold"),
+      axis.title = element_text(size = title_txt),
+      axis.text = element_text(size = axis_txt)
     ) +
     labs(
       x = "Latitude (°N)",
@@ -124,8 +154,13 @@ make_diversity_plot <- function(data) {
   gg
 }
 
-## DIVERSITY VS ANNUAL TEMPERATURE (BIOCLIM) PLOT
-make_diversity_temp_annual_plot <- function(data) {
+## DIVERSITY VS DOWNSCALED CLIMATE (long-format predictions use original-scale `climate_value`)
+make_diversity_climate_plot <- function(data, x_col = "climate_value", xlab = "Climate", compact = FALSE) {
+  pt <- if (compact) 1.2 else 2
+  lw <- if (compact) 0.65 else 1
+  title_txt <- if (compact) 10 else 12
+  axis_txt <- if (compact) 8 else 10
+
   plot_data <- data |>
     unnest(data_with_predictions) |>
     mutate(region = factor(region, levels = c(
@@ -139,10 +174,10 @@ make_diversity_temp_annual_plot <- function(data) {
 
   n_idx <- length(unique(plot_data$diversity_index))
 
-  gg <- ggplot(plot_data, aes(x = annual_temperature_bioclim, y = value, color = region)) +
-    geom_point(alpha = 0.6, size = 2) +
+  gg <- ggplot(plot_data, aes(x = !!ggplot2::sym(x_col), y = value, color = region)) +
+    geom_point(alpha = 0.6, size = pt) +
     geom_line(aes(y = .fitted, linetype = is_significant),
-      linewidth = 1, color = "grey40", show.legend = FALSE
+      linewidth = lw, color = "grey40", show.legend = FALSE
     ) +
     geom_ribbon(aes(ymin = plo, ymax = phi),
       alpha = 0.2, color = NA, fill = "grey40"
@@ -153,12 +188,12 @@ make_diversity_temp_annual_plot <- function(data) {
     theme(
       legend.position = "top",
       legend.box = "horizontal",
-      strip.text = element_text(size = 12, face = "bold"),
-      axis.title = element_text(size = 12),
-      axis.text = element_text(size = 10)
+      strip.text = element_text(size = title_txt, face = "bold"),
+      axis.title = element_text(size = title_txt),
+      axis.text = element_text(size = axis_txt)
     ) +
     labs(
-      x = "Annual Mean Temperature (°C)",
+      x = xlab,
       y = "Shannon diversity",
       color = "Region"
     )
@@ -170,90 +205,38 @@ make_diversity_temp_annual_plot <- function(data) {
   gg
 }
 
-## TRAIT VS CLIMATE PREDICTOR PLOT (for long-format data)
-make_trait_climate_plot <- function(data, climate_variable, data_source = NULL, x_label) {
-  # Filter data for the specific climate variable and optionally by data source
-  filtered_data <- data |>
-    filter(climate_variable == !!climate_variable)
+## Shannon diversity: latitude + downscaled T2m + VPD in one row (shared legend)
+make_diversity_three_panel_plot <- function(lat_predictions, climate_predictions) {
+  p_lat <- make_diversity_plot(lat_predictions, compact = TRUE) +
+    ggplot2::labs(y = "Shannon diversity")
 
-  # Add data source filter if specified
-  if (!is.null(data_source)) {
-    filtered_data <- filtered_data |>
-      filter(data_source == !!data_source)
-  }
-
-  # Ensure region is ordered consistently (north to south)
-  filtered_data <- filtered_data |>
-    mutate(region = factor(region, levels = c(
-      "Svalbard", "Southern Scandes", "Rocky Mountains",
-      "Eastern Himalaya", "Central Andes", "Drakensberg"
-    )))
-
-  # Basic checks
-  if (nrow(filtered_data) == 0) {
-    stop("No data found for climate variable: ", climate_variable)
-  }
-
-  # Add trait names to data using the fancy_traits function
-  plot_data <- filtered_data |>
-    fancy_trait_name_dictionary() |>
-    mutate(trait_name = factor(trait_fancy, levels = unique(trait_fancy)))
-
-  # The significance info should already be in the filtered_data since it comes from the unnested predictions
-  # Let's check if it's there, and if not, add it
-  if (!"is_significant" %in% names(plot_data)) {
-    # Get significance info from the parent data structure
-    significance_info <- data |>
-      filter(climate_variable == !!climate_variable)
-
-    if (!is.null(data_source)) {
-      significance_info <- significance_info |>
-        filter(data_source == !!data_source)
-    }
-
-    significance_info <- significance_info |>
-      select(trait_trans, is_significant) |>
-      distinct()
-
-    # Join significance info to plot data
-    plot_data <- plot_data |>
-      left_join(significance_info, by = "trait_trans")
-  }
-
-  # Plot with raw data points, prediction line, and confidence intervals
-  ggplot(plot_data, aes(x = climate_value, y = trait_value, color = region)) +
-    geom_point(alpha = 0.6, size = 2) +
-    # Add prediction line with different line types based on significance
-    geom_line(aes(y = .fitted, linetype = is_significant),
-      linewidth = 1, color = "grey40", show.legend = FALSE
+  p_t2m <- climate_predictions |>
+    dplyr::filter(climate_variable == "ds_t2m") |>
+    make_diversity_climate_plot(
+      x_col = "climate_value",
+      xlab = "T2m (°C)",
+      compact = TRUE
     ) +
-    # Add confidence intervals
-    geom_ribbon(aes(ymin = plo, ymax = phi),
-      alpha = 0.2, color = NA, fill = "grey40"
+    ggplot2::labs(y = NULL)
+
+  p_vpd <- climate_predictions |>
+    dplyr::filter(climate_variable == "ds_vpd") |>
+    make_diversity_climate_plot(
+      x_col = "climate_value",
+      xlab = "VPD",
+      compact = TRUE
     ) +
-    scale_color_manual(values = create_region_color_mapping()) +
-    # Set line types: solid for significant, dashed for non-significant (no legend)
-    scale_linetype_manual(
-      values = c("FALSE" = "dashed", "TRUE" = "solid"),
-      guide = "none"
-    ) +
-    facet_wrap(~trait_name, scales = "free_y", labeller = label_value) +
-    theme_bw() +
-    theme(
-      legend.position = "top",
+    ggplot2::labs(y = NULL)
+
+  patchwork::wrap_plots(p_lat, p_t2m, p_vpd, ncol = 3, guides = "collect") &
+    ggplot2::theme(
+      legend.position = "bottom",
       legend.box = "horizontal",
-      strip.text = element_text(size = 10, face = "bold"),
-      axis.title = element_text(size = 12),
-      axis.text = element_text(size = 10)
-    ) +
-    labs(
-      x = x_label,
-      y = "Trait Value",
-      color = "Region"
+      plot.margin = ggplot2::margin(4, 4, 4, 4)
     )
 }
 
-# Regional vs Global plotting function
+# Regional vs global trait–climate panels (used by make_trait_comparison_plot)
 make_trait_region_climate_plot <- function(data, prediction_region, prediction_global, x_label) {
   # Ensure region is ordered consistently
   data <- data |>

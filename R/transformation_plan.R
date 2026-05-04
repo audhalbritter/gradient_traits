@@ -10,6 +10,19 @@ transformation_plan <- list(
     command = bind_rows(community_sv, community_pe, community_ch, community_no, community_co, community_sa)
   ),
 
+  # Downscaled climate by site (T2m, VPD, …); completes missing SA/SV sites from community plot keys
+  tar_target(
+    name = downscaled_climate,
+    command = downscaled_climate_raw |>
+      downscaled_climate_add_site_keys() |>
+      summarise_downscaled_climate_by_site() |>
+      complete_downscaled_climate_sites(
+        community |>
+          distinct(country, gradient, site) |>
+          filter(!is.na(site))
+      )
+  ),
+
   # calculate diversity indices
   tar_target(
     name = diversity,
@@ -23,21 +36,12 @@ transformation_plan <- list(
           .groups = "drop"
         )
 
-      # Add bioclim variables to diversity data
+      # Downscaled climate (mean annual T at 2 m, VPD) joined by site
       community_agg |>
         tidylog::left_join(
-          bioclim |>
-            select(
-              country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem,
-              annual_temperature, mean_temperture_warmest_quarter, precipitation_warmest_quarter, diurnal_range
-            ) |>
-            rename(
-              annual_temperature_bioclim = annual_temperature,
-              mean_temperture_warmest_quarter_bioclim = mean_temperture_warmest_quarter,
-              precipitation_warmest_quarter_bioclim = precipitation_warmest_quarter,
-              diurnal_range_bioclim = diurnal_range
-            ),
-          by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)
+          downscaled_climate |>
+            select(country, gradient, site, ds_t2m = T2m, ds_vpd = VPD),
+          by = join_by(country, gradient, site)
         ) |>
         pivot_longer(cols = c(diversity, sum_abundance), names_to = "diversity_index", values_to = "value") |>
         # Ensure region is ordered consistently (north to south)
@@ -89,15 +93,6 @@ transformation_plan <- list(
       ) |>
       # order traits
       mutate(trait_trans = factor(trait_trans, levels = c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g", "c_percent", "n_percent", "cn_ratio", "p_percent", "np_ratio", "dc13_permil", "dn15_permil")))
-  ),
-
-  # Downscaled climate: one row per country × gradient × site (same coords/grid cell for all plots at that site).
-  tar_target(
-    name = downscaled_climate,
-    command = downscaled_climate_raw |>
-      downscaled_climate_add_site_keys() |>
-      summarise_downscaled_climate_by_site() |>
-      complete_downscaled_climate_sites(traits)
   ),
 
   # bootstrapping
@@ -195,20 +190,10 @@ transformation_plan <- list(
             "dn15_permil"
           )
         )) |>
-        tidylog::left_join(chelsa_extracted, by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)) |>
         tidylog::left_join(
-          bioclim |>
-            select(
-              country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem,
-              annual_temperature, mean_temperture_warmest_quarter, precipitation_warmest_quarter, diurnal_range
-            ) |>
-            rename(
-              annual_temperature_bioclim = annual_temperature,
-              mean_temperture_warmest_quarter_bioclim = mean_temperture_warmest_quarter,
-              precipitation_warmest_quarter_bioclim = precipitation_warmest_quarter,
-              diurnal_range_bioclim = diurnal_range
-            ),
-          by = join_by(country, region, gradient, site, plot_id, elevation_m, longitude_e, latitude_n, ecosystem)
+          downscaled_climate |>
+            select(country, gradient, site, ds_t2m = T2m, ds_vpd = VPD),
+          by = join_by(country, gradient, site)
         ) |>
         # Ensure region is ordered consistently (north to south)
         mutate(region = factor(region, levels = c(
