@@ -188,6 +188,12 @@ import_plan <- list(
       bind_rows(plots_1_5, missing_plots) |>
         arrange(site_id, aspect, plot_id)
     }
+  ),
+
+  # import downscaled climate data
+  tar_target(
+    name = downscaled_climate_data,
+    command = read_csv("data/downscaled_climate.csv")
   )
 
 )
