@@ -77,5 +77,11 @@ figure_plan <- list(
       trait_models_region_output, trait_models_output, trait_mean_long,
       "ds_vpd", "Vapour pressure deficit"
     )
+  ),
+
+  # Trait sampling coverage diagnostic from traitstrap fill levels
+  tar_target(
+    name = trait_coverage_fig,
+    command = make_trait_coverage_plot(trait_imputed)
   )
 )

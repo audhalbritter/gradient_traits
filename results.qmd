@@ -217,13 +217,28 @@ trait_climate_ds_vpd_fig
 
 ```
 
-### The importance of intraspecific trait variation (ITV)
+### Intraspecific trait variation (ITV)
+
+Trait sampling coverage by region. We do not have plot level trait data from China, and partly from Colorado and Norway. Comparing ITV between regions is therefore complicated.
+
+```{r}
+#| label: fig-trait-coverage
+#| echo: false
+#| warning: false
+#| fig-height: 6
+#| fig-cap: "Proportion of trait data sampled at the plot, site, gradient and regional level shown by region."
+
+tar_load(trait_coverage_fig)
+trait_coverage_fig
+
+```
 
 ```{r}
 #| label: fig-itv-variance
 #| echo: false
 #| warning: false
 #| fig-height: 6
+#| fig-cap: "Variance partitioning for different plant functional traits, split into between region, sites, species, and within species. Note that this analysis is done on raw trait values and not on CWM."
 
 tar_load(itv_variance_plot)
 itv_variance_plot

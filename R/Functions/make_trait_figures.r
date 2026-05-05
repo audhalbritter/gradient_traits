@@ -97,3 +97,29 @@ make_trait_ridgeline_plot <- function(data) {
       axis.title = element_text(size = 8)
     )
 }
+
+make_trait_coverage_plot <- function(filled_traits) {
+  plot_data <- autoplot(filled_traits, other_col_how = "ignore")$data |>
+    group_by(region, .id) |>
+    mutate(s_prop = s / sum(s, na.rm = TRUE)) |>
+    ungroup()
+
+  ggplot(plot_data, aes(x = .id, y = s_prop, fill = level)) +
+    geom_col() +
+    facet_wrap(~region, scales = "free_x") +
+    scale_x_discrete(
+      labels = function(x) stringr::str_extract(x, "[^_]+$"),
+      guide = guide_axis(angle = 90, check.overlap = TRUE)
+    ) +
+    scale_y_continuous(limits = c(0, 1)) +
+    theme_bw() +
+    theme(
+      axis.text.x = element_text(size = 7, vjust = 0.5, hjust = 1),
+      legend.position = "top"
+    ) +
+    labs(
+      x = "",
+      y = "Proportion of cover",
+      fill = "Sampling level"
+    )
+}
