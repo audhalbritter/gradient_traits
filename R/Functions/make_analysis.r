@@ -47,9 +47,9 @@ lmer_prediction <- function(dat, fit, predictor = "latitude_n") {
 
 # Prediction function for trait models with long-format climate data
 lmer_prediction_trait <- function(dat, fit, predictor) {
-  # Create new data with predictors and response variable needed for model matrix calculation
+  # Use raw climate values directly (no scaling/back-transformation).
   newdat <- dat %>%
-    select(any_of(c("trait_value", predictor, "climate_value_original", "climate_mean", "climate_sd", "region")))
+    select(any_of(c("trait_value", predictor, "region")))
 
   # Make predictions
   newdat$.fitted <- predict(fit, newdat, re.form = NA)
@@ -88,10 +88,8 @@ lmer_prediction_trait <- function(dat, fit, predictor) {
         )
     }
   ) %>%
-    # Back-transform climate values to original scale for plotting
-    mutate(climate_value = climate_value_original) %>%
-    # Only return the prediction-related columns, not the original data
-    select(.fitted, pvar1, tvar1, cmult, plo, phi, tlo, thi, climate_value)
+    select(.fitted, pvar1, tvar1, cmult, plo, phi, tlo, thi, all_of(predictor)) %>%
+    rename(climate_value = all_of(predictor))
 
   return(prediction)
 }

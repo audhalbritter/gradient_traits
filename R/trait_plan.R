@@ -35,19 +35,10 @@ trait_plan <- list(
           )
         ) |>
         filter(!is.na(climate_value)) |>
-        group_by(climate_variable) |>
-        mutate(
-          climate_value_original = climate_value,
-          climate_mean = mean(climate_value, na.rm = TRUE),
-          climate_sd = sd(climate_value, na.rm = TRUE),
-          climate_value = (climate_value - climate_mean) / climate_sd
-        ) |>
-        ungroup() |>
         rename(trait_value = mean) |>
         select(
           country:ecosystem, elevation_m, latitude_n, longitude_e, trait_trans, trait_value,
-          climate_variable, climate_variable_clean, climate_value, climate_value_original,
-          climate_mean, climate_sd, data_source
+          climate_variable, climate_variable_clean, climate_value, data_source
         )
     }
   ),
@@ -214,14 +205,7 @@ trait_plan <- list(
         filter(!is.na(ds_t2m)) |>
         select(country:ecosystem, trait_trans, var, ds_t2m) |>
         mutate(trait_value = var) |>
-        group_by(trait_trans) |>
-        mutate(
-          climate_value_original = ds_t2m,
-          climate_mean = mean(ds_t2m, na.rm = TRUE),
-          climate_sd = sd(ds_t2m, na.rm = TRUE),
-          climate_value = (ds_t2m - climate_mean) / climate_sd
-        ) |>
-        ungroup() |>
+        mutate(climate_value = ds_t2m) |>
         filter(trait_trans %in% trait_trans_mean_for_climate)
     }
   ),
