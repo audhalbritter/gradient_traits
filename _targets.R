@@ -28,7 +28,8 @@ combined_plan <- c(
   cleaning_plan,
   transformation_plan,
   itv_plan,
-  analysis_plan,
+  diversity_plan,
+  trait_plan,
   figure_plan,
   output_plan
   # si_figures_plan#,

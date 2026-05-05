@@ -49,7 +49,7 @@ lmer_prediction <- function(dat, fit, predictor = "latitude_n") {
 lmer_prediction_trait <- function(dat, fit, predictor) {
   # Create new data with predictors and response variable needed for model matrix calculation
   newdat <- dat %>%
-    select(trait_value, all_of(predictor), climate_value_original, climate_mean, climate_sd)
+    select(any_of(c("trait_value", predictor, "climate_value_original", "climate_mean", "climate_sd", "region")))
 
   # Make predictions
   newdat$.fitted <- predict(fit, newdat, re.form = NA)
