@@ -77,10 +77,10 @@ make_downscaled_t2m_latitude_plot <- function(dat) {
 }
 
 make_diversity_plot <- function(data, compact = FALSE) {
-  pt <- if (compact) 1.2 else 2
-  lw <- if (compact) 0.65 else 1
-  title_txt <- if (compact) 10 else 12
-  axis_txt <- if (compact) 8 else 10
+  pt <- if (compact) 1.8 else 2.4
+  lw <- if (compact) 0.95 else 1.2
+  title_txt <- if (compact) 12 else 14
+  axis_txt <- if (compact) 10 else 11
 
   plot_data <- data |>
     unnest(data_with_predictions) |>
@@ -126,10 +126,10 @@ make_diversity_plot <- function(data, compact = FALSE) {
 }
 
 make_diversity_climate_plot <- function(region_predictions, global_predictions, climate_variable, xlab = "Climate", compact = FALSE) {
-  pt <- if (compact) 1.2 else 2
-  lw <- if (compact) 0.65 else 1
-  title_txt <- if (compact) 10 else 12
-  axis_txt <- if (compact) 8 else 10
+  pt <- if (compact) 1.8 else 2.4
+  lw <- if (compact) 0.95 else 1.2
+  title_txt <- if (compact) 12 else 14
+  axis_txt <- if (compact) 10 else 11
 
   region_data <- region_predictions |>
     dplyr::filter(climate_variable == !!climate_variable) |>
@@ -172,7 +172,7 @@ make_diversity_climate_plot <- function(region_predictions, global_predictions, 
       color = "grey60", linewidth = lw + 0.2, show.legend = FALSE
     ) +
     scale_color_manual(values = create_region_color_mapping(), name = "Region") +
-    scale_fill_manual(values = create_region_color_mapping(), name = "Region") +
+    scale_fill_manual(values = create_region_color_mapping(), name = "Region", guide = "none") +
     scale_linetype_manual(values = c("FALSE" = "dashed", "TRUE" = "solid"), guide = "none") +
     theme_bw() +
     theme(
@@ -203,7 +203,7 @@ make_diversity_three_panel_plot <- function(lat_predictions, climate_predictions
     region_predictions = climate_predictions$region,
     global_predictions = climate_predictions$global,
     climate_variable = "ds_t2m",
-    xlab = "T2m (°C)",
+    xlab = "Mean annual temperature (°C)",
     compact = TRUE
   ) +
     ggplot2::labs(y = NULL)
@@ -219,8 +219,12 @@ make_diversity_three_panel_plot <- function(lat_predictions, climate_predictions
 
   patchwork::wrap_plots(p_lat, p_t2m, p_vpd, ncol = 3, guides = "collect") &
     ggplot2::theme(
-      legend.position = "bottom",
+      legend.position = "top",
       legend.box = "horizontal",
+      legend.title = ggplot2::element_text(size = 11),
+      legend.text = ggplot2::element_text(size = 10),
+      axis.title = ggplot2::element_text(size = 12),
+      axis.text = ggplot2::element_text(size = 10),
       plot.margin = ggplot2::margin(4, 4, 4, 4)
     )
 }

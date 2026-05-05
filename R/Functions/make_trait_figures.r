@@ -88,7 +88,7 @@ make_trait_ridgeline_plot <- function(data) {
     scale_fill_manual(values = create_region_color_mapping(), name = "Region") +
     scale_colour_manual(values = create_region_color_mapping(), name = "Region") +
     labs(
-      x = "Log Transformed Trait Value",
+      x = "Trait Value",
       y = ""
     ) +
     theme_bw() +
