@@ -46,7 +46,7 @@ We studied the following ecosystems/countries: arctic (PFTC4 Svalbard), boreal (
 ```{r}
 #| label: fig-study-sites-map
 #| echo: false
-#| warnings: false
+#| warning: false
 #| message: false
 #| fig-height: 6
 #| fig-cap: "World map showing all the regions."
@@ -99,7 +99,7 @@ Three-panel summary of Shannon diversity (cover-based): latitude (scaled predict
 ```{r}
 #| label: fig-diversity-panels
 #| echo: false
-#| warnings: false
+#| warning: false
 #| fig-height: 5
 #| fig-width: 11
 
@@ -115,7 +115,7 @@ This ridgeline plot shows the distribution of size, leaf economic and isotope tr
 ```{r}
 #| label: fig-trait-distribution
 #| echo: false
-#| warnings: false
+#| warning: false
 #| message: false
 #| fig-height: 12
 #| fig-width: 8
@@ -131,7 +131,7 @@ This figure shows the multivariate trait space for a subset of traits available 
 ```{r}
 #| label: fig-trait-pca-full
 #| echo: false
-#| warnings: false
+#| warning: false
 #| fig-height: 6
 #| fig-cap: "Principle component analysis for size and leaf economic traits. The regions are coloured and an elipsoid shows is drawn for each region. The arrows indicate the loadings for each trait. The linetype indicates size (solid) and leaf economic traits (dashed). The point size indiciates the elevational percentile within each region."
 
@@ -147,7 +147,7 @@ This figure shows the multivariate trait space including chemical traits. Norway
 ```{r}
 #| label: fig-trait-pca
 #| echo: false
-#| warnings: false
+#| warning: false
 #| fig-height: 6
 #| fig-cap: "Principle component analysis for size, leaf economic, and isotope traits. The regions are coloured and an elipsoid shows is drawn for each region. The arrows indicate the loadings for each trait. The linetype indicates size (solid), leaf economic (dashed), and isotope traits (dotted)."
 
@@ -163,7 +163,7 @@ These figures show community-weighted mean functional traits (all analysed trait
 ```{r}
 #| label: fig-trait-ds-t2m
 #| echo: false
-#| warnings: false
+#| warning: false
 #| fig-height: 9
 #| fig-width: 12
 
@@ -177,7 +177,7 @@ trait_climate_ds_t2m_fig
 ```{r}
 #| label: fig-trait-ds-vpd
 #| echo: false
-#| warnings: false
+#| warning: false
 #| fig-height: 9
 #| fig-width: 12
 
@@ -191,7 +191,7 @@ trait_climate_ds_vpd_fig
 ```{r}
 #| label: fig-itv-variance
 #| echo: false
-#| warnings: false
+#| warning: false
 #| fig-height: 6
 
 tar_load(itv_variance_plot)
@@ -202,7 +202,7 @@ itv_variance_plot
 ```{r}
 #| label: fig-leps-itv
 #| echo: false
-#| warnings: false
+#| warning: false
 #| fig-height: 6
 #| fig-width: 12
 

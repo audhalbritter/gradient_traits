@@ -156,35 +156,59 @@ make_diversity_plot <- function(data, compact = FALSE) {
   gg
 }
 
-## DIVERSITY VS DOWNSCALED CLIMATE (long-format predictions use original-scale `climate_value`)
-make_diversity_climate_plot <- function(data, x_col = "climate_value", xlab = "Climate", compact = FALSE) {
+## DIVERSITY VS DOWNSCALED CLIMATE (regional + global lines, trait-style overlay)
+make_diversity_climate_plot <- function(region_predictions, global_predictions, climate_variable, xlab = "Climate", compact = FALSE) {
   pt <- if (compact) 1.2 else 2
   lw <- if (compact) 0.65 else 1
   title_txt <- if (compact) 10 else 12
   axis_txt <- if (compact) 8 else 10
 
-  plot_data <- data |>
+  region_data <- region_predictions |>
+    dplyr::filter(climate_variable == !!climate_variable) |>
     unnest(data_with_predictions) |>
     mutate(region = factor(region, levels = c(
       "Svalbard", "Southern Scandes", "Rocky Mountains",
       "Eastern Himalaya", "Central Andes", "Drakensberg"
     )))
 
-  if (length(unique(plot_data$diversity_index)) == 0) {
+  global_data <- global_predictions |>
+    dplyr::filter(climate_variable == !!climate_variable) |>
+    unnest(data_with_predictions) |>
+    mutate(region = factor(region, levels = c(
+      "Svalbard", "Southern Scandes", "Rocky Mountains",
+      "Eastern Himalaya", "Central Andes", "Drakensberg"
+    )))
+
+  if (length(unique(region_data$diversity_index)) == 0) {
     stop("No diversity_index values found in data")
   }
 
-  n_idx <- length(unique(plot_data$diversity_index))
+  n_idx <- length(unique(region_data$diversity_index))
 
-  gg <- ggplot(plot_data, aes(x = !!ggplot2::sym(x_col), y = value, color = region)) +
-    geom_point(alpha = 0.6, size = pt) +
-    geom_line(aes(y = .fitted, linetype = is_significant),
-      linewidth = lw, color = "grey40", show.legend = FALSE
+  gg <- ggplot(region_data, aes(x = climate_value, y = value)) +
+    geom_point(aes(color = region), alpha = 0.6, size = pt) +
+    geom_ribbon(
+      data = region_data,
+      aes(y = .fitted, ymin = plo, ymax = phi, fill = region),
+      alpha = 0.15, color = NA
     ) +
-    geom_ribbon(aes(ymin = plo, ymax = phi),
-      alpha = 0.2, color = NA, fill = "grey40"
+    geom_line(
+      data = region_data,
+      aes(y = .fitted, color = region, linetype = is_significant),
+      linewidth = lw, show.legend = FALSE
     ) +
-    scale_color_manual(values = create_region_color_mapping()) +
+    geom_ribbon(
+      data = global_data,
+      aes(y = .fitted, ymin = plo, ymax = phi),
+      fill = "grey60", alpha = 0.1, color = NA
+    ) +
+    geom_line(
+      data = global_data,
+      aes(y = .fitted, linetype = is_significant),
+      color = "grey60", linewidth = lw + 0.2, show.legend = FALSE
+    ) +
+    scale_color_manual(values = create_region_color_mapping(), name = "Region") +
+    scale_fill_manual(values = create_region_color_mapping(), name = "Region") +
     scale_linetype_manual(values = c("FALSE" = "dashed", "TRUE" = "solid"), guide = "none") +
     theme_bw() +
     theme(
@@ -212,22 +236,22 @@ make_diversity_three_panel_plot <- function(lat_predictions, climate_predictions
   p_lat <- make_diversity_plot(lat_predictions, compact = TRUE) +
     ggplot2::labs(y = "Shannon diversity")
 
-  p_t2m <- climate_predictions |>
-    dplyr::filter(climate_variable == "ds_t2m") |>
-    make_diversity_climate_plot(
-      x_col = "climate_value",
-      xlab = "T2m (°C)",
-      compact = TRUE
-    ) +
+  p_t2m <- make_diversity_climate_plot(
+    region_predictions = climate_predictions$region,
+    global_predictions = climate_predictions$global,
+    climate_variable = "ds_t2m",
+    xlab = "Mean annual temperature",
+    compact = TRUE
+  ) +
     ggplot2::labs(y = NULL)
 
-  p_vpd <- climate_predictions |>
-    dplyr::filter(climate_variable == "ds_vpd") |>
-    make_diversity_climate_plot(
-      x_col = "climate_value",
-      xlab = "VPD",
-      compact = TRUE
-    ) +
+  p_vpd <- make_diversity_climate_plot(
+    region_predictions = climate_predictions$region,
+    global_predictions = climate_predictions$global,
+    climate_variable = "ds_vpd",
+    xlab = "VPD",
+    compact = TRUE
+  ) +
     ggplot2::labs(y = NULL)
 
   patchwork::wrap_plots(p_lat, p_t2m, p_vpd, ncol = 3, guides = "collect") &

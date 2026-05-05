@@ -37,7 +37,13 @@ figure_plan <- list(
   # Shannon diversity: latitude, downscaled T2m, VPD (single composite figure)
   tar_target(
     name = diversity_three_panel_fig,
-    command = make_diversity_three_panel_plot(diversity_predictions, diversity_predictions_ds_climate)
+    command = make_diversity_three_panel_plot(
+      lat_predictions = diversity_predictions,
+      climate_predictions = list(
+        global = diversity_predictions_ds_climate,
+        region = diversity_predictions_region_ds_climate
+      )
+    )
   ),
 
   # trait ordination
