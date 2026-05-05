@@ -31,34 +31,17 @@ suppressPackageStartupMessages({
 
 ## Introduction
 
-Species and functional diversity are different metrics describing biodiversity and ecosystem function and they are affected by both abiotic and biotic filtering as well as the regional species pool. Shannon diversity and functional diversity are expected to vary along elevation and latitude with environmental filtering and regional species pools. These metrics can be used to understand how plant communities respond to different filters and how communities assemble along broad environmental gradients.
+Species and functional diversity are different metrics describing biodiversity and ecosystem function and they are affected by both abiotic and biotic filtering as well as the regional species pool. These metrics can be used to understand how plant communities respond to different filters and how communities assemble along broad environmental gradients.
 
-We assessed plant species diversity (Shannon diversity and sum of cover; richness and evenness are not used because plot sizes differ across studies) and functional diversity (i.e. community weighted means and variance in leaf functional traits) along five elevational gradients in the arctic (Svalbard), boreal (Norway), temperate (Colorado), sub-tropics (China) and tropic mountains (Peru). Specifically, we ask how plant communities respond to the environmental drivers along elevational gradients in terms of species and functional diversity, and how consistent these patterns are across a broad latitudinal gradient from the tropics to the arctic.
+We assessed plant Shannon diversity and functional traits (i.e. community weighted means and variance in leaf functional traits) along five elevational gradients in the arctic (Svalbard), boreal (Norway), temperate (Colorado), sub-tropics (China) and tropic mountains (Peru). Specifically, we ask how plant communities respond to the environmental drivers along elevational gradients in terms of species and functional diversity, and how consistent these patterns are across a broad latitudinal gradient from the tropics to the arctic. And what is the importance of intraspecific trait variation.
 
 ## Methods
 
-We used species community composition and functional leaf trait data from all PFTC courses and RMBL in Colorado. The data represent the following ecosystems/countries: arctic (PFTC4 Svalbard), boreal (PFTC6 Norway), temperate (Colorado), sub-tropics (PFTC1 and 2 China) and tropics (PFTC3, Puna project and PFCT5 Peru). There are no chemical traits from Norway yet, and Norway was excluded from the multivariate analysis.
+### Study systems and sites
 
-For some ecosystems there are several gradients, representing different management or environmental conditions. In Peru there is a gradient with more recent burning (B). In Svalbard there is a gradient with nutrient input from sea birds (N). For Norway there could be a separate gradient for grazing (G), but this is not included yet. I am unsure if we want to have these gradients or not.
+Description of the study systems and sites.
 
-The following diversity indices were calculated: Shannon diversity (`vegan::diversity` on cover) and sum of cover. Species richness and evenness were not calculated because plot sizes are not comparable across regions.
-
-Size traits were log transformed. Trait means and higher moments were calculated using a trait imputation and bootstrapping with traitstrap (Maitner et al. 2023).
-
-Site-level mean latitude (plot coordinates averaged within each site) versus downscaled mean annual temperature at 2 m (T2m), using the same climate extract as in the analyses. Points are coloured by region.
-
-```{r}
-#| label: fig-downscaled-t2m-latitude
-#| echo: false
-#| warning: false
-#| message: false
-#| fig-height: 4
-#| fig-cap: "Downscaled mean annual temperature at 2 m versus site latitude. Each point is one site; colours match regions used in diversity and trait figures."
-
-tar_load(downscaled_t2m_latitude_fig)
-downscaled_t2m_latitude_fig
-
-```
+We studied the following ecosystems/countries: arctic (PFTC4 Svalbard), boreal (PFTC6 Norway), temperate (Colorado), sub-tropics (PFTC1 and 2 China) and tropics (PFTC3, Puna project and PFCT5 Peru). 
 
 ```{r}
 #| label: fig-study-sites-map
@@ -70,6 +53,38 @@ downscaled_t2m_latitude_fig
 
 tar_load(regions_world_map)
 regions_world_map
+
+```
+
+### Data collection
+
+We collected data on species community composition and functional leaf trait data from all PFTC courses and RMBL in Colorado. Describe data collection and refer to data papers.
+Describe which gradinets were used, e.g. Svalbard only control, not bird cliff, Peru not recently burned, etc.
+There are no chemical traits from Norway and South Africa yet, and these countries were excluded from the multivariate analysis.
+
+Climate data: site-level mean latitude (plot coordinates averaged within each site) versus downscaled mean annual temperature at 2 m (T2m), using the same climate extract as in the analyses.
+
+
+### Data analysis
+
+Shannon diversity was calcualted using the vegan pacakge (REF).
+
+Size traits were log transformed. Trait means and higher moments were calculated using a trait imputation and bootstrapping with traitstrap (Maitner et al. 2023).
+
+PCA
+
+Run mixed-effects models for diversity and traits vs. climate and latitude. Run a global model across all regions and regional models for each region.
+
+```{r}
+#| label: fig-downscaled-t2m-latitude
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 4
+#| fig-cap: "Downscaled mean annual temperature versus latitude. The colours show the regions and point size shows Elevation percentile, with low values indicate low elevation."
+
+tar_load(downscaled_t2m_latitude_fig)
+downscaled_t2m_latitude_fig
 
 ```
 
@@ -85,7 +100,7 @@ Three-panel summary of Shannon diversity (cover-based): latitude (scaled predict
 #| label: fig-diversity-panels
 #| echo: false
 #| warnings: false
-#| fig-height: 3.2
+#| fig-height: 5
 #| fig-width: 11
 
 tar_load(diversity_three_panel_fig)
@@ -149,7 +164,8 @@ These figures show community-weighted mean functional traits (all analysed trait
 #| label: fig-trait-ds-t2m
 #| echo: false
 #| warnings: false
-#| fig-height: 8
+#| fig-height: 9
+#| fig-width: 12
 
 tar_load(trait_climate_ds_t2m_fig)
 trait_climate_ds_t2m_fig
@@ -162,7 +178,8 @@ trait_climate_ds_t2m_fig
 #| label: fig-trait-ds-vpd
 #| echo: false
 #| warnings: false
-#| fig-height: 8
+#| fig-height: 9
+#| fig-width: 12
 
 tar_load(trait_climate_ds_vpd_fig)
 trait_climate_ds_vpd_fig

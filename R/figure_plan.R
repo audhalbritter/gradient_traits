@@ -21,6 +21,7 @@ figure_plan <- list(
         dplyr::group_by(country, gradient, site) |>
         dplyr::summarise(
           latitude_n = mean(latitude_n, na.rm = TRUE),
+          elevation_m = mean(elevation_m, na.rm = TRUE),
           region = dplyr::first(region),
           .groups = "drop"
         ) |>

@@ -75,24 +75,26 @@ make_region_world_map <- function(coords) {
 ## DOWNSCALED T2m VS LATITUDE (Methods diagnostic; matches diversity point styling)
 make_downscaled_t2m_latitude_plot <- function(dat) {
   plot_data <- dat |>
+    group_by(region) |>
+    mutate(elevation_percentile = percent_rank(elevation_m) * 100) |>
+    ungroup() |>
     mutate(region = factor(region, levels = c(
       "Svalbard", "Southern Scandes", "Rocky Mountains",
       "Eastern Himalaya", "Central Andes", "Drakensberg"
     )))
 
   ggplot(plot_data, aes(x = latitude_n, y = T2m, color = region)) +
-    geom_point(alpha = 0.6, size = 2) +
+    geom_point(aes(size = elevation_percentile), alpha = 0.6) +
     scale_color_manual(values = create_region_color_mapping()) +
+    scale_size_continuous(name = "Elevation percentile", range = c(1.5, 5)) +
     theme_bw() +
     theme(
-      legend.position = "top",
-      legend.box = "horizontal",
       axis.title = element_text(size = 12),
       axis.text = element_text(size = 10)
     ) +
     labs(
       x = "Latitude (°N)",
-      y = "Mean annual temperature at 2 m (°C)",
+      y = "Mean annual temperature (°C)",
       color = "Region"
     )
 }
