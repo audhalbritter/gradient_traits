@@ -67,7 +67,7 @@ figure_plan <- list(
     name = trait_climate_ds_t2m_fig,
     command = make_trait_comparison_plot(
       trait_models_region_output, trait_models_output, trait_mean_long,
-      "ds_t2m", "Mean annual temperature at 2 m (°C)"
+      "ds_t2m", "Mean annual temperature (°C)"
     )
   ),
 

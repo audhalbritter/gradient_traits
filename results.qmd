@@ -165,7 +165,17 @@ trait_pca_fig
 
 \newpage
 
-These figures show community-weighted mean functional traits (all analysed traits, mean bootstrap estimates only) versus **downscaled** climate at site resolution: mean annual temperature at 2 m (T2m), then vapour pressure deficit (VPD). Grey lines are global marginal predictions from mixed-effects models; coloured lines and ribbons are regional predictions (same plotting code for both panels).
+- Plant height, dry mass, leaf area and dC13 show a unimodal global relationship with mean annual temperature, showing highest values at intermediate temperatures
+
+- NP decreases and dN15 increases globally with mean annual temperature
+
+- The regional models show a close correlation with the global model for dry mass and leaf area.
+
+- CN shows significant regaional relationship with mean annual temperature, but showing a reversed unimodal relationship (U shaped)
+
+- Leaf P decreases with mean annual temperature, but only regionally
+
+- Leaf thickness, SLA, LDMC, leaf C, and N show no global or regional relationship with mean annual temperature
 
 ```{r}
 #| label: fig-trait-ds-t2m
@@ -173,6 +183,7 @@ These figures show community-weighted mean functional traits (all analysed trait
 #| warning: false
 #| fig-height: 9
 #| fig-width: 12
+#| fig-cap: "Functional traits versus mean annual tempearture. The points show the raw data and the lines are predictions. Solid lines indicare significant relationships, while dashed lines are non-significnat. The colours indicate the regions."
 
 tar_load(trait_climate_ds_t2m_fig)
 trait_climate_ds_t2m_fig
@@ -181,12 +192,25 @@ trait_climate_ds_t2m_fig
 
 \newpage
 
+- Leaf thickness decreases globally with VPD. SLA, Leaf N, and P show a unimodal global relationship with VPD, while LDMC, CN, NP (highest values at intermediate VPD), and dC13 show a reversed unimodal relationship (U shaped; lowest values at intermediate VPD).
+
+- Dry mass, leaf area and SLA show regional unimodal relationships with VPD.
+
+- Leaf thickness and CN ratio show a reveresed regional unimodal relationship with VPD.
+
+- Leaf P decreases regionally with VPD, showing opposite pattern to the global relationship.
+
+- The regional pattern for leaf thickness, SLA, and CN ratio sort of reflects the global pattern.
+
+- Plant height, leaf C and dN15 show no global or regional relationship with VPD.
+
 ```{r}
 #| label: fig-trait-ds-vpd
 #| echo: false
 #| warning: false
 #| fig-height: 9
 #| fig-width: 12
+#| fig-cap: "Functional traits versus vapour pressure deficit. The points show the raw data and the lines are predictions. Solid lines indicare significant relationships, while dashed lines are non-significnat. The colours indicate the regions."
 
 tar_load(trait_climate_ds_vpd_fig)
 trait_climate_ds_vpd_fig

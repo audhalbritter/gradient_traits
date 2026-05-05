@@ -74,15 +74,7 @@ diversity_plan <- list(
           names_to = "climate_variable",
           values_to = "climate_value"
         ) |>
-        filter(!is.na(climate_value)) |>
-        group_by(climate_variable) |>
-        mutate(
-          climate_value_original = climate_value,
-          climate_mean = mean(climate_value, na.rm = TRUE),
-          climate_sd = sd(climate_value, na.rm = TRUE),
-          climate_value = (climate_value - climate_mean) / climate_sd
-        ) |>
-        ungroup()
+        filter(!is.na(climate_value))
     }
   ),
 
@@ -178,8 +170,7 @@ diversity_plan <- list(
             .x = data,
             .y = prediction,
             .f = ~ dplyr::bind_cols(
-              .x |>
-                dplyr::select(-climate_value, -climate_value_original, -climate_mean, -climate_sd),
+              .x |> dplyr::select(-climate_value),
               .y
             )
           )
@@ -207,8 +198,7 @@ diversity_plan <- list(
             .x = data,
             .y = prediction,
             .f = ~ dplyr::bind_cols(
-              .x |>
-                dplyr::select(-climate_value, -climate_value_original, -climate_mean, -climate_sd),
+              .x |> dplyr::select(-climate_value),
               .y
             )
           )
