@@ -36,7 +36,10 @@ library(tarchetypes)
 
 # Load the data
 tar_load(diversity_model_checks)
+tar_load(diversity_model_checks_ds_climate)
+tar_load(diversity_model_checks_region_ds_climate)
 tar_load(trait_model_checks)
+tar_load(trait_model_checks_region)
 ```
 
 ## Diversity Models
@@ -66,6 +69,54 @@ diversity_model_checks |>
   
 ```
 
+## Diversity Climate Models (Global)
+
+```{r}
+#| label: diversity-climate-global-model-checks
+#| echo: false
+#| results: asis
+
+diversity_model_checks_ds_climate |>
+  select(climate_variable, model_check) |>
+  pwalk(.f = function(climate_variable, model_check, ...) {
+    cat("\n\n")
+    cat(paste("### Shannon diversity -",
+      case_when(
+        climate_variable == "ds_t2m" ~ "Mean annual temperature at 2 m (downscaled), global model",
+        climate_variable == "ds_vpd" ~ "Vapour pressure deficit (downscaled), global model",
+        TRUE ~ climate_variable
+      ), "\n\n"
+    ))
+
+    print(model_check)
+    cat("\n\n")
+  })
+```
+
+## Diversity Climate Models (Regional Covariate)
+
+```{r}
+#| label: diversity-climate-region-model-checks
+#| echo: false
+#| results: asis
+
+diversity_model_checks_region_ds_climate |>
+  select(climate_variable, model_check) |>
+  pwalk(.f = function(climate_variable, model_check, ...) {
+    cat("\n\n")
+    cat(paste("### Shannon diversity -",
+      case_when(
+        climate_variable == "ds_t2m" ~ "Mean annual temperature at 2 m (downscaled), regional model (+ region)",
+        climate_variable == "ds_vpd" ~ "Vapour pressure deficit (downscaled), regional model (+ region)",
+        TRUE ~ climate_variable
+      ), "\n\n"
+    ))
+
+    print(model_check)
+    cat("\n\n")
+  })
+```
+
 ## Trait Models
 
 ```{r}
@@ -74,6 +125,7 @@ diversity_model_checks |>
 #| results: asis
 
 trait_model_checks |> 
+  filter(climate_variable %in% c("ds_t2m", "ds_vpd")) |>
   select(trait_trans, climate_variable, data_source, model_check) |> 
   pwalk(.f = function(trait_trans, climate_variable, data_source, model_check, ...){
   # Create a nice header with spacing
@@ -82,15 +134,6 @@ trait_model_checks |>
             case_when(
               climate_variable == "ds_t2m" ~ "Mean annual temperature at 2 m (downscaled)",
               climate_variable == "ds_vpd" ~ "Vapour pressure deficit (downscaled)",
-              climate_variable == "growing_season_length" ~ "Growing Season Length (GEE)",
-              climate_variable == "gsl_1981-2010_chelsa" ~ "Growing Season Length (CHELSA)",
-              climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature (CHELSA)",
-              climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation (CHELSA)",
-              climate_variable == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration (CHELSA)",
-              climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
-              climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
-              climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range (WorldClim)",
-              climate_variable == "annual_temperature_bioclim" ~ "Annual Temperature (WorldClim)",
               TRUE ~ climate_variable
             ), "\n\n"))
   
@@ -101,6 +144,31 @@ trait_model_checks |>
   cat("\n\n")
 })
   
+```
+
+## Trait Models (Regional Covariate)
+
+```{r}
+#| label: trait-model-checks-region
+#| echo: false
+#| results: asis
+
+trait_model_checks_region |>
+  filter(climate_variable %in% c("ds_t2m", "ds_vpd")) |>
+  select(trait_trans, climate_variable, data_source, model_check) |>
+  pwalk(.f = function(trait_trans, climate_variable, data_source, model_check, ...) {
+    cat("\n\n")
+    cat(paste("###", stringr::str_replace_all(trait_trans, "_", " ") |> stringr::str_to_title(), "-",
+      case_when(
+        climate_variable == "ds_t2m" ~ "Mean annual temperature at 2 m (downscaled), regional model (+ region)",
+        climate_variable == "ds_vpd" ~ "Vapour pressure deficit (downscaled), regional model (+ region)",
+        TRUE ~ climate_variable
+      ), "\n\n"
+    ))
+
+    print(model_check)
+    cat("\n\n")
+  })
 ```
 
 ##

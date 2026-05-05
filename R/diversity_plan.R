@@ -224,5 +224,25 @@ diversity_plan <- list(
         mutate(model_check = list(performance::check_model(model))) |>
         ungroup()
     }
+  ),
+
+  tar_target(
+    name = diversity_model_checks_ds_climate,
+    command = {
+      diversity_model_ds_climate |>
+        rowwise() |>
+        mutate(model_check = list(performance::check_model(model))) |>
+        ungroup()
+    }
+  ),
+
+  tar_target(
+    name = diversity_model_checks_region_ds_climate,
+    command = {
+      diversity_model_region_ds_climate |>
+        rowwise() |>
+        mutate(model_check = list(performance::check_model(model))) |>
+        ungroup()
+    }
   )
 )

@@ -24,7 +24,6 @@ tar_source()
 combined_plan <- c(
   download_plan,
   import_plan,
-  #bioclim_plan,
   cleaning_plan,
   transformation_plan,
   itv_plan,

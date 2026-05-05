@@ -197,6 +197,17 @@ trait_plan <- list(
     }
   ),
 
+  tar_target(
+    name = trait_model_checks_region,
+    command = {
+      trait_models_region_output |>
+        rowwise() |>
+        mutate(model_check = list(performance::check_model(model))) |>
+        ungroup() |>
+        filter(!is.null(model_check))
+    }
+  ),
+
   # Trait variance vs climate
   tar_target(
     name = trait_variance_data,
