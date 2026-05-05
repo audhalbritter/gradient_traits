@@ -48,6 +48,8 @@ tar_load(trait_model_checks_region)
 #| label: diversity-model-checks
 #| echo: false
 #| results: asis
+#| fig-width: 10
+#| fig-height: 8
 
 diversity_model_checks |>
   select(diversity_index, model_check) |>
@@ -75,6 +77,8 @@ diversity_model_checks |>
 #| label: diversity-climate-global-model-checks
 #| echo: false
 #| results: asis
+#| fig-width: 10
+#| fig-height: 8
 
 diversity_model_checks_ds_climate |>
   select(climate_variable, model_check) |>
@@ -99,6 +103,8 @@ diversity_model_checks_ds_climate |>
 #| label: diversity-climate-region-model-checks
 #| echo: false
 #| results: asis
+#| fig-width: 10
+#| fig-height: 8
 
 diversity_model_checks_region_ds_climate |>
   select(climate_variable, model_check) |>
@@ -123,6 +129,8 @@ diversity_model_checks_region_ds_climate |>
 #| label: trait-model-checks
 #| echo: false
 #| results: asis
+#| fig-width: 10
+#| fig-height: 8
 
 trait_model_checks |> 
   filter(climate_variable %in% c("ds_t2m", "ds_vpd")) |>
@@ -152,6 +160,8 @@ trait_model_checks |>
 #| label: trait-model-checks-region
 #| echo: false
 #| results: asis
+#| fig-width: 10
+#| fig-height: 8
 
 trait_model_checks_region |>
   filter(climate_variable %in% c("ds_t2m", "ds_vpd")) |>
