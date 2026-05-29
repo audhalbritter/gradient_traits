@@ -1,30 +1,19 @@
 # Make analysis
 
-# make prediction for lmer
-lmer_prediction <- function(dat, fit, predictor) {
-  # Create new data with predictor, response variables, and scaling parameters
-  # Handle both latitude and annual temperature scaling
-  if (predictor == "latitude_n") {
-    newdat <- dat %>%
-      select(all_of(predictor), value, latitude_original, latitude_mean, latitude_sd)
-  } else if (predictor == "annual_temperature_bioclim") {
-    newdat <- dat %>%
-      select(all_of(predictor), value, annual_temperature_original, annual_temperature_mean, annual_temperature_sd)
-  } else {
-    newdat <- dat %>%
-      select(all_of(predictor), value)
-  }
+# Diversity vs latitude: scaled predictor with back-transform for plotting
+lmer_prediction <- function(dat, fit, predictor = "latitude_n") {
+  stopifnot(identical(predictor, "latitude_n"))
+  newdat <- dat %>%
+    dplyr::select(latitude_n, value, latitude_original, latitude_mean, latitude_sd)
 
-  # Make predictions
   newdat$.fitted <- predict(fit, newdat, re.form = NA)
 
-  # Calculate confidence intervals
   prediction <- tryCatch(
     {
       mm <- model.matrix(terms(fit), newdat)
       vc <- vcov(fit)
       re_var <- as.numeric(VarCorr(fit)$site[1])
-      tmp <- newdat %>%
+      newdat %>%
         mutate(
           pvar1 = diag(mm %*% tcrossprod(vc, mm)),
           tvar1 = pvar1 + re_var,
@@ -36,10 +25,8 @@ lmer_prediction <- function(dat, fit, predictor) {
           tlo = .fitted - cmult * sqrt(tvar1),
           thi = .fitted + cmult * sqrt(tvar1)
         )
-      tmp
     },
     error = function(e) {
-      n <- nrow(newdat)
       newdat %>%
         mutate(
           pvar1 = NA_real_,
@@ -52,22 +39,17 @@ lmer_prediction <- function(dat, fit, predictor) {
         )
     }
   ) %>%
-    # Back-transform predictor for plotting
-    mutate(
-      latitude_n = if (predictor == "latitude_n") latitude_original else NA_real_,
-      annual_temperature_bioclim = if (predictor == "annual_temperature_bioclim") annual_temperature_original else NA_real_
-    ) %>%
-    # Return only prediction-related columns
-    select(.fitted, pvar1, tvar1, cmult, plo, phi, tlo, thi, latitude_n, annual_temperature_bioclim)
+    dplyr::mutate(latitude_n = latitude_original) %>%
+    dplyr::select(.fitted, pvar1, tvar1, cmult, plo, phi, tlo, thi, latitude_n)
 
-  return(prediction)
+  prediction
 }
 
 # Prediction function for trait models with long-format climate data
 lmer_prediction_trait <- function(dat, fit, predictor) {
-  # Create new data with predictors and response variable needed for model matrix calculation
+  # Use raw climate values directly (no scaling/back-transformation).
   newdat <- dat %>%
-    select(trait_value, all_of(predictor), climate_value_original, climate_mean, climate_sd)
+    select(any_of(c("trait_value", predictor, "region")))
 
   # Make predictions
   newdat$.fitted <- predict(fit, newdat, re.form = NA)
@@ -106,12 +88,19 @@ lmer_prediction_trait <- function(dat, fit, predictor) {
         )
     }
   ) %>%
-    # Back-transform climate values to original scale for plotting
-    mutate(climate_value = climate_value_original) %>%
-    # Only return the prediction-related columns, not the original data
-    select(.fitted, pvar1, tvar1, cmult, plo, phi, tlo, thi, climate_value)
+    select(.fitted, pvar1, tvar1, cmult, plo, phi, tlo, thi, all_of(predictor)) %>%
+    rename(climate_value = all_of(predictor))
 
   return(prediction)
+}
+
+# Diversity vs long-format climate (same scaling/back-transform as trait climate models)
+lmer_prediction_diversity_climate <- function(dat, fit, predictor = "climate_value") {
+  lmer_prediction_trait(
+    dat |> dplyr::rename(trait_value = value),
+    fit,
+    predictor
+  )
 }
 
 
