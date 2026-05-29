@@ -67,6 +67,11 @@ import_plan <- list(
     command = read_csv(download_traits_no)
   ),
 
+  tar_target(
+    name = raw_traits_chem_no,
+    command = read_csv(download_traits_chem_no)
+  ),
+
   # Colorado Data
 
   # community
@@ -119,6 +124,11 @@ import_plan <- list(
   tar_target(
     name = raw_traits_sa,
     command = read_csv(download_traits_sa)
+  ),
+
+  tar_target(
+    name = raw_traits_chem_sa,
+    command = read_csv(download_traits_chem_sa)
   ),
 
   # meta data
