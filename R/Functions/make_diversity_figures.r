@@ -1,13 +1,26 @@
 ## Diversity and general figures
 
 make_region_world_map <- function(coords) {
+  # Sites span ~79°N (Svalbard) to ~29°S (Drakensberg); omit Antarctica.
+  lat_lim <- c(-50, 85)
+  lon_lim <- c(-180, 180)
+
   cache_path <- file.path("WorldClimData")
-  if (!dir.exists(cache_path)) dir.create(cache_path, recursive = TRUE)
+  if (!dir.exists(cache_path)) {
+    dir.create(cache_path, recursive = TRUE)
+  }
   elev_raster <- geodata::worldclim_global(var = "elev", res = 10, path = cache_path)
+  elev_raster <- terra::crop(
+    elev_raster,
+    terra::ext(lon_lim[1], lon_lim[2], lat_lim[1], lat_lim[2])
+  )
   elev_df <- as.data.frame(elev_raster, xy = TRUE, na.rm = TRUE)
   names(elev_df) <- c("lon", "lat", "elev")
+  elev_df <- elev_df |>
+    dplyr::filter(elev > 0)
 
-  world <- ggplot2::map_data("world")
+  world <- ggplot2::map_data("world") |>
+    dplyr::filter(!region %in% "Antarctica")
 
   coords <- coords |>
     dplyr::mutate(
@@ -20,7 +33,8 @@ make_region_world_map <- function(coords) {
         region %in% c("sa", "Drakensberg") ~ "Drakensberg",
         TRUE ~ as.character(region)
       ),
-      region_label = factor(region_label,
+      region_label = factor(
+        region_label,
         levels = c(
           "Svalbard", "Southern Scandes", "Rocky Mountains",
           "Eastern Himalaya", "Central Andes", "Drakensberg"
@@ -28,22 +42,52 @@ make_region_world_map <- function(coords) {
       )
     )
 
+  site_pts <- coords |>
+    dplyr::distinct(region_label, site, longitude_e, latitude_n)
+
   ggplot2::ggplot() +
-    ggplot2::geom_raster(data = elev_df, ggplot2::aes(lon, lat, fill = elev)) +
-    ggplot2::scale_fill_gradientn(colors = c("grey40", "grey50", "grey60", "grey70", "white"), name = "Elevation (m)") +
     ggplot2::geom_polygon(
-      data = world, ggplot2::aes(long, lat, group = group),
-      fill = NA, color = "grey70", linewidth = 0.2
+      data = world,
+      ggplot2::aes(long, lat, group = group),
+      fill = "grey88",
+      colour = "grey55",
+      linewidth = 0.15
+    ) +
+    ggplot2::geom_raster(
+      data = elev_df,
+      ggplot2::aes(lon, lat, fill = elev),
+      alpha = 0.92
+    ) +
+    ggplot2::scale_fill_gradientn(
+      colours = c("grey40", "grey50", "grey60", "grey70", "white"),
+      name = "Elevation (m)"
     ) +
     ggplot2::geom_point(
-      data = dplyr::distinct(coords, region_label, site, longitude_e, latitude_n),
-      ggplot2::aes(x = longitude_e, y = latitude_n, color = region_label),
-      alpha = 0.9, size = 3
+      data = site_pts,
+      ggplot2::aes(x = longitude_e, y = latitude_n, colour = region_label),
+      alpha = 0.9,
+      size = 3
     ) +
-    ggplot2::scale_color_manual(values = create_region_color_mapping(), drop = FALSE, name = "Region") +
-    ggplot2::coord_quickmap() +
+    ggplot2::scale_color_manual(
+      values = create_region_color_mapping(),
+      drop = FALSE,
+      name = "Region"
+    ) +
+    ggplot2::coord_fixed(
+      xlim = lon_lim,
+      ylim = lat_lim,
+      expand = FALSE
+    ) +
     ggplot2::theme_bw() +
-    ggplot2::theme(panel.grid = ggplot2::element_blank(), legend.position = "top", legend.box = "horizontal") +
+    ggplot2::theme(
+      panel.grid = ggplot2::element_blank(),
+      panel.background = ggplot2::element_rect(fill = "grey92"),
+      legend.position = "top",
+      legend.box = "vertical",
+      legend.box.just = "left",
+      legend.spacing.y = ggplot2::unit(0.4, "cm"),
+      plot.margin = ggplot2::margin(12, 6, 6, 6, unit = "pt")
+    ) +
     ggplot2::labs(x = "Longitude", y = "Latitude")
 }
 
