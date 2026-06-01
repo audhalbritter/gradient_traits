@@ -98,10 +98,10 @@ import_plan <- list(
     command = {
       plot_id <- 1:5
       meta <- tibble(
-        site = c("CBT", "Road", "Pfeiler", "Cinnamon", "Almont"),
-        elevation_m = c(2699, 2810, 3171, 3458, 2475),
-        latitude_n = c(38.8817327, 38.89680392, 38.96044646, 38.99159151, 38.655455),
-        longitude_e = c(-106.9799521, -106.978584, -107.0323667, -107.0663821, -106.861632)
+        site = c("CBT", "Road", "Pfeiler", "Cinnamon", "Almont", "PBM"),
+        elevation_m = c(2699, 2810, 3171, 3458, 2475, 3380),
+        latitude_n = c(38.8817327, 38.89680392, 38.96044646, 38.99159151, 38.655455, 39.0),
+        longitude_e = c(-106.9799521, -106.978584, -107.0323667, -107.0663821, -106.861632, -107.03)
       )
       crossing(meta, plot_id) |>
         mutate(

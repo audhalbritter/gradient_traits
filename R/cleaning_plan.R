@@ -54,7 +54,7 @@ cleaning_plan <- list(
   # clean traits
   tar_target(
     name = traits_no,
-    command = clean_no_traits(raw_traits_no, raw_traits_chem_no)
+    command = clean_no_traits(raw_traits_no, raw_traits_chem_no, raw_community_no)
   ),
 
 

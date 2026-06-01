@@ -251,14 +251,62 @@ clean_no_comm <- function(raw_community_no, sp_list_no) {
 }
 
 
+#' Turf IDs for Hogsete / Vikesland trait rows (traits lack turfID; community has block + turf).
+no_seedclim_vcg_turf_lookup <- function() {
+  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "data/seedclim.sqlite")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  dplyr::tbl(con, "turfs") |>
+    dplyr::filter(TTtreat == "TTC") |>
+    dplyr::inner_join(dplyr::tbl(con, "plots"), by = c("originPlotID" = "plotID")) |>
+    dplyr::inner_join(dplyr::tbl(con, "blocks"), by = "blockID") |>
+    dplyr::inner_join(dplyr::tbl(con, "sites"), by = "siteID") |>
+    dplyr::filter(siteID %in% c("Hogsete", "Vikesland")) |>
+    dplyr::select(siteID, blockID, turfID) |>
+    dplyr::collect() |>
+    dplyr::mutate(block_num = as.integer(stringr::str_extract(blockID, "[0-9]+$"))) |>
+    dplyr::select(siteID, block_num, turfID_vcg = turfID)
+}
+
+
+#' Turf IDs for Joasete trait rows missing turfID (match 3D community by block and treatments).
+no_joasete_turf_lookup <- function(raw_community_no) {
+  raw_community_no |>
+    dplyr::filter(
+      destSiteID == "Joasete",
+      year == 2022,
+      warming == "A",
+      grazing %in% c("C", "N"),
+      Nlevel %in% c(1, 2, 3)
+    ) |>
+    dplyr::distinct(destBlockID, turfID, warming, grazing, Nlevel) |>
+    dplyr::rename(blockID = destBlockID, turfID_joas = turfID)
+}
+
+
+no_fill_missing_turfid <- function(dat, raw_community_no) {
+  vcg_lk <- no_seedclim_vcg_turf_lookup()
+  joas_lk <- no_joasete_turf_lookup(raw_community_no)
+
+  dat |>
+    dplyr::left_join(vcg_lk, by = c("siteID", "blockID" = "block_num")) |>
+    dplyr::mutate(turfID = dplyr::coalesce(turfID, turfID_vcg)) |>
+    dplyr::select(-turfID_vcg) |>
+    dplyr::left_join(joas_lk, by = c("blockID", "warming", "grazing", "Nlevel")) |>
+    dplyr::mutate(turfID = dplyr::coalesce(turfID, turfID_joas)) |>
+    dplyr::select(-turfID_joas)
+}
+
+
 # clean norway traits
-clean_no_traits <- function(raw_traits_no, raw_traits_chem_no) {
+clean_no_traits <- function(raw_traits_no, raw_traits_chem_no, raw_community_no) {
   morph <- raw_traits_no |>
     filter(
       warming == "A",
       grazing %in% c("C", "N"),
       Namount_kg_ha_y == 0
     ) |>
+    no_fill_missing_turfid(raw_community_no) |>
     mutate(
       year = year(date),
       country = "no",
@@ -267,18 +315,13 @@ clean_no_traits <- function(raw_traits_no, raw_traits_chem_no) {
       ecosystem = "boreal",
       site = paste0(country, "_", siteID),
       plot_id = paste0(site, "_", turfID)
-    ) |>
-    select(country, region, year, date, gradient, site, plot_id, individual_nr, leaf_id = ID, taxon = species, trait, value, elevation_m = elevation_m_asl, ecosystem)
+    )
 
-  # Chemical file has warming only; ambient plots match morph filters (grazing C, N = 0)
-  plot_lookup <- raw_traits_no |>
-    filter(
-      warming == "A",
-      grazing %in% c("C", "N"),
-      Namount_kg_ha_y == 0
-    ) |>
-    group_by(ID) |>
-    summarise(turfID = dplyr::first(turfID), .groups = "drop")
+  plot_lookup <- morph |>
+    distinct(ID, turfID)
+
+  morph <- morph |>
+    select(country, region, year, date, gradient, site, plot_id, individual_nr, leaf_id = ID, taxon = species, trait, value, elevation_m = elevation_m_asl, ecosystem)
 
   chem <- raw_traits_chem_no |>
     filter(warming == "A") |>
@@ -330,7 +373,6 @@ clean_no_traits <- function(raw_traits_no, raw_traits_chem_no) {
 clean_colorado_community <- function(raw_community_co, coords_co) {
   raw_community_co |>
     clean_names() |>
-    filter(site != "PBM") |>
     select(-common_name_morpho, -total, -photo_taken, -specimen_collected) |>
     pivot_longer(cols = c(plot_1:plot_5), names_to = "plot_id", values_to = "cover") |>
     rename(taxon = species) |>
@@ -353,6 +395,17 @@ clean_colorado_community <- function(raw_community_co, coords_co) {
 }
 
 
+#' Plot number (1--5) from Colorado trait `block` or `transect` (community uses plot_1--plot_5).
+co_trait_plot_num <- function(block, transect) {
+  dplyr::case_when(
+    !is.na(block) ~ as.character(as.integer(stringr::str_extract(block, "[0-9]+"))),
+    !is.na(transect) & transect %in% LETTERS[1:5] ~ as.character(match(transect, LETTERS[1:5])),
+    # FIXME: no block/transect in source — assigned plot 1 so plot_id is never NA; revisit
+    TRUE ~ "1"
+  )
+}
+
+
 # clean Colorado trait
 clean_colorado_trait <- function(raw_sp_co, raw_trait_co, coords_co) {
   Row5 <- tribble(
@@ -366,9 +419,9 @@ clean_colorado_trait <- function(raw_sp_co, raw_trait_co, coords_co) {
     bind_rows(Row5)
 
   raw_trait_co |>
-    filter(site %in% c("Almont", "CBT", "Road", "Pfeiler", "Cinnamon")) |>
-    select(year, site, block, taxon_std, leaf_area, wet_mass, dry_mass, SLA, height_flower, height_leaf, height, height_2, thickness, pc_C, pc_N, pc_P, d13C, d15N, C_N, N_P) |>
-    rename(plot_id = block, taxon = taxon_std, Leaf_Area_cm2 = leaf_area, Wet_Mass_g = wet_mass, Dry_Mass_g = dry_mass, SLA_cm2_g = SLA, Plant_Height_cm = height_flower, Leaf_Thickness_Ave_mm = thickness, C_percent = pc_C, N_percent = pc_N, dC13_permil = d13C, dN15_permil = d15N, CN_ratio = C_N, NP_ratio = N_P, P_percent = pc_P) |>
+    filter(site %in% c("Almont", "CBT", "Road", "Pfeiler", "Cinnamon", "PBM")) |>
+    select(year, site, block, transect, taxon_std, leaf_area, wet_mass, dry_mass, SLA, height_flower, height_leaf, height, height_2, thickness, pc_C, pc_N, pc_P, d13C, d15N, C_N, N_P) |>
+    rename(taxon = taxon_std, Leaf_Area_cm2 = leaf_area, Wet_Mass_g = wet_mass, Dry_Mass_g = dry_mass, SLA_cm2_g = SLA, Plant_Height_cm = height_flower, Leaf_Thickness_Ave_mm = thickness, C_percent = pc_C, N_percent = pc_N, dC13_permil = d13C, dN15_permil = d15N, CN_ratio = C_N, NP_ratio = N_P, P_percent = pc_P) |>
     mutate(
       country = "co",
       region = "Rocky Mountains",
@@ -377,10 +430,11 @@ clean_colorado_trait <- function(raw_sp_co, raw_trait_co, coords_co) {
       LDMC = Dry_Mass_g / Wet_Mass_g
     ) |>
     mutate(
-      plot_id = str_replace(plot_id, "Block", ""),
+      plot_num = co_trait_plot_num(block, transect),
       site = paste0(country, "_", site),
-      plot_id = paste0(site, "_", plot_id)
-    ) %>%
+      plot_id = paste0(site, "_", plot_num)
+    ) |>
+    select(-plot_num, -block, -transect) |>
     mutate(
       P_percent = as.numeric(P_percent),
       C_percent = as.numeric(C_percent),
@@ -469,15 +523,15 @@ clean_sa_traits <- function(raw_traits_sa, raw_traits_chem_sa, raw_meta_sa_exten
           clean_names(),
         by = c("site_id", "plot_id", "aspect", "elevation_m_asl")
       ) |>
+      filter(aspect %in% c("east", "west")) |>
       mutate(
         year = year(date),
         country = "sa",
         region = "Drakensberg",
         gradient = dplyr::case_match(
-          dplyr::coalesce(aspect, "unknown"),
+          aspect,
           "east" ~ "E",
-          "west" ~ "W",
-          "unknown" ~ "unknown"
+          "west" ~ "W"
         ),
         ecosystem = "grassland",
         site = paste0(country, "_", site_id),
