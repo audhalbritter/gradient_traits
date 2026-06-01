@@ -98,11 +98,61 @@ make_trait_ridgeline_plot <- function(data) {
     )
 }
 
+# traitstrap::fortify_filled_trait() fails with dplyr >= 1.2 when cover is duplicated
+# per plot × taxon; average abundance within taxon before summing cover by level
+fortify_trait_coverage <- function(filled_traits) {
+  attrib <- attr(filled_traits, "attrib")
+  abun_col <- attrib$abundance_col
+  trait_col <- attrib$trait_col
+  taxon_col <- attrib$taxon_col
+
+  scale_hierarchy <- as.character(attrib$scale_hierarchy)
+  scale_hierarchy <- scale_hierarchy[scale_hierarchy != "global"]
+
+  dat <- filled_traits |> dplyr::ungroup()
+  plot_id <- apply(dplyr::select(dat, dplyr::any_of(scale_hierarchy)), 1, paste, collapse = "_")
+
+  dat |>
+    dplyr::mutate(.id = plot_id) |>
+    dplyr::group_by(.data$.id, .data$level, .data[[trait_col]], .data[[taxon_col]]) |>
+    dplyr::summarise(
+      cover = mean(.data[[abun_col]], na.rm = TRUE),
+      sum_abun = dplyr::first(.data$sum_abun),
+      .groups = "drop"
+    ) |>
+    dplyr::group_by(.data$.id, .data$level) |>
+    dplyr::summarise(
+      s = sum(cover) / dplyr::first(sum_abun),
+      .groups = "drop"
+    )
+}
+
 make_trait_coverage_plot <- function(filled_traits) {
-  plot_data <- autoplot(filled_traits, other_col_how = "ignore")$data |>
-    group_by(region, .id) |>
-    mutate(s_prop = s / sum(s, na.rm = TRUE)) |>
-    ungroup()
+  attrib <- attr(filled_traits, "attrib")
+  scale_hierarchy <- as.character(attrib$scale_hierarchy)
+  scale_hierarchy <- scale_hierarchy[scale_hierarchy != "global"]
+
+  plot_meta <- filled_traits |>
+    dplyr::ungroup() |>
+    dplyr::mutate(
+      .id = apply(dplyr::select(dplyr::across(dplyr::any_of(scale_hierarchy))), 1, paste, collapse = "_")
+    ) |>
+    dplyr::distinct(.data$.id, .data$country, .data$region, .data$site, .data$gradient)
+
+  plot_data <- fortify_trait_coverage(filled_traits) |>
+    dplyr::left_join(plot_meta, by = ".id") |>
+    dplyr::mutate(
+      .id = dplyr::if_else(
+        .data$country == "pe",
+        paste(.data$site, .data$gradient, sep = "_"),
+        .data$.id
+      )
+    ) |>
+    dplyr::group_by(.data$region, .data$.id, .data$level) |>
+    dplyr::summarise(s = sum(.data$s, na.rm = TRUE), .groups = "drop") |>
+    dplyr::group_by(.data$region, .data$.id) |>
+    dplyr::mutate(s_prop = .data$s / sum(.data$s, na.rm = TRUE)) |>
+    dplyr::ungroup()
 
   ggplot(plot_data, aes(x = .id, y = s_prop, fill = level)) +
     geom_col() +

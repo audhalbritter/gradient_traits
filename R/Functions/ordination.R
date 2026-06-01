@@ -1,5 +1,16 @@
 # ORDINATIONS
 
+# ggplot2 4.x exports fortify(); ggvegan::fortify() then breaks on display = ...
+fortify_rda <- function(x, display = c("sites", "species")) {
+  display <- match.arg(display)
+  out <- as.data.frame(vegan::scores(x, display = display))
+  if (display == "species") {
+    out$label <- rownames(out)
+    rownames(out) <- NULL
+  }
+  tibble::as_tibble(out)
+}
+
 ## TRAIT (PCA)
 make_trait_pca <- function(trait_mean){
 
@@ -34,11 +45,11 @@ make_trait_pca <- function(trait_mean){
   pca_sites <- bind_cols(
     cwm_fat[complete_rows, ] %>%
       select(country:ecosystem),
-    fortify(pca_output, display = "sites")
+    fortify_rda(pca_output, display = "sites")
   )
 
   # arrows
-  pca_traits <- fortify(pca_output, display = "species") %>%
+  pca_traits <- fortify_rda(pca_output, display = "species") %>%
     mutate(trait_trans = label) %>%
     fancy_trait_name_dictionary() |>
     mutate(class = as.character(class),

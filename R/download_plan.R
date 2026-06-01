@@ -140,6 +140,18 @@ download_plan <- list(
     format = "file"
   ),
 
+  # chemical traits (elevation gradient / global change experiment)
+  tar_target(
+    name = download_traits_chem_no,
+    command = get_file(
+      node = "fcbw4",
+      file = "PFTC6_clean_ElevationGradient_GlobalChangeExperiment_chemical_traits_2022.csv", # nolint: line_length_linter.
+      path = "data",
+      remote_path = "i. trait_data"
+    ),
+    format = "file"
+  ),
+
   # meta data
   tar_target(
     name = metaTurfID_no,
@@ -165,6 +177,18 @@ download_plan <- list(
     command = get_file(
       node = "hk2cy",
       file = "iv_PFTC7_clean_elevationgradient_traits_2023.csv",
+      path = "data/",
+      remote_path = "iv_aboveground_traits"
+    ),
+    format = "file"
+  ),
+
+  # chemical traits
+  tar_target(
+    name = download_traits_chem_sa,
+    command = get_file(
+      node = "hk2cy",
+      file = "iv_PFTC7_clean_elevationgradient_chemical_traits_2023.csv",
       path = "data/",
       remote_path = "iv_aboveground_traits"
     ),
