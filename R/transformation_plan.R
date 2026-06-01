@@ -10,7 +10,7 @@ transformation_plan <- list(
     command = bind_rows(community_sv, community_pe, community_ch, community_no, community_co, community_sa)
   ),
 
-  # Downscaled climate by site (T2m, VPD, …); completes missing SA/SV sites from community plot keys
+  # Legacy downscaled extract: site-mean climate (T2m, VPD, …) from data/downscaled_climate.csv
   tar_target(
     name = downscaled_climate,
     command = downscaled_climate_raw |>
@@ -21,6 +21,14 @@ transformation_plan <- list(
           distinct(country, gradient, site) |>
           filter(!is.na(site))
       )
+  ),
+
+  # Hourly PFTC extract with trait/community keys; keeps all timesteps (no site summarise)
+  tar_target(
+    name = hourly_climate,
+    command = hourly_climate_raw |>
+      downscaled_climate_add_site_keys() |>
+      filter(!is.na(site))
   ),
 
   # calculate diversity indices

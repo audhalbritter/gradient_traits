@@ -4,11 +4,15 @@
 #' omits some plot IDs (e.g. Norway turf IDs that appear only for certain grazing
 #' levels). Aggregating to `country`, `gradient`, and `site` matches how traits
 #' are keyed and avoids losing rows when joining climate to analyses.
+#'
+#' Used by `downscaled_climate` (site means via [summarise_downscaled_climate_by_site()])
+#' and `hourly_climate` (plot x datetime rows, filtered to mapped sites only).
 
 #' Add `country`, `gradient`, and `site` from raw `area` / `plot_id`.
 #'
 #' `site` strings match those built in [cleaning_functions.R] (e.g. `no_Liahovden`,
-#' `co_CBT`, `pe_B_ACJ`, `sv_C_2`).
+#' `co_CBT`, `pe_B_ACJ`, `sv_C_2`). Svalbard N/B plots and Peru NB/BB bands are
+#' dropped (`site` is `NA`). Peru rows get `gradient` from [expand_pe_climate_seasons()].
 #'
 #' @return Input plus `area_raw`, `plot_id_raw`, `country`, `gradient`, `site`.
 downscaled_climate_add_site_keys <- function(dat) {
@@ -28,7 +32,25 @@ downscaled_climate_add_site_keys <- function(dat) {
     mutate(
       site = pmap_chr(list(country, plot_id_raw), dc_trait_site_chr),
       gradient = pmap_chr(list(country, plot_id_raw), dc_trait_gradient_chr)
-    )
+    ) |>
+    expand_pe_climate_seasons()
+}
+
+
+#' Duplicate Peru climate rows to `wet_season` and `dry_season` (traits have no wet/dry in extract).
+#'
+#' Climate only encodes elevation band (B/C) in `plot_id`; community/traits use the same
+#' `site` for both seasons. Duplicating keeps joins on `country`, `gradient`, and `site`.
+expand_pe_climate_seasons <- function(dat) {
+  pe <- dat |>
+    filter(country == "pe", !is.na(site)) |>
+    select(-gradient) |>
+    tidyr::crossing(gradient = c("wet_season", "dry_season"))
+
+  bind_rows(
+    dat |> filter(country != "pe" | is.na(site)),
+    pe
+  )
 }
 
 
@@ -55,7 +77,8 @@ dc_trait_site_gradient <- function(cnt, raw) {
   }
 
   if (cnt == "ch") {
-    m <- str_match(raw, "^CH_([AMLH])")
+    # CH_H1 and CH_HO1 (etc.) both map to ch_H, ch_A, ch_L, ch_M
+    m <- str_match(raw, "^CH_([AMLH])O?")
     if (!is.na(m[1, 2])) {
       out$site <- paste0("ch_", m[1, 2])
       out$gradient <- "C"
@@ -116,10 +139,15 @@ pe_trait_site_gradient_from_raw <- function(raw) {
   if (n < 3L) {
     return(out)
   }
-  grad <- parts[n - 1L]
+  band <- parts[n - 1L]
+  if (band %in% c("NB", "BB")) {
+    return(out)
+  }
+  if (!band %in% c("B", "C")) {
+    return(out)
+  }
   sitecode <- str_flatten(parts[seq_len(n - 2L)], collapse = "_")
-  out$site <- paste0("pe_", grad, "_", sitecode)
-  out$gradient <- grad
+  out$site <- paste0("pe_", band, "_", sitecode)
   out
 }
 
@@ -146,19 +174,14 @@ sa_trait_site_gradient_from_raw <- function(raw) {
 sv_trait_site_gradient_from_raw <- function(raw) {
   out <- list(site = NA_character_, gradient = NA_character_)
   core <- str_remove(raw, "^SV_")
+  if (str_detect(core, regex("^ITEX", ignore_case = TRUE))) {
+    return(out)
+  }
   if (str_detect(core, "^C\\d+")) {
     m <- str_match(core, "^C(\\d+)")
     if (!is.na(m[1, 2])) {
       out$site <- paste0("sv_C_", m[1, 2])
       out$gradient <- "C"
-    }
-    return(out)
-  }
-  if (str_detect(core, "^B\\d+")) {
-    m <- str_match(core, "^B(\\d+)")
-    if (!is.na(m[1, 2])) {
-      out$site <- paste0("sv_N_B", m[1, 2])
-      out$gradient <- "N"
     }
     return(out)
   }

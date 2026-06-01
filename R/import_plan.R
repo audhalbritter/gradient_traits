@@ -204,6 +204,11 @@ import_plan <- list(
   tar_target(
     name = downscaled_climate_raw,
     command = read_csv("data/downscaled_climate.csv")
+  ),
+
+    tar_target(
+    name = hourly_climate_raw,
+    command = read_csv("data/PFTC_downscaled_climate.csv")
   )
 
 )
