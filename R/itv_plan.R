@@ -52,6 +52,7 @@ itv_plan <- list(
     name = itv_model_checks,
     command = {
       itv_models |>
+        filter(!purrr::map_lgl(model, is.null)) |>
         rowwise() |>
         mutate(
           model_check = list(performance::check_model(model))
