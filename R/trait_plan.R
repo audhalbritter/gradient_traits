@@ -22,15 +22,18 @@ trait_plan <- list(
     command = {
       trait_mean |>
         pivot_longer(
-          cols = c(ds_t2m, ds_vpd),
+          cols = c(gs_length, gs_temperature, gs_vpd, gdd, gs_diurnal_range),
           names_to = "climate_variable",
           values_to = "climate_value"
         ) |>
         mutate(
-          data_source = "Downscaled",
+          data_source = "Growing season",
           climate_variable_clean = case_when(
-            climate_variable == "ds_t2m" ~ "Mean annual temperature",
-            climate_variable == "ds_vpd" ~ "Vapour pressure deficit",
+            climate_variable == "gs_length" ~ "Growing season length",
+            climate_variable == "gs_temperature" ~ "Growing season temperature",
+            climate_variable == "gs_vpd" ~ "Growing season VPD",
+            climate_variable == "gdd" ~ "Growing degree days (>2°C)",
+            climate_variable == "gs_diurnal_range" ~ "Diurnal range",
             TRUE ~ climate_variable
           )
         ) |>
@@ -197,26 +200,26 @@ trait_plan <- list(
     }
   ),
 
-  tar_target(
-    name = trait_model_checks_region,
-    command = {
-      trait_models_region_output |>
-        rowwise() |>
-        mutate(model_check = list(performance::check_model(model))) |>
-        ungroup() |>
-        filter(!is.null(model_check))
-    }
-  ),
+  # tar_target(
+  #   name = trait_model_checks_region,
+  #   command = {
+  #     trait_models_region_output |>
+  #       rowwise() |>
+  #       mutate(model_check = list(performance::check_model(model))) |>
+  #       ungroup() |>
+  #       filter(!is.null(model_check))
+  #   }
+  # ),
 
   # Trait variance vs climate
   tar_target(
     name = trait_variance_data,
     command = {
       trait_mean |>
-        filter(!is.na(ds_t2m)) |>
-        select(country:ecosystem, trait_trans, var, ds_t2m) |>
+        filter(!is.na(gs_temperature)) |>
+        select(country:ecosystem, trait_trans, var, gs_temperature) |>
         mutate(trait_value = var) |>
-        mutate(climate_value = ds_t2m) |>
+        mutate(climate_value = gs_temperature) |>
         filter(trait_trans %in% trait_trans_mean_for_climate)
     }
   ),
@@ -251,16 +254,16 @@ trait_plan <- list(
     }
   ),
 
-  tar_target(
-    name = trait_variance_model_checks,
-    command = {
-      trait_variance_model |>
-        rowwise() |>
-        mutate(model_check = list(performance::check_model(model))) |>
-        ungroup() |>
-        filter(!is.null(model_check))
-    }
-  ),
+  # tar_target(
+  #   name = trait_variance_model_checks,
+  #   command = {
+  #     trait_variance_model |>
+  #       rowwise() |>
+  #       mutate(model_check = list(performance::check_model(model))) |>
+  #       ungroup() |>
+  #       filter(!is.null(model_check))
+  #   }
+  # ),
 
   tar_target(
     name = trait_variance_all,

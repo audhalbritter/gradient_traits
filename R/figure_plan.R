@@ -12,9 +12,9 @@ figure_plan <- list(
     command = make_region_world_map(all_coordinates)
   ),
 
-  # Downscaled T2m vs site latitude (same region colours as diversity/trait figures)
+  # Growing-season climate variables vs site latitude (same region colours as other figures)
   tar_target(
-    name = downscaled_t2m_latitude_fig,
+    name = climate_latitude_fig,
     command = {
       site_lat <- community |>
         dplyr::filter(!is.na(site)) |>
@@ -26,11 +26,11 @@ figure_plan <- list(
           .groups = "drop"
         ) |>
         dplyr::inner_join(
-          downscaled_climate |> dplyr::select(country, gradient, site, T2m),
+          growing_season_climate_site,
           by = dplyr::join_by(country, gradient, site)
         ) |>
-        dplyr::filter(!is.na(T2m), !is.na(latitude_n))
-      make_downscaled_t2m_latitude_plot(site_lat)
+        dplyr::filter(!is.na(latitude_n))
+      make_climate_latitude_plot(site_lat)
     }
   ),
 
@@ -62,20 +62,20 @@ figure_plan <- list(
     command = make_trait_ridgeline_plot(trait_mean_long)
   ),
 
-  # Trait vs downscaled climate (mean traits only)
+  # Trait vs growing-season climate (mean traits only)
   tar_target(
-    name = trait_climate_ds_t2m_fig,
+    name = trait_climate_gs_temperature_fig,
     command = make_trait_comparison_plot(
       trait_models_region_output, trait_models_output, trait_mean_long,
-      "ds_t2m", "Mean annual temperature (°C)"
+      "gs_temperature", "Growing season temperature (°C)"
     )
   ),
 
   tar_target(
-    name = trait_climate_ds_vpd_fig,
+    name = trait_climate_gs_vpd_fig,
     command = make_trait_comparison_plot(
       trait_models_region_output, trait_models_output, trait_mean_long,
-      "ds_vpd", "Vapour pressure deficit"
+      "gs_vpd", "Growing season VPD"
     )
   ),
 

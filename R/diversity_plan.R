@@ -70,7 +70,7 @@ diversity_plan <- list(
       diversity |>
         filter(diversity_index == "diversity") |>
         tidyr::pivot_longer(
-          cols = c(ds_t2m, ds_vpd),
+          cols = c(gs_length, gs_temperature, gs_vpd, gdd, gs_diurnal_range),
           names_to = "climate_variable",
           values_to = "climate_value"
         ) |>
@@ -204,35 +204,35 @@ diversity_plan <- list(
           )
         )
     }
-  ),
+  )#,
 
-  tar_target(
-    name = diversity_model_checks,
-    command = {
-      diversity_model |>
-        rowwise() |>
-        mutate(model_check = list(performance::check_model(model))) |>
-        ungroup()
-    }
-  ),
+  #tar_target(
+  #  name = diversity_model_checks,
+  #  command = {
+  #    diversity_model |>
+  #      rowwise() |>
+  #      mutate(model_check = list(performance::check_model(model))) |>
+  #      ungroup()
+  #  }
+  #),
 
-  tar_target(
-    name = diversity_model_checks_ds_climate,
-    command = {
-      diversity_model_ds_climate |>
-        rowwise() |>
-        mutate(model_check = list(performance::check_model(model))) |>
-        ungroup()
-    }
-  ),
+  #tar_target(
+  #  name = diversity_model_checks_ds_climate,
+  #  command = {
+  #    diversity_model_ds_climate |>
+  #      rowwise() |>
+  #      mutate(model_check = list(performance::check_model(model))) |>
+  #      ungroup()
+  #  }
+  #),
 
-  tar_target(
-    name = diversity_model_checks_region_ds_climate,
-    command = {
-      diversity_model_region_ds_climate |>
-        rowwise() |>
-        mutate(model_check = list(performance::check_model(model))) |>
-        ungroup()
-    }
-  )
+  #tar_target(
+  #  name = diversity_model_checks_region_ds_climate,
+  #  command = {
+  #    diversity_model_region_ds_climate |>
+  #      rowwise() |>
+  #      mutate(model_check = list(performance::check_model(model))) |>
+  #      ungroup()
+  #  }
+  #),
 )

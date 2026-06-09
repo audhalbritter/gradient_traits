@@ -41,7 +41,7 @@ We assessed plant Shannon diversity and functional traits (i.e. community weight
 
 Description of the study systems and sites.
 
-We studied the following ecosystems/countries: arctic (PFTC4 Svalbard), boreal (PFTC6 Norway), temperate (Colorado), sub-tropics (PFTC1 and 2 China) and tropics (PFTC3, Puna project and PFCT5 Peru). 
+We studied the following ecosystems/countries: arctic (PFTC4 Svalbard), boreal (PFTC6 Norway), temperate (Colorado), sub-tropics (PFTC1 and 2 China) and tropics (PFTC3, Puna project and PFCT5 Peru).
 
 ```{r}
 #| label: fig-study-sites-map
@@ -58,12 +58,9 @@ regions_world_map
 
 ### Data collection
 
-We collected data on species community composition and functional leaf trait data from all PFTC courses and RMBL in Colorado. Describe data collection and refer to data papers.
-Describe which gradinets were used, e.g. Svalbard only control, not bird cliff, Peru not recently burned, etc.
-There are no chemical traits from Norway and South Africa yet, and these countries were excluded from the multivariate analysis.
+We collected data on species community composition and functional leaf trait data from all PFTC courses and RMBL in Colorado. Describe data collection and refer to data papers. Describe which gradinets were used, e.g. Svalbard only control, not bird cliff, Peru not recently burned, etc. There are no chemical traits from Norway and South Africa yet, and these countries were excluded from the multivariate analysis.
 
-Climate data: site-level mean latitude (plot coordinates averaged within each site) versus downscaled mean annual temperature at 2 m (T2m), using the same climate extract as in the analyses.
-
+Climate data: growing-season climate variables were derived from the hourly climate extract for each plot (growing season defined as runs of at least five consecutive days with daily mean temperature above 2 °C). We computed growing-season length, temperature, vapour pressure deficit (VPD), growing degree days (base 2 °C) and the mean diurnal temperature range, and summarise them here against site-level mean latitude.
 
 ### Data analysis
 
@@ -76,15 +73,16 @@ PCA
 Run mixed-effects models for diversity and traits vs. climate and latitude. Run a global model across all regions and regional models for each region.
 
 ```{r}
-#| label: fig-downscaled-t2m-latitude
+#| label: fig-climate-latitude
 #| echo: false
 #| warning: false
 #| message: false
-#| fig-height: 4
-#| fig-cap: "Downscaled mean annual temperature versus latitude. The colours show the regions and point size shows Elevation percentile, with low values indicate low elevation."
+#| fig-height: 6
+#| fig-width: 9
+#| fig-cap: "Growing-season climate variables (length, temperature, VPD, growing degree days and diurnal range) versus site latitude. The colours show the regions and point size shows the elevation percentile, with low values indicating low elevation."
 
-tar_load(downscaled_t2m_latitude_fig)
-downscaled_t2m_latitude_fig
+tar_load(climate_latitude_fig)
+climate_latitude_fig
 
 ```
 
@@ -112,12 +110,11 @@ diversity_three_panel_fig
 
 ### Functional leaf traits
 
-- Size traits decrease with elevation
+-   Size traits decrease with elevation
 
-- LDMC increases and SLA decreases with elevation
+-   LDMC increases and SLA decreases with elevation
 
-- Carbon and nutrient show different patterns with elevation across the regions.
-
+-   Carbon and nutrient show different patterns with elevation across the regions.
 
 ```{r}
 #| label: fig-trait-distribution
@@ -165,55 +162,55 @@ trait_pca_fig
 
 \newpage
 
-- Plant height, dry mass, leaf area and dC13 show a unimodal global relationship with mean annual temperature, showing highest values at intermediate temperatures
+-   Plant height, dry mass, leaf area and dC13 show a unimodal global relationship with mean annual temperature, showing highest values at intermediate temperatures
 
-- NP decreases and dN15 increases globally with mean annual temperature
+-   NP decreases and dN15 increases globally with mean annual temperature
 
-- The regional models show a close correlation with the global model for dry mass and leaf area.
+-   The regional models show a close correlation with the global model for dry mass and leaf area.
 
-- CN shows significant regaional relationship with mean annual temperature, but showing a reversed unimodal relationship (U shaped)
+-   CN shows significant regaional relationship with mean annual temperature, but showing a reversed unimodal relationship (U shaped)
 
-- Leaf P decreases with mean annual temperature, but only regionally
+-   Leaf P decreases with mean annual temperature, but only regionally
 
-- Leaf thickness, SLA, LDMC, leaf C, and N show no global or regional relationship with mean annual temperature
+-   Leaf thickness, SLA, LDMC, leaf C, and N show no global or regional relationship with mean annual temperature
 
 ```{r}
-#| label: fig-trait-ds-t2m
+#| label: fig-trait-gs-temperature
 #| echo: false
 #| warning: false
 #| fig-height: 9
 #| fig-width: 12
-#| fig-cap: "Functional traits versus mean annual tempearture. The points show the raw data and the lines are predictions. Solid lines indicare significant relationships, while dashed lines are non-significnat. The colours indicate the regions."
+#| fig-cap: "Functional traits versus growing season temperature. The points show the raw data and the lines are predictions. Solid lines indicare significant relationships, while dashed lines are non-significnat. The colours indicate the regions."
 
-tar_load(trait_climate_ds_t2m_fig)
-trait_climate_ds_t2m_fig
+tar_load(trait_climate_gs_temperature_fig)
+trait_climate_gs_temperature_fig
 
 ```
 
 \newpage
 
-- Leaf thickness decreases globally with VPD. SLA, Leaf N, and P show a unimodal global relationship with VPD, while LDMC, CN, NP (highest values at intermediate VPD), and dC13 show a reversed unimodal relationship (U shaped; lowest values at intermediate VPD).
+-   Leaf thickness decreases globally with VPD. SLA, Leaf N, and P show a unimodal global relationship with VPD, while LDMC, CN, NP (highest values at intermediate VPD), and dC13 show a reversed unimodal relationship (U shaped; lowest values at intermediate VPD).
 
-- Dry mass, leaf area and SLA show regional unimodal relationships with VPD.
+-   Dry mass, leaf area and SLA show regional unimodal relationships with VPD.
 
-- Leaf thickness and CN ratio show a reveresed regional unimodal relationship with VPD.
+-   Leaf thickness and CN ratio show a reveresed regional unimodal relationship with VPD.
 
-- Leaf P decreases regionally with VPD, showing opposite pattern to the global relationship.
+-   Leaf P decreases regionally with VPD, showing opposite pattern to the global relationship.
 
-- The regional pattern for leaf thickness, SLA, and CN ratio sort of reflects the global pattern.
+-   The regional pattern for leaf thickness, SLA, and CN ratio sort of reflects the global pattern.
 
-- Plant height, leaf C and dN15 show no global or regional relationship with VPD.
+-   Plant height, leaf C and dN15 show no global or regional relationship with VPD.
 
 ```{r}
-#| label: fig-trait-ds-vpd
+#| label: fig-trait-gs-vpd
 #| echo: false
 #| warning: false
 #| fig-height: 9
 #| fig-width: 12
-#| fig-cap: "Functional traits versus vapour pressure deficit. The points show the raw data and the lines are predictions. Solid lines indicare significant relationships, while dashed lines are non-significnat. The colours indicate the regions."
+#| fig-cap: "Functional traits versus growing season vapour pressure deficit. The points show the raw data and the lines are predictions. Solid lines indicare significant relationships, while dashed lines are non-significnat. The colours indicate the regions."
 
-tar_load(trait_climate_ds_vpd_fig)
-trait_climate_ds_vpd_fig
+tar_load(trait_climate_gs_vpd_fig)
+trait_climate_gs_vpd_fig
 
 ```
 
@@ -287,18 +284,11 @@ trait_results_table <- trait_models_output |>
         ),
         # Clean up predictor names using the climate_variable_clean from the data
         predictor_clean = case_when(
-            climate_variable == "ds_t2m" ~ "Mean annual temperature at 2 m (downscaled)",
-            climate_variable == "ds_vpd" ~ "Vapour pressure deficit (downscaled)",
-            climate_variable == "growing_season_length" ~ "Growing Season Length (GEE)",
-            climate_variable == "gsl_1981-2010_chelsa" ~ "Growing Season Length (CHELSA)",
-            climate_variable == "gst_1981-2010_chelsa" ~ "Growing Season Temperature (CHELSA)",
-            climate_variable == "gsp_1981-2010_chelsa" ~ "Growing Season Precipitation (CHELSA)",
-            climate_variable == "pet_penman_mean_1981-2010_chelsa" ~ "Potential Evapotranspiration (CHELSA)",
-            climate_variable == "vpd_mean_1981-2010_chelsa" ~ "Vapour Pressure Deficit (CHELSA)",
-            climate_variable == "mean_temperture_warmest_quarter_bioclim" ~ "Mean Temperature Warmest Quarter (WorldClim)",
-            climate_variable == "precipitation_warmest_quarter_bioclim" ~ "Precipitation Warmest Quarter (WorldClim)",
-            climate_variable == "diurnal_range_bioclim" ~ "Mean Diurnal Range (WorldClim)",
-            climate_variable == "annual_temperature_bioclim" ~ "Annual Temperature (WorldClim)",
+            climate_variable == "gs_length" ~ "Growing season length (days)",
+            climate_variable == "gs_temperature" ~ "Growing season temperature (°C)",
+            climate_variable == "gs_vpd" ~ "Growing season VPD",
+            climate_variable == "gdd" ~ "Growing degree days (>2°C)",
+            climate_variable == "gs_diurnal_range" ~ "Diurnal range (°C)",
             TRUE ~ climate_variable
         ),
         # Round numeric values

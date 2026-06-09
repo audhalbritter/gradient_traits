@@ -91,7 +91,20 @@ make_region_world_map <- function(coords) {
     ggplot2::labs(x = "Longitude", y = "Latitude")
 }
 
-make_downscaled_t2m_latitude_plot <- function(dat) {
+climate_variable_labels <- function() {
+  c(
+    gs_length = "Growing season length (days)",
+    gs_temperature = "Growing season temperature (°C)",
+    gs_vpd = "Growing season VPD",
+    gdd = "Growing degree days (>2°C)",
+    gs_diurnal_range = "Diurnal range (°C)"
+  )
+}
+
+# All five growing-season climate variables versus site latitude (faceted)
+make_climate_latitude_plot <- function(dat) {
+  labels <- climate_variable_labels()
+
   plot_data <- dat |>
     group_by(region) |>
     mutate(elevation_percentile = percent_rank(elevation_m) * 100) |>
@@ -99,22 +112,35 @@ make_downscaled_t2m_latitude_plot <- function(dat) {
     mutate(region = factor(region, levels = c(
       "Svalbard", "Southern Scandes", "Rocky Mountains",
       "Eastern Himalaya", "Central Andes", "Drakensberg"
-    )))
+    ))) |>
+    pivot_longer(
+      cols = all_of(names(labels)),
+      names_to = "climate_variable",
+      values_to = "climate_value"
+    ) |>
+    filter(!is.na(climate_value)) |>
+    mutate(climate_variable = factor(
+      climate_variable,
+      levels = names(labels),
+      labels = unname(labels)
+    ))
 
-  ggplot(plot_data, aes(x = latitude_n, y = T2m, color = region)) +
+  ggplot(plot_data, aes(x = latitude_n, y = climate_value, color = region)) +
     geom_point(aes(size = elevation_percentile), alpha = 0.6) +
+    facet_wrap(~climate_variable, scales = "free_y") +
     scale_color_manual(values = create_region_color_mapping()) +
     scale_size_continuous(name = "Elevation percentile", range = c(1.5, 5)) +
     theme_bw() +
     theme(
       legend.position = "top",
       legend.box = "horizontal",
+      strip.text = element_text(size = 11, face = "bold"),
       axis.title = element_text(size = 12),
       axis.text = element_text(size = 10)
     ) +
     labs(
       x = "Latitude (°N)",
-      y = "Mean annual temperature (°C)",
+      y = NULL,
       color = "Region",
       size = "Elevation percentile"
     )
@@ -246,8 +272,8 @@ make_diversity_three_panel_plot <- function(lat_predictions, climate_predictions
   p_t2m <- make_diversity_climate_plot(
     region_predictions = climate_predictions$region,
     global_predictions = climate_predictions$global,
-    climate_variable = "ds_t2m",
-    xlab = "Mean annual temperature (°C)",
+    climate_variable = "gs_temperature",
+    xlab = "Growing season temperature (°C)",
     compact = TRUE
   ) +
     ggplot2::labs(y = NULL)
@@ -255,8 +281,8 @@ make_diversity_three_panel_plot <- function(lat_predictions, climate_predictions
   p_vpd <- make_diversity_climate_plot(
     region_predictions = climate_predictions$region,
     global_predictions = climate_predictions$global,
-    climate_variable = "ds_vpd",
-    xlab = "VPD",
+    climate_variable = "gs_vpd",
+    xlab = "Growing season VPD",
     compact = TRUE
   ) +
     ggplot2::labs(y = NULL)

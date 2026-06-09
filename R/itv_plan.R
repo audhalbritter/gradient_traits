@@ -170,11 +170,11 @@ itv_plan <- list(
           panel.spacing = unit(0.3, "cm")
         )
     }
-  ),
+  )#,
 
   # 8. Render HTML report of the model checks
-  tarchetypes::tar_quarto(
-    name = itv_model_checks_report,
-    path = "itv_model_checks.qmd"
-  )
+  #tarchetypes::tar_quarto(
+  #  name = itv_model_checks_report,
+  #  path = "itv_model_checks.qmd"
+  #)
 )

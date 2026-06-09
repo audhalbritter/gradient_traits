@@ -10,7 +10,7 @@ library(targets)
 targets::tar_make()
 
 # run only one target
-# targets::tar_delete(bioclim)
-# targets::tar_make(bioclim)
+# targets::tar_delete(growing_season_climate)
+# targets::tar_make(growing_season_climate)
 
 tar_load_everything()
