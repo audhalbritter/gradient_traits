@@ -14,3 +14,8 @@ targets::tar_make()
 # targets::tar_make(growing_season_climate)
 
 tar_load_everything()
+
+
+# output
+tar_load(regions_world_map)
+ggsave("figures/regions_world_map.png", regions_world_map, width = 10, height = 6)

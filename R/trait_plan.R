@@ -38,10 +38,12 @@ trait_plan <- list(
           )
         ) |>
         filter(!is.na(climate_value)) |>
+        center_climate_long(group_vars = "climate_variable") |>
         rename(trait_value = mean) |>
         select(
           country:ecosystem, elevation_m, latitude_n, longitude_e, trait_trans, trait_value,
-          climate_variable, climate_variable_clean, climate_value, data_source
+          climate_variable, climate_variable_clean, climate_value, climate_value_raw,
+          climate_mean, data_source
         )
     }
   ),
@@ -190,6 +192,17 @@ trait_plan <- list(
   ),
 
   tar_target(
+    name = trait_climate_results_table,
+    command = {
+      dplyr::bind_rows(
+        format_trait_climate_model_table(trait_models_output, "Global"),
+        format_trait_climate_model_table(trait_models_region_output, "Regional (+ region)")
+      ) |>
+        arrange(predictor_clean, model_scope, trait_clean, term_clean)
+    }
+  ),
+
+  tar_target(
     name = trait_model_checks,
     command = {
       trait_models_output |>
@@ -200,16 +213,16 @@ trait_plan <- list(
     }
   ),
 
-  # tar_target(
-  #   name = trait_model_checks_region,
-  #   command = {
-  #     trait_models_region_output |>
-  #       rowwise() |>
-  #       mutate(model_check = list(performance::check_model(model))) |>
-  #       ungroup() |>
-  #       filter(!is.null(model_check))
-  #   }
-  # ),
+  tar_target(
+    name = trait_model_checks_region,
+    command = {
+      trait_models_region_output |>
+        rowwise() |>
+        mutate(model_check = list(performance::check_model(model))) |>
+        ungroup() |>
+        filter(!is.null(model_check))
+    }
+  ),
 
   # Trait variance vs climate
   tar_target(
@@ -219,7 +232,11 @@ trait_plan <- list(
         filter(!is.na(gs_temperature)) |>
         select(country:ecosystem, trait_trans, var, gs_temperature) |>
         mutate(trait_value = var) |>
-        mutate(climate_value = gs_temperature) |>
+        mutate(
+          climate_value_raw = gs_temperature,
+          climate_mean = mean(gs_temperature, na.rm = TRUE),
+          climate_value = gs_temperature - climate_mean
+        ) |>
         filter(trait_trans %in% trait_trans_mean_for_climate)
     }
   ),
@@ -330,7 +347,7 @@ trait_plan <- list(
           predictions = purrr::map2(data, model, ~ {
             safe_pred <- purrr::safely(lmer_prediction_trait)
             pred_result <- safe_pred(dat = .x, fit = .y, predictor = "climate_value")
-            bind_cols(.x |> select(-climate_value), pred_result$result)
+            bind_cols(.x |> select(-climate_value, -climate_mean), pred_result$result)
           })
         )
     }

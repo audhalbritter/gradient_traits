@@ -17,7 +17,7 @@ make_trait_region_climate_plot <- function(data, prediction_region, prediction_g
   prediction_region <- prediction_region %>% fancy_trait_name_dictionary()
   prediction_global <- prediction_global %>% fancy_trait_name_dictionary()
 
-  ggplot(data, aes(x = climate_value, y = trait_value)) +
+  ggplot(data, aes(x = climate_value_raw, y = trait_value)) +
     geom_point(aes(colour = region), alpha = 0.4, size = 1.5) +
     geom_ribbon(
       data = prediction_region,

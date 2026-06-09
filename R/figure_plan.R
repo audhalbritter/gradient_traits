@@ -40,11 +40,22 @@ figure_plan <- list(
     command = make_climate_seasonality_plot(daily_climate, growing_season)
   ),
 
-  # Shannon diversity: latitude, downscaled T2m, VPD (single composite figure)
+  # Shannon diversity: latitude, growing-season temperature, VPD (single composite figure)
   tar_target(
     name = diversity_three_panel_fig,
     command = make_diversity_three_panel_plot(
       lat_predictions = diversity_predictions,
+      climate_predictions = list(
+        global = diversity_predictions_ds_climate,
+        region = diversity_predictions_region_ds_climate
+      )
+    )
+  ),
+
+  # Shannon diversity vs all five growing-season climate variables
+  tar_target(
+    name = diversity_climate_five_panel_fig,
+    command = make_diversity_climate_five_panel_plot(
       climate_predictions = list(
         global = diversity_predictions_ds_climate,
         region = diversity_predictions_region_ds_climate
@@ -68,21 +79,21 @@ figure_plan <- list(
     command = make_trait_ridgeline_plot(trait_mean_long)
   ),
 
-  # Trait vs growing-season climate (mean traits only)
+  # Trait vs growing-season climate — one figure per climate variable (mean traits only)
   tar_target(
-    name = trait_climate_gs_temperature_fig,
-    command = make_trait_comparison_plot(
-      trait_models_region_output, trait_models_output, trait_mean_long,
-      "gs_temperature", "Growing season temperature (°C)"
-    )
-  ),
-
-  tar_target(
-    name = trait_climate_gs_vpd_fig,
-    command = make_trait_comparison_plot(
-      trait_models_region_output, trait_models_output, trait_mean_long,
-      "gs_vpd", "Growing season VPD"
-    )
+    name = trait_climate_figs,
+    command = {
+      labels <- climate_variable_labels()
+      purrr::imap(labels, function(lab, var) {
+        make_trait_comparison_plot(
+          trait_models_region_output,
+          trait_models_output,
+          trait_mean_long,
+          var,
+          lab
+        )
+      })
+    }
   ),
 
   # Trait sampling coverage diagnostic from traitstrap fill levels

@@ -74,7 +74,8 @@ diversity_plan <- list(
           names_to = "climate_variable",
           values_to = "climate_value"
         ) |>
-        filter(!is.na(climate_value))
+        filter(!is.na(climate_value)) |>
+        center_climate_long(group_vars = c("diversity_index", "climate_variable"))
     }
   ),
 
@@ -170,7 +171,7 @@ diversity_plan <- list(
             .x = data,
             .y = prediction,
             .f = ~ dplyr::bind_cols(
-              .x |> dplyr::select(-climate_value),
+              .x |> dplyr::select(-climate_value, -climate_mean),
               .y
             )
           )
@@ -198,41 +199,41 @@ diversity_plan <- list(
             .x = data,
             .y = prediction,
             .f = ~ dplyr::bind_cols(
-              .x |> dplyr::select(-climate_value),
+              .x |> dplyr::select(-climate_value, -climate_mean),
               .y
             )
           )
         )
     }
-  )#,
+  ),
 
-  #tar_target(
-  #  name = diversity_model_checks,
-  #  command = {
-  #    diversity_model |>
-  #      rowwise() |>
-  #      mutate(model_check = list(performance::check_model(model))) |>
-  #      ungroup()
-  #  }
-  #),
+  tar_target(
+    name = diversity_model_checks,
+    command = {
+      diversity_model |>
+        rowwise() |>
+        mutate(model_check = list(performance::check_model(model))) |>
+        ungroup()
+    }
+  ),
 
-  #tar_target(
-  #  name = diversity_model_checks_ds_climate,
-  #  command = {
-  #    diversity_model_ds_climate |>
-  #      rowwise() |>
-  #      mutate(model_check = list(performance::check_model(model))) |>
-  #      ungroup()
-  #  }
-  #),
+  tar_target(
+    name = diversity_model_checks_ds_climate,
+    command = {
+      diversity_model_ds_climate |>
+        rowwise() |>
+        mutate(model_check = list(performance::check_model(model))) |>
+        ungroup()
+    }
+  ),
 
-  #tar_target(
-  #  name = diversity_model_checks_region_ds_climate,
-  #  command = {
-  #    diversity_model_region_ds_climate |>
-  #      rowwise() |>
-  #      mutate(model_check = list(performance::check_model(model))) |>
-  #      ungroup()
-  #  }
-  #),
+  tar_target(
+    name = diversity_model_checks_region_ds_climate,
+    command = {
+      diversity_model_region_ds_climate |>
+        rowwise() |>
+        mutate(model_check = list(performance::check_model(model))) |>
+        ungroup()
+    }
+  )
 )

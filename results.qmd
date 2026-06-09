@@ -122,6 +122,20 @@ diversity_three_panel_fig
 
 ```
 
+```{r}
+#| label: fig-diversity-climate-all
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-height: 8
+#| fig-width: 11
+#| fig-cap: "Shannon diversity versus all five growing-season climate variables. Points show raw data; coloured lines are regional model predictions and the grey line is the global model. Solid lines indicate a significant climate term (p < 0.05); dashed lines are non-significant."
+
+tar_load(diversity_climate_five_panel_fig)
+diversity_climate_five_panel_fig
+
+```
+
 ### Functional leaf traits
 
 -   Size traits decrease with elevation
@@ -189,42 +203,27 @@ trait_pca_fig
 -   Leaf thickness, SLA, LDMC, leaf C, and N show no global or regional relationship with mean annual temperature
 
 ```{r}
-#| label: fig-trait-gs-temperature
+#| label: fig-trait-climate-all
 #| echo: false
 #| warning: false
+#| results: asis
 #| fig-height: 9
 #| fig-width: 12
-#| fig-cap: "Functional traits versus growing season temperature. The points show the raw data and the lines are predictions. Solid lines indicare significant relationships, while dashed lines are non-significnat. The colours indicate the regions."
 
-tar_load(trait_climate_gs_temperature_fig)
-trait_climate_gs_temperature_fig
+tar_load(trait_climate_figs)
+climate_labels <- c(
+  gs_length = "Growing season length (days)",
+  gs_temperature = "Growing season temperature (°C)",
+  gs_vpd = "Growing season VPD",
+  gdd = "Growing degree days (>5°C)",
+  gs_diurnal_range = "Diurnal range (°C)"
+)
 
-```
-
-\newpage
-
--   Leaf thickness decreases globally with VPD. SLA, Leaf N, and P show a unimodal global relationship with VPD, while LDMC, CN, NP (highest values at intermediate VPD), and dC13 show a reversed unimodal relationship (U shaped; lowest values at intermediate VPD).
-
--   Dry mass, leaf area and SLA show regional unimodal relationships with VPD.
-
--   Leaf thickness and CN ratio show a reveresed regional unimodal relationship with VPD.
-
--   Leaf P decreases regionally with VPD, showing opposite pattern to the global relationship.
-
--   The regional pattern for leaf thickness, SLA, and CN ratio sort of reflects the global pattern.
-
--   Plant height, leaf C and dN15 show no global or regional relationship with VPD.
-
-```{r}
-#| label: fig-trait-gs-vpd
-#| echo: false
-#| warning: false
-#| fig-height: 9
-#| fig-width: 12
-#| fig-cap: "Functional traits versus growing season vapour pressure deficit. The points show the raw data and the lines are predictions. Solid lines indicare significant relationships, while dashed lines are non-significnat. The colours indicate the regions."
-
-tar_load(trait_climate_gs_vpd_fig)
-trait_climate_gs_vpd_fig
+purrr::iwalk(trait_climate_figs, function(fig, var) {
+  cat("\n\n###", climate_labels[[var]], "\n\n")
+  print(fig)
+  cat("\n\n\\newpage\n\n")
+})
 
 ```
 
@@ -276,83 +275,70 @@ leps_itv_plot
 #| warning: false
 #| message: false
 
-tar_load(trait_models_output)
+tar_load(trait_climate_results_table)
+trait_results_table <- trait_climate_results_table
 
-# Create a nice table of trait model results from the new long-format models
-trait_results_table <- trait_models_output |>
-    # Unnest the tidy results
-    unnest(tidy_results) |>
-    filter(effect == "fixed", term != "(Intercept)") |> # Only fixed effects, exclude intercept
-    mutate(
-        # Clean up trait names using fancy names
-        trait_clean = case_when(
-            trait_trans == "plant_height_cm_log" ~ "Height cm",
-            trait_trans == "dry_mass_g_log" ~ "Dry mass g",
-            trait_trans == "leaf_area_cm2_log" ~ "Area cm²",
-            trait_trans == "thickness_mm_log" ~ "Thickness mm",
-            trait_trans == "ldmc" ~ "LDMC",
-            trait_trans == "sla_cm2_g" ~ "SLA cm²/g",
-            trait_trans == "c_percent" ~ "C %",
-            trait_trans == "n_percent" ~ "N %",
-            TRUE ~ stringr::str_replace_all(trait_trans, "_", " ") |> stringr::str_to_title()
-        ),
-        # Clean up predictor names using the climate_variable_clean from the data
-        predictor_clean = case_when(
-            climate_variable == "gs_length" ~ "Growing season length (days)",
-            climate_variable == "gs_temperature" ~ "Growing season temperature (°C)",
-            climate_variable == "gs_vpd" ~ "Growing season VPD",
-            climate_variable == "gdd" ~ "Growing degree days (>5°C)",
-            climate_variable == "gs_diurnal_range" ~ "Diurnal range (°C)",
-            TRUE ~ climate_variable
-        ),
-        # Round numeric values
-        estimate = round(estimate, 3),
-        std.error = round(std.error, 3),
-        statistic = round(statistic, 2),
-        p.value = round(p.value, 3),
-        # Create significance indicator for formatting
-        is_significant = p.value < 0.05
-    ) |>
-    select(trait_clean, predictor_clean, estimate, std.error, statistic, df, p.value, is_significant)
+row_groups <- trait_results_table |>
+  distinct(predictor_clean, model_scope) |>
+  arrange(predictor_clean, model_scope)
 
-# Create the gt table with proper ordering
-trait_results_table |>
-    arrange(predictor_clean, trait_clean) |> # Sort by predictor first, then trait
-    group_by(predictor_clean) |>
-    gt() |>
-    cols_hide(columns = c(predictor_clean, is_significant)) |> # Hide predictor and significance columns
-    tab_header(
-        title = "Trait Model Results",
-        subtitle = "Mixed-effects models showing relationships between functional traits and environmental predictors"
-    ) |>
-    cols_label(
-        trait_clean = "Trait",
-        estimate = "Estimate",
-        std.error = "SE",
-        statistic = "t-statistic",
-        df = "df",
-        p.value = "p-value"
-    ) |>
-    tab_style(
-        style = cell_text(weight = "bold"),
-        locations = cells_body(
-            columns = everything(),
-            rows = is_significant == TRUE
-        )
-    ) |>
-    tab_style(
-        style = cell_text(weight = "bold"),
-        locations = cells_column_labels()
-    ) |>
-    tab_style(
-        style = cell_text(align = "center"),
-        locations = cells_body(columns = c(estimate, std.error, statistic, df, p.value))
-    ) |>
-    tab_options(
-        table.font.size = 11,
-        heading.title.font.size = 14,
-        heading.subtitle.font.size = 12,
-        column_labels.font.weight = "bold"
+trait_gt <- trait_results_table |>
+  arrange(predictor_clean, model_scope, trait_clean, term_clean) |>
+  select(-predictor_clean, -model_scope) |>
+  gt() |>
+  tab_header(
+    title = "Trait–climate model results",
+    subtitle = paste(
+      "AIC-selected linear or polynomial mixed-effects models.",
+      "Climate predictors were mean-centred within each climate variable before fitting;",
+      "coefficients refer to the centred scale.",
+      "Global models: trait ~ climate + (1 | site).",
+      "Regional models: trait ~ climate + region + (1 | site).",
+      "Polynomial models show separate rows for the linear and squared climate terms."
     )
+  ) |>
+  cols_label(
+    model_type_clean = "Model",
+    trait_clean = "Trait",
+    term_clean = "Term",
+    estimate = "Estimate",
+    std.error = "SE",
+    statistic = "t-statistic",
+    df = "df",
+    p.value = "p-value"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = everything(),
+      rows = is_significant
+    )
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_body(columns = c(estimate, std.error, statistic, df, p.value))
+  ) |>
+  cols_hide(columns = is_significant) |>
+  tab_options(
+    table.font.size = 11,
+    heading.title.font.size = 14,
+    heading.subtitle.font.size = 12,
+    column_labels.font.weight = "bold"
+  )
+
+purrr::pwalk(row_groups, function(predictor_clean, model_scope, ...) {
+  trait_gt <<- trait_gt |>
+    tab_row_group(
+      label = paste(predictor_clean, "—", model_scope),
+      rows = trait_results_table$predictor_clean == predictor_clean &
+        trait_results_table$model_scope == model_scope
+    )
+})
+
+trait_gt
 
 ```
