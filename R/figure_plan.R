@@ -34,6 +34,12 @@ figure_plan <- list(
     }
   ),
 
+  # Mean daily temperature seasonality per country, with the growing-season window
+  tar_target(
+    name = climate_seasonality_fig,
+    command = make_climate_seasonality_plot(daily_climate, growing_season)
+  ),
+
   # Shannon diversity: latitude, downscaled T2m, VPD (single composite figure)
   tar_target(
     name = diversity_three_panel_fig,

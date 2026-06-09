@@ -91,61 +91,6 @@ make_region_world_map <- function(coords) {
     ggplot2::labs(x = "Longitude", y = "Latitude")
 }
 
-climate_variable_labels <- function() {
-  c(
-    gs_length = "Growing season length (days)",
-    gs_temperature = "Growing season temperature (°C)",
-    gs_vpd = "Growing season VPD",
-    gdd = "Growing degree days (>2°C)",
-    gs_diurnal_range = "Diurnal range (°C)"
-  )
-}
-
-# All five growing-season climate variables versus site latitude (faceted)
-make_climate_latitude_plot <- function(dat) {
-  labels <- climate_variable_labels()
-
-  plot_data <- dat |>
-    group_by(region) |>
-    mutate(elevation_percentile = percent_rank(elevation_m) * 100) |>
-    ungroup() |>
-    mutate(region = factor(region, levels = c(
-      "Svalbard", "Southern Scandes", "Rocky Mountains",
-      "Eastern Himalaya", "Central Andes", "Drakensberg"
-    ))) |>
-    pivot_longer(
-      cols = all_of(names(labels)),
-      names_to = "climate_variable",
-      values_to = "climate_value"
-    ) |>
-    filter(!is.na(climate_value)) |>
-    mutate(climate_variable = factor(
-      climate_variable,
-      levels = names(labels),
-      labels = unname(labels)
-    ))
-
-  ggplot(plot_data, aes(x = latitude_n, y = climate_value, color = region)) +
-    geom_point(aes(size = elevation_percentile), alpha = 0.6) +
-    facet_wrap(~climate_variable, scales = "free_y") +
-    scale_color_manual(values = create_region_color_mapping()) +
-    scale_size_continuous(name = "Elevation percentile", range = c(1.5, 5)) +
-    theme_bw() +
-    theme(
-      legend.position = "top",
-      legend.box = "horizontal",
-      strip.text = element_text(size = 11, face = "bold"),
-      axis.title = element_text(size = 12),
-      axis.text = element_text(size = 10)
-    ) +
-    labs(
-      x = "Latitude (°N)",
-      y = NULL,
-      color = "Region",
-      size = "Elevation percentile"
-    )
-}
-
 make_diversity_plot <- function(data, compact = FALSE) {
   pt <- if (compact) 1.8 else 2.4
   lw <- if (compact) 0.95 else 1.2

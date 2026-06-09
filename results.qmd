@@ -93,7 +93,7 @@ climate_latitude_fig
 #| message: false
 #| fig-height: 6
 #| fig-width: 9
-#| fig-cap: "Mean daily temperature through the year for each country (averaged across plots), ordered so the growing season is contiguous (Southern Hemisphere sites shifted to a July–June year). The dashed line marks the 5 °C growing-season threshold and the coloured bar shows the mean detected growing-season window, labelled with its length in days."
+#| fig-cap: "Mean daily temperature through the year for each country (averaged across plots), ordered so the growing season is contiguous (Southern Hemisphere sites shifted to a July–June year). All panels share the same y-axis for comparison. The dashed line marks the 5 °C growing-season threshold. The lighter bar spans the shortest to longest growing season across sites within each country; the darker bar shows the country mean window, labelled with the mean length in days."
 
 tar_load(climate_seasonality_fig)
 climate_seasonality_fig
