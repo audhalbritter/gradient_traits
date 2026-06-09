@@ -23,12 +23,18 @@ transformation_plan <- list(
       )
   ),
 
-  # Hourly PFTC extract with trait/community keys; keeps all timesteps (no site summarise)
+  # Hourly PFTC extract with trait/community keys (one row per plot x timestep)
   tar_target(
     name = hourly_climate,
     command = hourly_climate_raw |>
       downscaled_climate_add_site_keys() |>
-      filter(!is.na(site))
+      filter(!is.na(site), !is.na(plot_id))
+  ),
+
+  # Plot-mean climate from hourly extract (joins to traits / community at plot_id)
+  tar_target(
+    name = plot_climate,
+    command = summarise_climate_by_plot(hourly_climate)
   ),
 
   # calculate diversity indices
@@ -44,13 +50,15 @@ transformation_plan <- list(
           .groups = "drop"
         )
 
-      # Downscaled climate (mean annual T at 2 m, VPD) joined by site
+      # Hourly climate summarised per plot (China community: match via bio_climate_plot_id)
       community_agg |>
+        mutate(plot_id_clim = bio_climate_plot_id(country, plot_id)) |>
         tidylog::left_join(
-          downscaled_climate |>
-            select(country, gradient, site, ds_t2m = T2m, ds_vpd = VPD),
-          by = join_by(country, gradient, site)
+          plot_climate |>
+            select(country, gradient, site, plot_id, ds_t2m = T2m, ds_vpd = VPD),
+          by = join_by(country, gradient, site, plot_id_clim == plot_id)
         ) |>
+        select(-plot_id_clim) |>
         pivot_longer(cols = c(diversity, sum_abundance), names_to = "diversity_index", values_to = "value") |>
         # Ensure region is ordered consistently (north to south)
         mutate(region = factor(region, levels = c(
@@ -199,9 +207,9 @@ transformation_plan <- list(
           )
         )) |>
         tidylog::left_join(
-          downscaled_climate |>
-            select(country, gradient, site, ds_t2m = T2m, ds_vpd = VPD),
-          by = join_by(country, gradient, site)
+          plot_climate |>
+            select(country, gradient, site, plot_id, ds_t2m = T2m, ds_vpd = VPD),
+          by = join_by(country, gradient, site, plot_id)
         ) |>
         # Ensure region is ordered consistently (north to south)
         mutate(region = factor(region, levels = c(

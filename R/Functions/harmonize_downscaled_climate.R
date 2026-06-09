@@ -5,16 +5,16 @@
 #' levels). Aggregating to `country`, `gradient`, and `site` matches how traits
 #' are keyed and avoids losing rows when joining climate to analyses.
 #'
-#' Used by `downscaled_climate` (site means via [summarise_downscaled_climate_by_site()])
-#' and `hourly_climate` (plot x datetime rows, filtered to mapped sites only).
+#' Used by `hourly_climate` (plot x timestep), `plot_climate` (plot means), and the
+#' legacy `downscaled_climate` target (site means).
 
-#' Add `country`, `gradient`, and `site` from raw `area` / `plot_id`.
+#' Add `country`, `gradient`, `site`, and trait-matching `plot_id` from raw `area` / `plot_id`.
 #'
 #' `site` strings match those built in [cleaning_functions.R] (e.g. `no_Liahovden`,
 #' `co_CBT`, `pe_B_ACJ`, `sv_C_2`). Svalbard N/B plots and Peru NB/BB bands are
 #' dropped (`site` is `NA`). Peru rows get `gradient` from [expand_pe_climate_seasons()].
 #'
-#' @return Input plus `area_raw`, `plot_id_raw`, `country`, `gradient`, `site`.
+#' @return Input plus `area_raw`, `plot_id_raw`, `country`, `gradient`, `site`, `plot_id`.
 downscaled_climate_add_site_keys <- function(dat) {
   dat |>
     rename(area_raw = area, plot_id_raw = plot_id) |>
@@ -33,7 +33,97 @@ downscaled_climate_add_site_keys <- function(dat) {
       site = pmap_chr(list(country, plot_id_raw), dc_trait_site_chr),
       gradient = pmap_chr(list(country, plot_id_raw), dc_trait_gradient_chr)
     ) |>
-    expand_pe_climate_seasons()
+    expand_pe_climate_seasons() |>
+    mutate(
+      plot_id = pmap_chr(
+        list(country, site, gradient, plot_id_raw),
+        dc_trait_plot_id_chr
+      )
+    )
+}
+
+
+#' Trait/community `plot_id` used to join climate at plot resolution.
+#'
+#' China community uses a `-C` suffix on control turfs; climate and traits use the
+#' base id (e.g. `ch_A1`).
+bio_climate_plot_id <- function(country, plot_id) {
+  dplyr::if_else(
+    country == "ch",
+    stringr::str_remove(plot_id, "-C$"),
+    plot_id
+  )
+}
+
+
+dc_trait_plot_id_chr <- function(cnt, site, grad, raw) {
+  if (any(is.na(c(cnt, site, raw)))) {
+    return(NA_character_)
+  }
+
+  if (cnt == "co") {
+    num <- stringr::str_extract(raw, "[0-9]+$")
+    if (is.na(num)) {
+      return(NA_character_)
+    }
+    return(paste0(site, "_", num))
+  }
+
+  if (cnt == "ch") {
+    m <- stringr::str_match(raw, "^CH_([AMLH])([0-9]+)")
+    if (any(is.na(m[1, ]))) {
+      return(NA_character_)
+    }
+    return(paste0("ch_", m[1, 2], m[1, 3]))
+  }
+
+  if (cnt == "no") {
+    turf <- dplyr::case_when(
+      stringr::str_detect(raw, "^NO_Hog_") ~ stringr::str_remove(raw, "^NO_Hog_"),
+      stringr::str_detect(raw, "^NO_Joa_") ~ stringr::str_remove(raw, "^NO_Joa_"),
+      stringr::str_detect(raw, "^NO_Lia_") ~ stringr::str_remove(raw, "^NO_Lia_"),
+      stringr::str_detect(raw, "^NO_Vik_") ~ stringr::str_remove(raw, "^NO_Vik_"),
+      TRUE ~ NA_character_
+    )
+    if (is.na(turf)) {
+      return(NA_character_)
+    }
+    return(paste0(site, "_", turf))
+  }
+
+  if (cnt == "pe") {
+    core <- stringr::str_sub(raw, 4L)
+    parts <- stringr::str_split(core, "_")[[1]]
+    n <- length(parts)
+    if (n < 3L) {
+      return(NA_character_)
+    }
+    band <- parts[n - 1L]
+    num <- parts[n]
+    if (!band %in% c("B", "C")) {
+      return(NA_character_)
+    }
+    return(paste0(band, "_", site, "_", num))
+  }
+
+  if (cnt == "sa") {
+    m <- stringr::str_match(raw, "^SA_(\\d+)(east|west)(\\d+)$")
+    if (any(is.na(m[1, ]))) {
+      return(NA_character_)
+    }
+    return(paste0(site, "_", m[1, 4]))
+  }
+
+  if (cnt == "sv") {
+    core <- stringr::str_remove(raw, "^SV_")
+    m <- stringr::str_match(core, "^C(\\d+)([A-Z])$")
+    if (any(is.na(m[1, ]))) {
+      return(NA_character_)
+    }
+    return(paste0("C_", site, "_", m[1, 3]))
+  }
+
+  NA_character_
 }
 
 
@@ -186,6 +276,28 @@ sv_trait_site_gradient_from_raw <- function(raw) {
     return(out)
   }
   out
+}
+
+
+#' Average numeric climate columns to one row per plot (`country` × `gradient` × `site` × `plot_id`).
+summarise_climate_by_plot <- function(dat) {
+  numeric_cols <- dat |>
+    select(where(is.numeric)) |>
+    names()
+
+  if (length(numeric_cols) == 0L) {
+    return(dat |> filter(FALSE))
+  }
+
+  dat |>
+    filter(!is.na(site), !is.na(plot_id)) |>
+    summarise(
+      area_raw = dplyr::first(area_raw),
+      plot_id_raw = dplyr::first(plot_id_raw),
+      n_timesteps = dplyr::n(),
+      across(all_of(numeric_cols), \(x) mean(x, na.rm = TRUE)),
+      .by = c(country, gradient, site, plot_id)
+    )
 }
 
 
