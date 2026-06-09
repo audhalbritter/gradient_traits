@@ -60,7 +60,7 @@ regions_world_map
 
 We collected data on species community composition and functional leaf trait data from all PFTC courses and RMBL in Colorado. Describe data collection and refer to data papers. Describe which gradinets were used, e.g. Svalbard only control, not bird cliff, Peru not recently burned, etc. There are no chemical traits from Norway and South Africa yet, and these countries were excluded from the multivariate analysis.
 
-Climate data: growing-season climate variables were derived from the hourly climate extract for each plot (growing season defined as runs of at least five consecutive days with daily mean temperature above 2 °C). We computed growing-season length, temperature, vapour pressure deficit (VPD), growing degree days (base 2 °C) and the mean diurnal temperature range, and summarise them here against site-level mean latitude.
+Climate data: growing-season climate variables were derived from the hourly climate extract for each plot. We first aggregated the hourly data to daily mean, minimum and maximum temperature and mean VPD. The growing season was then defined as the longest continuous run of at least five days with daily mean temperature above 5 °C (the conventional thermal growing season). Short cold snaps embedded within the season — below-threshold runs shorter than five days that are flanked by warm spells — were bridged and counted as part of the growing season, so that brief mid-season cold spells do not truncate it. Southern Hemisphere sites (Peru and South Africa) were rotated to a July–June year so the austral summer forms a contiguous run within the single calendar year of data. Within each plot's growing-season window we computed: growing-season length (days), growing-season temperature (mean daily temperature), growing-season VPD (mean daily VPD), growing degree days (sum of daily mean temperature above the 5 °C base), and the mean diurnal temperature range (mean daily maximum minus minimum). Climate variables were matched to community and trait data at the plot level, falling back to the site mean for plots without a direct climate match. Here we summarise them against site-level mean latitude.
 
 ### Data analysis
 
@@ -83,6 +83,20 @@ Run mixed-effects models for diversity and traits vs. climate and latitude. Run 
 
 tar_load(climate_latitude_fig)
 climate_latitude_fig
+
+```
+
+```{r}
+#| label: fig-climate-seasonality
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 6
+#| fig-width: 9
+#| fig-cap: "Mean daily temperature through the year for each country (averaged across plots), ordered so the growing season is contiguous (Southern Hemisphere sites shifted to a July–June year). The dashed line marks the 5 °C growing-season threshold and the coloured bar shows the mean detected growing-season window, labelled with its length in days."
+
+tar_load(climate_seasonality_fig)
+climate_seasonality_fig
 
 ```
 
@@ -287,7 +301,7 @@ trait_results_table <- trait_models_output |>
             climate_variable == "gs_length" ~ "Growing season length (days)",
             climate_variable == "gs_temperature" ~ "Growing season temperature (°C)",
             climate_variable == "gs_vpd" ~ "Growing season VPD",
-            climate_variable == "gdd" ~ "Growing degree days (>2°C)",
+            climate_variable == "gdd" ~ "Growing degree days (>5°C)",
             climate_variable == "gs_diurnal_range" ~ "Diurnal range (°C)",
             TRUE ~ climate_variable
         ),

@@ -89,7 +89,7 @@ diversity_model_checks_ds_climate |>
         climate_variable == "gs_length" ~ "Growing season length (days), global model",
         climate_variable == "gs_temperature" ~ "Growing season temperature (°C), global model",
         climate_variable == "gs_vpd" ~ "Growing season VPD, global model",
-        climate_variable == "gdd" ~ "Growing degree days (>2°C), global model",
+        climate_variable == "gdd" ~ "Growing degree days (>5°C), global model",
         climate_variable == "gs_diurnal_range" ~ "Diurnal range (°C), global model",
         TRUE ~ climate_variable
       ), "\n\n"
@@ -118,7 +118,7 @@ diversity_model_checks_region_ds_climate |>
         climate_variable == "gs_length" ~ "Growing season length (days), regional model (+ region)",
         climate_variable == "gs_temperature" ~ "Growing season temperature (°C), regional model (+ region)",
         climate_variable == "gs_vpd" ~ "Growing season VPD, regional model (+ region)",
-        climate_variable == "gdd" ~ "Growing degree days (>2°C), regional model (+ region)",
+        climate_variable == "gdd" ~ "Growing degree days (>5°C), regional model (+ region)",
         climate_variable == "gs_diurnal_range" ~ "Diurnal range (°C), regional model (+ region)",
         TRUE ~ climate_variable
       ), "\n\n"
@@ -149,7 +149,7 @@ trait_model_checks |>
               climate_variable == "gs_length" ~ "Growing season length (days)",
               climate_variable == "gs_temperature" ~ "Growing season temperature (°C)",
               climate_variable == "gs_vpd" ~ "Growing season VPD",
-              climate_variable == "gdd" ~ "Growing degree days (>2°C)",
+              climate_variable == "gdd" ~ "Growing degree days (>5°C)",
               climate_variable == "gs_diurnal_range" ~ "Diurnal range (°C)",
               TRUE ~ climate_variable
             ), "\n\n"))
@@ -182,7 +182,7 @@ trait_model_checks_region |>
         climate_variable == "gs_length" ~ "Growing season length (days), regional model (+ region)",
         climate_variable == "gs_temperature" ~ "Growing season temperature (°C), regional model (+ region)",
         climate_variable == "gs_vpd" ~ "Growing season VPD, regional model (+ region)",
-        climate_variable == "gdd" ~ "Growing degree days (>2°C), regional model (+ region)",
+        climate_variable == "gdd" ~ "Growing degree days (>5°C), regional model (+ region)",
         climate_variable == "gs_diurnal_range" ~ "Diurnal range (°C), regional model (+ region)",
         TRUE ~ climate_variable
       ), "\n\n"

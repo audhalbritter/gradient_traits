@@ -32,7 +32,7 @@ trait_plan <- list(
             climate_variable == "gs_length" ~ "Growing season length",
             climate_variable == "gs_temperature" ~ "Growing season temperature",
             climate_variable == "gs_vpd" ~ "Growing season VPD",
-            climate_variable == "gdd" ~ "Growing degree days (>2°C)",
+            climate_variable == "gdd" ~ "Growing degree days (>5°C)",
             climate_variable == "gs_diurnal_range" ~ "Diurnal range",
             TRUE ~ climate_variable
           )

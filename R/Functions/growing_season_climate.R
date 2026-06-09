@@ -1,8 +1,17 @@
 ## Growing-season climate from the hourly PFTC extract.
 ##
 ## Pipeline: hourly_climate -> daily aggregates -> growing-season window per plot
-## (5 consecutive days with daily mean T > 2 degC) -> derived growing-season
-## variables -> site-level means for fallback -> join into trait/community data.
+## -> derived growing-season variables -> site-level means for fallback -> join
+## into trait/community data.
+##
+## Growing-season rule (single, consistent across countries): on the daily mean
+## temperature series, mark days above `threshold` (5 degC, the conventional
+## thermal growing season), bridge short cold snaps (below-threshold runs shorter
+## than `bridge` days that sit between warm spells), then take the LONGEST
+## continuous warm run as the growing season. This is robust to volatile springs,
+## where a brief early-season warm spell followed by a cold snap would otherwise
+## truncate the season. Tropical sites with no sustained cold (Peru) approach a
+## full year.
 ##
 ## Southern Hemisphere sites (Peru, South Africa; latitude < 0) are rotated to a
 ## July-June year so the austral summer is a contiguous run within the single
@@ -52,21 +61,20 @@ add_growing_season_order <- function(daily) {
 
 #' Detect the growing-season window for each plot.
 #'
-#' Uses a consecutive-day rule on daily mean temperature: the season starts at the
-#' first run of at least `run_length` days with `t_mean > threshold`, and ends the
-#' day before the first later run of at least `run_length` days at or below the
-#' threshold. If no such closing run exists (e.g. tropical Peru), the season runs to
-#' the last available day.
+#' Marks days with `t_mean > threshold`, bridges below-threshold runs shorter than
+#' `bridge` days that sit between warm spells, then takes the longest remaining
+#' continuous warm run (of at least `run_length` days) as the growing season. See
+#' the file header for the rationale.
 #'
 #' @param daily Output of [add_growing_season_order()].
 #' @return One row per plot with calendar `gs_start`/`gs_end`, order-space
 #'   `gs_order_start`/`gs_order_end` (used for window filtering), `gs_length`,
 #'   and `gs_found`.
-detect_growing_season <- function(daily, threshold = 2, run_length = 5) {
+detect_growing_season <- function(daily, threshold = 5, run_length = 5, bridge = 5) {
   daily |>
     group_by(country, gradient, site, plot_id) |>
     summarise(
-      gs = list(detect_growing_season_one(date, gs_order, t_mean, threshold, run_length)),
+      gs = list(detect_growing_season_one(date, gs_order, t_mean, threshold, run_length, bridge)),
       .groups = "drop"
     ) |>
     tidyr::unnest_wider(gs)
@@ -78,9 +86,11 @@ detect_growing_season <- function(daily, threshold = 2, run_length = 5) {
 #' @param date Calendar dates (returned as the reported start/end).
 #' @param gs_order Ordering key from [add_growing_season_order()].
 #' @param t_mean Daily mean temperature.
+#' @param bridge Below-threshold runs shorter than this (flanked by warm spells)
+#'   are merged into the growing season, so short cold snaps do not split it.
 #' @return List with `gs_start`, `gs_end`, `gs_order_start`, `gs_order_end`,
 #'   `gs_length`, `gs_found`.
-detect_growing_season_one <- function(date, gs_order, t_mean, threshold = 2, run_length = 5) {
+detect_growing_season_one <- function(date, gs_order, t_mean, threshold = 5, run_length = 5, bridge = 5) {
   empty <- list(
     gs_start = as.Date(NA),
     gs_end = as.Date(NA),
@@ -89,6 +99,10 @@ detect_growing_season_one <- function(date, gs_order, t_mean, threshold = 2, run
     gs_length = NA_integer_,
     gs_found = FALSE
   )
+
+  if (length(t_mean) < run_length) {
+    return(empty)
+  }
 
   ord <- order(gs_order)
   date <- date[ord]
@@ -99,24 +113,30 @@ detect_growing_season_one <- function(date, gs_order, t_mean, threshold = 2, run
   above[is.na(above)] <- FALSE
 
   runs <- rle(above)
-  run_end <- cumsum(runs$lengths)
-  run_start <- run_end - runs$lengths + 1L
+  vals <- runs$values
+  lens <- runs$lengths
 
-  # First run of >= run_length days above threshold marks the start.
-  start_run <- which(runs$values & runs$lengths >= run_length)
-  if (length(start_run) == 0L) {
+  # Bridge short cold snaps that sit between warm spells (not leading/trailing).
+  for (i in seq_along(vals)) {
+    if (!vals[i] && lens[i] < bridge && i > 1L && i < length(vals)) {
+      vals[i] <- TRUE
+    }
+  }
+
+  # Re-run length encoding to merge now-adjacent warm runs.
+  merged <- rle(inverse.rle(list(lengths = lens, values = vals)))
+  run_end <- cumsum(merged$lengths)
+  run_start <- run_end - merged$lengths + 1L
+
+  warm <- which(merged$values & merged$lengths >= run_length)
+  if (length(warm) == 0L) {
     return(empty)
   }
-  start_run <- start_run[1]
-  start_idx <- run_start[start_run]
 
-  # First run of >= run_length days at/below threshold after the start closes it.
-  close_run <- which(!runs$values & runs$lengths >= run_length & seq_along(runs$values) > start_run)
-  if (length(close_run) == 0L) {
-    end_idx <- length(date)
-  } else {
-    end_idx <- run_start[close_run[1]] - 1L
-  }
+  # Longest warm run is the growing season.
+  best <- warm[which.max(merged$lengths[warm])]
+  start_idx <- run_start[best]
+  end_idx <- run_end[best]
 
   list(
     gs_start = date[start_idx],
@@ -137,7 +157,9 @@ detect_growing_season_one <- function(date, gs_order, t_mean, threshold = 2, run
 #'
 #' @param daily Output of [add_growing_season_order()].
 #' @param gs Output of [detect_growing_season()].
-summarise_growing_season_climate <- function(daily, gs, threshold = 2) {
+#' @param threshold Growing degree day base temperature (matches the
+#'   growing-season detection threshold).
+summarise_growing_season_climate <- function(daily, gs, threshold = 5) {
   windows <- gs |>
     filter(gs_found) |>
     select(country, gradient, site, plot_id, gs_start, gs_end, gs_length, gs_order_start, gs_order_end)
