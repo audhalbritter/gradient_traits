@@ -59,6 +59,8 @@ transformation_plan <- list(
           by = join_by(country, gradient, site, plot_id_clim == plot_id)
         ) |>
         select(-plot_id_clim) |>
+        # Growing-season climate (plot-level, site-level fallback)
+        join_growing_season_climate(growing_season_climate, growing_season_climate_site) |>
         pivot_longer(cols = c(diversity, sum_abundance), names_to = "diversity_index", values_to = "value") |>
         # Ensure region is ordered consistently (north to south)
         mutate(region = factor(region, levels = c(
@@ -211,6 +213,8 @@ transformation_plan <- list(
             select(country, gradient, site, plot_id, ds_t2m = T2m, ds_vpd = VPD),
           by = join_by(country, gradient, site, plot_id)
         ) |>
+        # Growing-season climate (plot-level, site-level fallback)
+        join_growing_season_climate(growing_season_climate, growing_season_climate_site) |>
         # Ensure region is ordered consistently (north to south)
         mutate(region = factor(region, levels = c(
           "Svalbard", "Southern Scandes", "Rocky Mountains",
