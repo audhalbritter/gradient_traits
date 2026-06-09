@@ -14,14 +14,14 @@ downscaled_climate_add_site_keys <- function(dat) {
   dat |>
     rename(area_raw = area, plot_id_raw = plot_id) |>
     mutate(
-      country = case_match(area_raw,
+      country = recode_values(
+        area_raw,
         "China" ~ "ch",
         "Colorado" ~ "co",
         "Norway" ~ "no",
         "Peru" ~ "pe",
         "SouthAfrica" ~ "sa",
-        "Svalbard" ~ "sv",
-        .default = NA_character_
+        "Svalbard" ~ "sv"
       )
     ) |>
     mutate(

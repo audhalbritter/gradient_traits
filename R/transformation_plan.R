@@ -53,11 +53,10 @@ transformation_plan <- list(
       # fix trait names
       mutate(
         trait = tolower(trait),
-        trait = case_match(trait,
+        trait = replace_values(trait,
           "d_c13_permil" ~ "dc13_permil",
           "d_n15_permil" ~ "dn15_permil",
-          "leaf_thickness_ave_mm" ~ "leaf_thickness_mm",
-          .default = trait
+          "leaf_thickness_ave_mm" ~ "leaf_thickness_mm"
         )
       ) |>
       # remove wet mass, correlated with dry mass

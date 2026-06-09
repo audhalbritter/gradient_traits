@@ -474,7 +474,7 @@ clean_sa_community <- function(raw_community_sa, raw_meta_sa_extended) {
       region = "Drakensberg",
       ecosystem = "grassland",
       year = year(date),
-      gradient = dplyr::case_match(
+      gradient = dplyr::recode_values(
         aspect,
         "east" ~ "E",
         "west" ~ "W"
@@ -528,7 +528,7 @@ clean_sa_traits <- function(raw_traits_sa, raw_traits_chem_sa, raw_meta_sa_exten
         year = year(date),
         country = "sa",
         region = "Drakensberg",
-        gradient = dplyr::case_match(
+        gradient = dplyr::recode_values(
           aspect,
           "east" ~ "E",
           "west" ~ "W"
