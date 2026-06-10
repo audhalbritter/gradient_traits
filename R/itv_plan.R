@@ -8,12 +8,16 @@ itv_plan <- list(
       traits |>
         fancy_trait_name_dictionary() |>
         filter(!is.na(value_trans)) |>
+        mutate(plot_key = trait_observation_plot_key(pick(country, gradient, plot_id))) |>
         group_by(class, figure_names, trait_trans) |>
         nest() |>
         mutate(
           model = purrr::map(data, ~ {
             safelmer <- purrr::safely(lmerTest::lmer)
-            result <- safelmer(value_trans ~ 1 + (1 | region / site) + (1 | taxon), data = .x)
+            result <- safelmer(
+              value_trans ~ 1 + (1 | region / site / plot_key) + (1 | taxon),
+              data = .x
+            )
             result$result
           })
         )
@@ -71,16 +75,20 @@ itv_plan <- list(
           grp = case_when(
             grp == "region" ~ "Region",
             grp == "site:region" ~ "Site",
+            grepl("^plot_key:site:region$", grp) ~ "Plot",
             grp == "taxon" ~ "Between species",
             grp == "Residual" ~ "Within species",
             TRUE ~ grp
           ),
-          grp = factor(grp, levels = c("Within species", "Between species", "Site", "Region")) # reversed so Region is at top/bottom depending on stacking
+          grp = factor(
+            grp,
+            levels = c("Within species", "Between species", "Plot", "Site", "Region")
+          )
         ) |>
         ggplot(aes(x = figure_names, y = percent_explained, fill = grp)) +
         geom_col() +
         facet_grid(~class, scales = "free_x", space = "free_x") +
-        scale_fill_manual(values = MetBrewer::met.brewer("Ingres", 4)) +
+        scale_fill_manual(values = MetBrewer::met.brewer("Ingres", 5)) +
         scale_x_discrete(labels = scales::label_parse()) +
         theme_bw() +
         labs(

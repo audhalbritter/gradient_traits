@@ -188,6 +188,15 @@ trait_plot_key <- function(dat, scale_hierarchy) {
   apply(dat |> dplyr::select(dplyr::any_of(cols)), 1, paste, collapse = "_")
 }
 
+# Unique plot key for raw trait observations (Peru/SA reuse plot_id across seasons)
+trait_observation_plot_key <- function(dat) {
+  dplyr::if_else(
+    dat$country %in% c("pe", "sa"),
+    paste(dat$gradient, dat$plot_id, sep = "/"),
+    dat$plot_id
+  )
+}
+
 # traitstrap::fortify_filled_trait() fails with dplyr >= 1.2 when cover is duplicated
 # per plot × taxon; average abundance within taxon before summing cover by level
 fortify_trait_coverage <- function(filled_traits) {
