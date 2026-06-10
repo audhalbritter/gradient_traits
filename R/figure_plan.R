@@ -73,6 +73,32 @@ figure_plan <- list(
     command = make_pca_plot(trait_pca_full)
   ),
 
+  tar_target(
+    name = trait_pca_scree_fig,
+    command = make_pca_scree_plot(list(
+      "All countries (no P, N:P, height)" = trait_pca_full,
+      "P/N:P countries (no Norway, SA)" = trait_pca
+    ))
+  ),
+
+  # PCA axis vs growing-season climate — trait_pca_full sites, one figure per climate variable
+  tar_target(
+    name = trait_pca_full_climate_figs,
+    command = {
+      labels <- climate_variable_labels()
+      purrr::imap(labels, function(lab, var) {
+        make_pca_climate_comparison_plot(
+          trait_pca_full_climate_models_region_output,
+          trait_pca_full_climate_models_output,
+          trait_pca_full_long,
+          var,
+          lab,
+          trait_pca_full_variance
+        )
+      })
+    }
+  ),
+
   # Trait distribution ridgeline plot
   tar_target(
     name = trait_distribution_ridgeline_fig,

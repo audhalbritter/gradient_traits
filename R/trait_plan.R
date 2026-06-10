@@ -16,6 +16,199 @@ trait_plan <- list(
       filter(!trait_trans %in% c("plant_height_cm_log")))
   ),
 
+  tar_target(
+    name = trait_pca_full_variance,
+    command = pca_variance_explained(trait_pca_full)
+  ),
+
+  # PCA scores (PC1, PC2) in long format with growing-season climate predictors
+  tar_target(
+    name = trait_pca_full_long,
+    command = prepare_pca_climate_long(trait_pca_full, trait_mean)
+  ),
+
+  # Regional PCA axis vs climate models (trait_pca_full sites only)
+  tar_target(
+    name = trait_pca_full_climate_models_region_all,
+    command = {
+      trait_pca_full_long |>
+        group_by(pc_axis, climate_variable, data_source) |>
+        nest() |>
+        mutate(
+          model_linear = purrr::map(data, ~ {
+            safelmer <- purrr::safely(lmerTest::lmer)
+            result <- safelmer(trait_value ~ climate_value + region + (1 | site), data = .x)
+            result$result
+          }),
+          model_poly = purrr::map(data, ~ {
+            safelmer <- purrr::safely(lmerTest::lmer)
+            result <- safelmer(trait_value ~ (climate_value + I(climate_value^2)) + region + (1 | site), data = .x)
+            result$result
+          }),
+          glance_linear = purrr::map(model_linear, ~ {
+            safe_glance <- purrr::safely(broom.mixed::glance)
+            result <- safe_glance(.x)
+            result$result
+          }),
+          glance_poly = purrr::map(model_poly, ~ {
+            safe_glance <- purrr::safely(broom.mixed::glance)
+            result <- safe_glance(.x)
+            result$result
+          })
+        ) |>
+        tidyr::pivot_longer(
+          cols = c(model_linear, model_poly, glance_linear, glance_poly),
+          names_sep = "_",
+          names_to = c(".value", "model_type")
+        )
+    }
+  ),
+
+  tar_target(
+    name = trait_pca_full_climate_models_region_best,
+    command = {
+      trait_pca_full_climate_models_region_all |>
+        unnest(glance) |>
+        group_by(pc_axis, climate_variable, data_source) |>
+        filter(AIC == min(AIC, na.rm = TRUE)) |>
+        slice(1) |>
+        select(-AIC) |>
+        ungroup()
+    }
+  ),
+
+  tar_target(
+    name = trait_pca_full_climate_models_region_output,
+    command = {
+      trait_pca_full_climate_models_region_best |>
+        mutate(
+          tidy_results = purrr::map(model, ~ {
+            safe_tidy <- purrr::safely(broom.mixed::tidy)
+            result <- safe_tidy(.x)
+            result$result
+          }),
+          is_significant = purrr::map_lgl(tidy_results, ~ {
+            if (is.null(.x)) return(FALSE)
+            any(.x$p.value[grepl("climate_value", .x$term) & .x$effect == "fixed"] < 0.05, na.rm = TRUE)
+          }),
+          predictions = purrr::map2(model, data, ~ lmer_prediction_smooth(fit = .x, dat = .y))
+        )
+    }
+  ),
+
+  # Global PCA axis vs climate models (trait_pca_full sites only)
+  tar_target(
+    name = trait_pca_full_climate_models_all,
+    command = {
+      trait_pca_full_long |>
+        group_by(pc_axis, climate_variable, data_source) |>
+        nest() |>
+        mutate(
+          model_linear = purrr::map(data, ~ {
+            safelmer <- purrr::safely(lmerTest::lmer)
+            result <- safelmer(trait_value ~ climate_value + (1 | site), data = .x)
+            result$result
+          }),
+          model_poly = purrr::map(data, ~ {
+            safelmer <- purrr::safely(lmerTest::lmer)
+            result <- safelmer(trait_value ~ climate_value + I(climate_value^2) + (1 | site), data = .x)
+            result$result
+          }),
+          glance_linear = purrr::map(model_linear, ~ {
+            safe_glance <- purrr::safely(broom.mixed::glance)
+            result <- safe_glance(.x)
+            result$result
+          }),
+          glance_poly = purrr::map(model_poly, ~ {
+            safe_glance <- purrr::safely(broom.mixed::glance)
+            result <- safe_glance(.x)
+            result$result
+          })
+        ) |>
+        tidyr::pivot_longer(
+          cols = c(model_linear, model_poly, glance_linear, glance_poly),
+          names_sep = "_",
+          names_to = c(".value", "model_type")
+        )
+    }
+  ),
+
+  tar_target(
+    name = trait_pca_full_climate_models_best,
+    command = {
+      trait_pca_full_climate_models_all |>
+        unnest(glance) |>
+        group_by(pc_axis, climate_variable, data_source) |>
+        filter(AIC == min(AIC, na.rm = TRUE)) |>
+        slice(1) |>
+        select(-AIC) |>
+        ungroup()
+    }
+  ),
+
+  tar_target(
+    name = trait_pca_full_climate_models_output,
+    command = {
+      trait_pca_full_climate_models_best |>
+        mutate(
+          tidy_results = purrr::map(model, ~ {
+            safe_tidy <- purrr::safely(broom.mixed::tidy)
+            result <- safe_tidy(.x)
+            result$result
+          }),
+          climate_pvalue = purrr::map_dbl(tidy_results, ~ {
+            climate_row <- .x |> filter(term == "climate_value" & effect == "fixed")
+            if (nrow(climate_row) > 0) climate_row$p.value else NA_real_
+          }),
+          is_significant = climate_pvalue < 0.05,
+          predictions = purrr::map2(model, data, ~ {
+            lmer_prediction_global_smooth(fit = .x, dat = .y)
+          })
+        )
+    }
+  ),
+
+  tar_target(
+    name = trait_pca_full_climate_results_table,
+    command = {
+      dplyr::bind_rows(
+        format_pca_climate_model_table(
+          trait_pca_full_climate_models_output,
+          "Global",
+          trait_pca_full_variance
+        ),
+        format_pca_climate_model_table(
+          trait_pca_full_climate_models_region_output,
+          "Regional (+ region)",
+          trait_pca_full_variance
+        )
+      ) |>
+        arrange(predictor_clean, model_scope, trait_clean, term_clean)
+    }
+  ),
+
+  tar_target(
+    name = trait_pca_full_climate_model_checks,
+    command = {
+      trait_pca_full_climate_models_output |>
+        rowwise() |>
+        mutate(model_check = list(performance::check_model(model))) |>
+        ungroup() |>
+        filter(!is.null(model_check))
+    }
+  ),
+
+  tar_target(
+    name = trait_pca_full_climate_model_checks_region,
+    command = {
+      trait_pca_full_climate_models_region_output |>
+        rowwise() |>
+        mutate(model_check = list(performance::check_model(model))) |>
+        ungroup() |>
+        filter(!is.null(model_check))
+    }
+  ),
+
   # trait data in long format with climate variables stacked
   tar_target(
     name = trait_mean_long,

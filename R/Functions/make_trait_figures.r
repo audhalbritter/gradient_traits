@@ -51,6 +51,90 @@ make_trait_region_climate_plot <- function(data, prediction_region, prediction_g
     labs(x = x_label, y = "Trait Value")
 }
 
+make_pca_climate_plot <- function(data, prediction_region, prediction_global, x_label, variance_explained = NULL) {
+  pc_labels <- if (!is.null(variance_explained)) {
+    stats::setNames(
+      paste0(names(variance_explained)[names(variance_explained) %in% unique(data$pc_axis)], " (",
+             round(variance_explained[names(variance_explained) %in% unique(data$pc_axis)], 1), "%)"),
+      names(variance_explained)[names(variance_explained) %in% unique(data$pc_axis)]
+    )
+  } else {
+    stats::setNames(unique(data$pc_axis), unique(data$pc_axis))
+  }
+
+  data <- data |>
+    mutate(
+      region = factor(region, levels = climate_region_levels()),
+      pc_fancy = pc_labels[as.character(pc_axis)]
+    )
+
+  prediction_region <- prediction_region |>
+    mutate(
+      region = factor(region, levels = climate_region_levels()),
+      pc_fancy = pc_labels[as.character(pc_axis)]
+    )
+
+  prediction_global <- prediction_global |>
+    mutate(pc_fancy = pc_labels[as.character(pc_axis)])
+
+  ggplot(data, aes(x = climate_value_raw, y = trait_value)) +
+    geom_point(aes(colour = region), alpha = 0.4, size = 1.5) +
+    geom_ribbon(
+      data = prediction_region,
+      aes(x = climate_value, y = .fitted, ymin = plo, ymax = phi, fill = region),
+      alpha = 0.15, colour = NA
+    ) +
+    geom_line(
+      data = prediction_region,
+      aes(x = climate_value, y = .fitted, colour = region, linetype = is_significant),
+      linewidth = 0.8
+    ) +
+    geom_ribbon(
+      data = prediction_global,
+      aes(x = climate_value, y = .fitted, ymin = plo, ymax = phi),
+      fill = "grey60", alpha = 0.1, colour = NA
+    ) +
+    geom_line(
+      data = prediction_global,
+      aes(x = climate_value, y = .fitted, linetype = is_significant),
+      colour = "grey60", linewidth = 1
+    ) +
+    scale_colour_manual(values = create_region_color_mapping(), name = "Region") +
+    scale_fill_manual(values = create_region_color_mapping(), name = "Region") +
+    scale_linetype_manual(values = c("FALSE" = "22", "TRUE" = "solid"), guide = "none") +
+    facet_wrap(~pc_fancy, scales = "free_y") +
+    theme_bw() +
+    theme(
+      legend.position = "top",
+      strip.text = element_text(size = 10, face = "bold")
+    ) +
+    labs(x = x_label, y = "PCA score")
+}
+
+make_pca_climate_comparison_plot <- function(region_output, global_output, raw_data, climate_var, x_label, variance_explained = NULL) {
+  reg_data <- region_output |>
+    filter(climate_variable == climate_var) |>
+    select(pc_axis, is_significant, predictions) |>
+    unnest(predictions)
+
+  glob_data <- global_output |>
+    filter(climate_variable == climate_var) |>
+    select(pc_axis, is_significant, predictions) |>
+    unnest(predictions)
+
+  points_data <- raw_data |>
+    filter(climate_variable == climate_var) |>
+    filter(pc_axis %in% unique(reg_data$pc_axis))
+
+  make_pca_climate_plot(
+    data = points_data,
+    prediction_region = reg_data,
+    prediction_global = glob_data,
+    x_label = x_label,
+    variance_explained = variance_explained
+  )
+}
+
 make_trait_comparison_plot <- function(region_output, global_output, raw_data, climate_var, x_label) {
   reg_data <- region_output %>%
     filter(climate_variable == climate_var) %>%

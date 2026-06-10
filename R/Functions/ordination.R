@@ -69,7 +69,69 @@ make_trait_pca <- function(trait_mean){
   return(outputList)
 }
 
+pca_variance_explained <- function(trait_pca) {
+  eig <- vegan::eigenvals(trait_pca[[3]])
+  stats::setNames(eig / sum(eig) * 100, paste0("PC", seq_along(eig)))
+}
 
+prepare_pca_climate_long <- function(trait_pca_output, trait_mean, pc_axes = c("PC1", "PC2")) {
+  climate_cols <- c("gs_length", "gs_temperature", "gs_vpd", "gdd", "gs_diurnal_range")
+  climate_labels <- climate_variable_labels()
+
+  climate_plot <- trait_mean |>
+    dplyr::select(
+      country, region, gradient, site, plot_id, elevation_m, latitude_n, longitude_e, ecosystem,
+      dplyr::any_of(climate_cols)
+    ) |>
+    dplyr::distinct()
+
+  trait_pca_output[[1]] |>
+    dplyr::select(country:ecosystem, dplyr::any_of(pc_axes)) |>
+    tidyr::pivot_longer(dplyr::any_of(pc_axes), names_to = "pc_axis", values_to = "trait_value") |>
+    dplyr::left_join(
+      climate_plot,
+      by = dplyr::join_by(country, region, gradient, site, plot_id, elevation_m, latitude_n, longitude_e, ecosystem)
+    ) |>
+    tidyr::pivot_longer(
+      cols = dplyr::any_of(climate_cols),
+      names_to = "climate_variable",
+      values_to = "climate_value"
+    ) |>
+    dplyr::mutate(
+      data_source = "Growing season",
+      climate_variable_clean = dplyr::recode(climate_variable, !!!climate_labels)
+    ) |>
+    dplyr::filter(!is.na(climate_value)) |>
+    center_climate_long(group_vars = "climate_variable") |>
+    dplyr::mutate(pc_axis = factor(pc_axis, levels = pc_axes))
+}
+
+make_pca_scree_plot <- function(pca_named_list) {
+  scree_dat <- purrr::imap_dfr(pca_named_list, function(pca, label) {
+    eig <- vegan::eigenvals(pca[[3]])
+    tibble::tibble(
+      pca_label = label,
+      axis_num = seq_along(eig),
+      axis = paste0("PC", axis_num),
+      variance = eig / sum(eig) * 100
+    )
+  })
+
+  scree_dat |>
+    ggplot2::ggplot(ggplot2::aes(x = axis_num, y = variance)) +
+    ggplot2::geom_col(fill = "grey70", width = 0.7) +
+    ggplot2::geom_line(ggplot2::aes(group = pca_label), linewidth = 0.4) +
+    ggplot2::geom_point(size = 1.5) +
+    ggplot2::facet_wrap(~pca_label, scales = "free_x") +
+    ggplot2::scale_x_continuous(breaks = function(x) seq(min(x), max(x), by = 1)) +
+    ggplot2::labs(
+      x = "Principal component",
+      y = "Variance explained (%)",
+      title = "PCA scree plots"
+    ) +
+    ggplot2::theme_bw() +
+    ggplot2::theme(strip.text = ggplot2::element_text(face = "bold"))
+}
 
 make_pca_plot <- function(trait_pca){
 
