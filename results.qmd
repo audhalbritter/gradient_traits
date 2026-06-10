@@ -370,8 +370,9 @@ Trait sampling coverage by region. We do not have plot level trait data from Chi
 #| label: fig-trait-coverage
 #| echo: false
 #| warning: false
-#| fig-height: 6
-#| fig-cap: "Proportion of trait data sampled at the plot, site, gradient and regional level shown by region."
+#| fig-height: 10
+#| fig-width: 12
+#| fig-cap: "Proportion of trait data sampled at the plot, site, gradient and regional level, by plot within each country."
 
 tar_load(trait_coverage_fig)
 trait_coverage_fig

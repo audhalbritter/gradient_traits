@@ -182,6 +182,12 @@ make_trait_ridgeline_plot <- function(data) {
     )
 }
 
+trait_plot_key <- function(dat, scale_hierarchy) {
+  cols <- as.character(scale_hierarchy)
+  cols <- cols[cols != "global"]
+  apply(dat |> dplyr::select(dplyr::any_of(cols)), 1, paste, collapse = "_")
+}
+
 # traitstrap::fortify_filled_trait() fails with dplyr >= 1.2 when cover is duplicated
 # per plot × taxon; average abundance within taxon before summing cover by level
 fortify_trait_coverage <- function(filled_traits) {
@@ -194,10 +200,10 @@ fortify_trait_coverage <- function(filled_traits) {
   scale_hierarchy <- scale_hierarchy[scale_hierarchy != "global"]
 
   dat <- filled_traits |> dplyr::ungroup()
-  plot_id <- apply(dplyr::select(dat, dplyr::any_of(scale_hierarchy)), 1, paste, collapse = "_")
+  plot_key <- trait_plot_key(dat, scale_hierarchy)
 
   dat |>
-    dplyr::mutate(.id = plot_id) |>
+    dplyr::mutate(.id = plot_key) |>
     dplyr::group_by(.data$.id, .data$level, .data[[trait_col]], .data[[taxon_col]]) |>
     dplyr::summarise(
       cover = mean(.data[[abun_col]], na.rm = TRUE),
@@ -216,43 +222,43 @@ make_trait_coverage_plot <- function(filled_traits) {
   scale_hierarchy <- as.character(attrib$scale_hierarchy)
   scale_hierarchy <- scale_hierarchy[scale_hierarchy != "global"]
 
-  plot_meta <- filled_traits |>
-    dplyr::ungroup() |>
-    dplyr::mutate(
-      .id = apply(dplyr::select(dplyr::across(dplyr::any_of(scale_hierarchy))), 1, paste, collapse = "_")
-    ) |>
-    dplyr::distinct(.data$.id, .data$country, .data$region, .data$site, .data$gradient)
+  dat <- filled_traits |> dplyr::ungroup()
+  plot_key <- trait_plot_key(dat, scale_hierarchy)
+
+  plot_meta <- dat |>
+    dplyr::mutate(.id = plot_key) |>
+    dplyr::distinct(.data$.id, .data$country, .data$region, .data$site, .data$gradient, .data$plot_id)
 
   plot_data <- fortify_trait_coverage(filled_traits) |>
     dplyr::left_join(plot_meta, by = ".id") |>
-    dplyr::mutate(
-      .id = dplyr::if_else(
-        .data$country == "pe",
-        paste(.data$site, .data$gradient, sep = "_"),
-        .data$.id
-      )
-    ) |>
-    dplyr::group_by(.data$region, .data$.id, .data$level) |>
-    dplyr::summarise(s = sum(.data$s, na.rm = TRUE), .groups = "drop") |>
-    dplyr::group_by(.data$region, .data$.id) |>
+    dplyr::group_by(.data$.id) |>
     dplyr::mutate(s_prop = .data$s / sum(.data$s, na.rm = TRUE)) |>
-    dplyr::ungroup()
+    dplyr::ungroup() |>
+    dplyr::mutate(
+      plot_axis = dplyr::if_else(
+        .data$country %in% c("pe", "sa"),
+        paste(.data$gradient, .data$plot_id, sep = "/"),
+        .data$plot_id
+      ),
+      country = factor(
+        .data$country,
+        levels = c("sv", "no", "co", "ch", "pe", "sa")
+      )
+    )
 
-  ggplot(plot_data, aes(x = .id, y = s_prop, fill = level)) +
-    geom_col() +
-    facet_wrap(~region, scales = "free_x") +
-    scale_x_discrete(
-      labels = function(x) stringr::str_extract(x, "[^_]+$"),
-      guide = guide_axis(angle = 90, check.overlap = TRUE)
-    ) +
-    scale_y_continuous(limits = c(0, 1)) +
+  ggplot(plot_data, aes(x = plot_axis, y = s_prop, fill = level)) +
+    geom_col(width = 0.85) +
+    facet_wrap(~country, scales = "free_x") +
+    scale_x_discrete(guide = guide_axis(angle = 90, check.overlap = TRUE)) +
+    scale_y_continuous(limits = c(0, 1), expand = expansion(mult = c(0, 0.02))) +
     theme_bw() +
     theme(
-      axis.text.x = element_text(size = 7, vjust = 0.5, hjust = 1),
+      axis.text.x = element_text(size = 6, vjust = 0.5, hjust = 1),
+      strip.text = element_text(face = "bold"),
       legend.position = "top"
     ) +
     labs(
-      x = "",
+      x = "Plot",
       y = "Proportion of cover",
       fill = "Sampling level"
     )
