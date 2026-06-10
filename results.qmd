@@ -158,14 +158,14 @@ trait_distribution_ridgeline_fig
 
 ```
 
-The PCA for all size and leaf economic traits show that these traits are perpendicular to each other. The regions separate well across the leaf economic trait axis, with colder sites having higher SLA and lower LDMC (aquisitative traits). Warmer sites are generally taller and have more conservative traits.
+The PCA across all regions (excluding leaf P and N:P, which are not available at every site) shows that size and leaf economic traits are largely perpendicular. Regions separate along the leaf economics axis, with colder sites tending toward higher SLA and lower LDMC, and warmer sites toward taller stature and more conservative leaf traits.
 
 ```{r}
 #| label: fig-trait-pca-full
 #| echo: false
 #| warning: false
 #| fig-height: 6
-#| fig-cap: "Principle component analysis for size and leaf economic traits. The regions are coloured and an elipsoid is drawn for each region. The arrows indicate the loadings for each trait. The linetype indicates size (solid) and leaf economic traits (dashed). The point size indiciates the elevational percentile within each region."
+#| fig-cap: "Principal component analysis for all regions, excluding leaf P and N:P. Regions are coloured and an ellipse is drawn for each region. Arrows indicate trait loadings; linetype distinguishes size (solid), leaf economic (dashed), and isotope (dotted) traits. Point size indicates elevational percentile within each region."
 
 tar_load(trait_pca_full_fig)
 trait_pca_full_fig
@@ -174,14 +174,14 @@ trait_pca_full_fig
 
 \newpage
 
-The patterns are more clear when including chemical traits and itsotopes. PC axis 1 correlates with leaf economic traits (SLA, LDMC, leaf C, N, P, and leaf thickness), while PC axis 2 correlates with size traits and dN15 isotoeps. Colder sites have smaller leaves and higher SLA (= faster traits). Warmer sites have larger leaves and higher LDMC (= slower traits).
+With Norway and South Africa excluded, the full chemical and morphological trait set (including leaf P and N:P, but excluding plant height, which is not available for China) can be used. PC axis 1 aligns with leaf economic traits (SLA, LDMC, leaf C, N, P, and thickness), while PC axis 2 aligns with size traits and dN15. Colder sites tend to have smaller leaves and higher SLA; warmer sites tend to have larger leaves and higher LDMC.
 
 ```{r}
 #| label: fig-trait-pca
 #| echo: false
 #| warning: false
 #| fig-height: 6
-#| fig-cap: "Principle component analysis for size, leaf economic, and isotope traits. The regions are coloured and an elipsoid is drawn for each region. The arrows indicate the loadings for each trait. The linetype indicates size (solid), leaf economic (dashed), and isotope traits (dotted). The point size indiciates the elevational percentile within each region."
+#| fig-cap: "Principal component analysis at sites with leaf P and N:P (Norway and South Africa excluded; plant height omitted because it is not available for China). Regions are coloured and an ellipse is drawn for each region. Arrows indicate trait loadings; linetype distinguishes size (solid), leaf economic (dashed), and isotope (dotted) traits. Point size indicates elevational percentile within each region."
 
 tar_load(trait_pca_fig)
 trait_pca_fig

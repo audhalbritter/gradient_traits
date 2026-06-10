@@ -16,9 +16,8 @@ make_trait_pca <- function(trait_mean){
 
   set.seed(32)
 
-  # Filter trait data and pivot to wide format
+  # Pivot to wide format (trait subsetting is done upstream in trait_plan)
   cwm_fat <- trait_mean %>%
-    filter(!trait_trans %in% c("cn_ratio", "np_ratio")) %>%
     select(country:mean) %>%
     pivot_wider(names_from = "trait_trans", values_from = "mean") %>%
     ungroup()

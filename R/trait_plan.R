@@ -1,19 +1,19 @@
 # Trait analysis
 
 trait_plan <- list(
-  # ordination reduced, all traits fewer countries
+  # all countries; P and NP omitted (not measured at all sites)
+  tar_target(
+    name = trait_pca_full,
+    command = make_trait_pca(trait_mean |>
+      filter(!trait_trans %in% c("p_percent", "np_ratio", "plant_height_cm_log")))
+  ),
+
+  # Norway and SA omitted; full trait set where P/NP are available (no plant height)
   tar_target(
     name = trait_pca,
     command = make_trait_pca(trait_mean |>
       filter(!country %in% c("no", "sa")) |>
       filter(!trait_trans %in% c("plant_height_cm_log")))
-  ),
-
-  # ordination with all countries, fewer traits
-  tar_target(
-    name = trait_pca_full,
-    command = make_trait_pca(trait_mean |>
-      filter(trait_trans %in% c("dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log", "ldmc", "sla_cm2_g")))
   ),
 
   # trait data in long format with climate variables stacked
