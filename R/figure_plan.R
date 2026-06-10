@@ -40,26 +40,15 @@ figure_plan <- list(
     command = make_climate_seasonality_plot(daily_climate, growing_season)
   ),
 
-  # Shannon diversity: latitude, growing-season temperature, VPD (single composite figure)
-  tar_target(
-    name = diversity_three_panel_fig,
-    command = make_diversity_three_panel_plot(
-      lat_predictions = diversity_predictions,
-      climate_predictions = list(
-        global = diversity_predictions_ds_climate,
-        region = diversity_predictions_region_ds_climate
-      )
-    )
-  ),
-
-  # Shannon diversity vs all five growing-season climate variables
+  # Shannon diversity vs latitude and all five growing-season climate variables
   tar_target(
     name = diversity_climate_five_panel_fig,
     command = make_diversity_climate_five_panel_plot(
       climate_predictions = list(
         global = diversity_predictions_ds_climate,
         region = diversity_predictions_region_ds_climate
-      )
+      ),
+      lat_predictions = diversity_predictions
     )
   ),
 

@@ -210,11 +210,14 @@ make_diversity_climate_plot <- function(region_predictions, global_predictions, 
   gg
 }
 
-# Shannon diversity vs all five growing-season climate variables (global + regional fits)
-make_diversity_climate_five_panel_plot <- function(climate_predictions) {
+# Shannon diversity vs latitude and all five growing-season climate variables
+make_diversity_climate_five_panel_plot <- function(climate_predictions, lat_predictions) {
   labels <- climate_variable_labels()
 
-  panels <- purrr::imap(
+  p_lat <- make_diversity_plot(lat_predictions, compact = TRUE) +
+    ggplot2::labs(y = "Shannon diversity")
+
+  climate_panels <- purrr::imap(
     labels,
     function(xlab, climate_variable) {
       make_diversity_climate_plot(
@@ -224,45 +227,11 @@ make_diversity_climate_five_panel_plot <- function(climate_predictions) {
         xlab = xlab,
         compact = TRUE
       ) +
-        ggplot2::labs(y = if (climate_variable == names(labels)[1]) "Shannon diversity" else NULL)
+        ggplot2::labs(y = NULL)
     }
   )
 
-  patchwork::wrap_plots(panels, ncol = 3, guides = "collect") &
-    ggplot2::theme(
-      legend.position = "top",
-      legend.box = "horizontal",
-      legend.title = ggplot2::element_text(size = 11),
-      legend.text = ggplot2::element_text(size = 10),
-      axis.title = ggplot2::element_text(size = 12),
-      axis.text = ggplot2::element_text(size = 10),
-      plot.margin = ggplot2::margin(4, 4, 4, 4)
-    )
-}
-
-make_diversity_three_panel_plot <- function(lat_predictions, climate_predictions) {
-  p_lat <- make_diversity_plot(lat_predictions, compact = TRUE) +
-    ggplot2::labs(y = "Shannon diversity")
-
-  p_t2m <- make_diversity_climate_plot(
-    region_predictions = climate_predictions$region,
-    global_predictions = climate_predictions$global,
-    climate_variable = "gs_temperature",
-    xlab = "Growing season temperature (°C)",
-    compact = TRUE
-  ) +
-    ggplot2::labs(y = NULL)
-
-  p_vpd <- make_diversity_climate_plot(
-    region_predictions = climate_predictions$region,
-    global_predictions = climate_predictions$global,
-    climate_variable = "gs_vpd",
-    xlab = "Growing season VPD",
-    compact = TRUE
-  ) +
-    ggplot2::labs(y = NULL)
-
-  patchwork::wrap_plots(p_lat, p_t2m, p_vpd, ncol = 3, guides = "collect") &
+  patchwork::wrap_plots(c(list(latitude = p_lat), climate_panels), ncol = 3, guides = "collect") &
     ggplot2::theme(
       legend.position = "top",
       legend.box = "horizontal",
