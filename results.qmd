@@ -58,8 +58,7 @@ regions_world_map
 
 ### Data collection
 
-**Plant community and functional traits**
-We collected data on species community composition and functional leaf trait data from all PFTC courses and RMBL in Colorado. Describe data collection and refer to data papers. Describe which gradinets were used, e.g. Svalbard only control, not bird cliff, Peru not recently burned, etc. There are no chemical traits from Norway and South Africa yet, and these countries were excluded from the multivariate analysis.
+**Plant community and functional traits** We collected data on species community composition and functional leaf trait data from all PFTC courses and RMBL in Colorado. Describe data collection and refer to data papers. Describe which gradinets were used, e.g. Svalbard only control, not bird cliff, Peru not recently burned, etc. There are no chemical traits from Norway and South Africa yet, and these countries were excluded from the multivariate analysis.
 
 ```{r}
 #| label: fig-trait-distribution
@@ -75,8 +74,7 @@ trait_distribution_ridgeline_fig
 
 ```
 
-**Climate data**
-growing-season climate variables were derived from the hourly climate extract for each plot. We first aggregated the hourly data to daily mean, minimum and maximum temperature and mean VPD. The growing season was then defined as the longest continuous run of at least five days with daily mean temperature above 5 °C (the conventional thermal growing season). Short cold snaps embedded within the season — below-threshold runs shorter than five days that are flanked by warm spells — were bridged and counted as part of the growing season, so that brief mid-season cold spells do not truncate it. Southern Hemisphere sites (Peru and South Africa) were rotated to a July–June year so the austral summer forms a contiguous run within the single calendar year of data. Within each plot's growing-season window we computed: growing-season length (days), growing-season temperature (mean daily temperature), growing-season VPD (mean daily VPD), growing degree days (sum of daily mean temperature above the 5 °C base), and the mean diurnal temperature range (mean daily maximum minus minimum). Climate variables were matched to community and trait data at the plot level, falling back to the site mean for plots without a direct climate match. Here we summarise them against site-level mean latitude.
+**Climate data** growing-season climate variables were derived from the hourly climate extract for each plot. We first aggregated the hourly data to daily mean, minimum and maximum temperature and mean VPD. The growing season was then defined as the longest continuous run of at least five days with daily mean temperature above 5 °C (the conventional thermal growing season). Short cold snaps embedded within the season — below-threshold runs shorter than five days that are flanked by warm spells — were bridged and counted as part of the growing season, so that brief mid-season cold spells do not truncate it. Southern Hemisphere sites (Peru and South Africa) were rotated to a July–June year so the austral summer forms a contiguous run within the single calendar year of data. Within each plot's growing-season window we computed: growing-season length (days), growing-season temperature (mean daily temperature), growing-season VPD (mean daily VPD), growing degree days (sum of daily mean temperature above the 5 °C base), and the mean diurnal temperature range (mean daily maximum minus minimum). Climate variables were matched to community and trait data at the plot level, falling back to the site mean for plots without a direct climate match. Here we summarise them against site-level mean latitude.
 
 ```{r}
 #| label: fig-climate-latitude
