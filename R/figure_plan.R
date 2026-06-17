@@ -52,6 +52,11 @@ figure_plan <- list(
     )
   ),
 
+  tar_target(
+    name = beta_turnover_nestedness_fig,
+    command = make_beta_turnover_nestedness_plot(beta_adjacent_pairs, beta_region_summary)
+  ),
+
   # trait ordination
   tar_target(
     name = trait_pca_fig,

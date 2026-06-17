@@ -208,6 +208,150 @@ diversity_plan <- list(
   ),
 
   tar_target(
+    name = beta_adjacent_pairs,
+    command = {
+      make_adjacent_beta_pairs <- function(dat) {
+        if (nrow(dat) < 2) {
+          return(tibble())
+        }
+
+        species_matrix <- dat |>
+          dplyr::select(plot_key, taxon, presence) |>
+          tidyr::pivot_wider(
+            names_from = taxon,
+            values_from = presence,
+            values_fill = 0,
+            values_fn = max
+          ) |>
+          dplyr::arrange(plot_key)
+
+        plot_meta <- dat |>
+          dplyr::distinct(plot_key, elevation_m) |>
+          dplyr::arrange(elevation_m, plot_key) |>
+          dplyr::mutate(step_index = dplyr::row_number())
+
+        if (nrow(plot_meta) < 2) {
+          return(tibble())
+        }
+
+        mat <- species_matrix |>
+          tibble::column_to_rownames("plot_key") |>
+          as.matrix()
+
+        core <- betapart::betapart.core(mat)
+        pair <- betapart::beta.pair(core, index.family = "sorensen")
+
+        sim_mat <- as.matrix(pair$beta.sim)
+        sne_mat <- as.matrix(pair$beta.sne)
+        sor_mat <- as.matrix(pair$beta.sor)
+
+        adjacent_pairs <- plot_meta |>
+          dplyr::mutate(
+            to_plot = dplyr::lead(plot_key),
+            elev_to = dplyr::lead(elevation_m)
+          ) |>
+          dplyr::filter(!is.na(to_plot)) |>
+          dplyr::transmute(
+            from_plot = plot_key,
+            to_plot = to_plot,
+            elev_from = elevation_m,
+            elev_to = elev_to
+          ) |>
+          dplyr::rowwise() |>
+          dplyr::mutate(
+            beta_sim = sim_mat[from_plot, to_plot],
+            beta_sne = sne_mat[from_plot, to_plot],
+            beta_sor = sor_mat[from_plot, to_plot],
+            elev_mid = (elev_from + elev_to) / 2,
+            elev_diff_m = abs(elev_to - elev_from),
+            turnover_fraction = dplyr::if_else(beta_sor > 0, beta_sim / beta_sor, NA_real_),
+            nestedness_fraction = dplyr::if_else(beta_sor > 0, beta_sne / beta_sor, NA_real_)
+          ) |>
+          dplyr::ungroup()
+
+        adjacent_pairs
+      }
+
+      community |>
+        dplyr::group_by(country, region, gradient, site, plot_id, elevation_m, taxon) |>
+        dplyr::summarise(cover = sum(cover, na.rm = TRUE), .groups = "drop") |>
+        dplyr::mutate(
+          plot_key = paste(country, region, gradient, site, plot_id, sep = "__"),
+          presence = as.integer(cover > 0)
+        ) |>
+        dplyr::group_by(country, region, gradient) |>
+        tidyr::nest() |>
+        dplyr::mutate(adjacent_pairs = purrr::map(data, make_adjacent_beta_pairs)) |>
+        dplyr::select(-data) |>
+        tidyr::unnest(adjacent_pairs)
+    }
+  ),
+
+  tar_target(
+    name = beta_adjacent_validation,
+    command = {
+      beta_adjacent_pairs |>
+        dplyr::mutate(
+          beta_sum_error = abs(beta_sor - (beta_sim + beta_sne)),
+          decomposition_ok = beta_sum_error < 1e-8
+        ) |>
+        dplyr::summarise(
+          n_pairs = dplyr::n(),
+          n_regions = dplyr::n_distinct(region),
+          n_gradients = dplyr::n_distinct(paste(country, gradient, sep = "__")),
+          max_beta_sum_error = max(beta_sum_error, na.rm = TRUE),
+          all_decomposition_ok = all(decomposition_ok, na.rm = TRUE)
+        )
+    }
+  ),
+
+  tar_target(
+    name = beta_gradient_summary,
+    command = {
+      beta_adjacent_pairs |>
+        dplyr::group_by(country, region, gradient) |>
+        dplyr::summarise(
+          n_pairs = dplyr::n(),
+          mean_beta_sim = mean(beta_sim, na.rm = TRUE),
+          median_beta_sim = median(beta_sim, na.rm = TRUE),
+          mean_beta_sne = mean(beta_sne, na.rm = TRUE),
+          median_beta_sne = median(beta_sne, na.rm = TRUE),
+          mean_turnover_fraction = mean(turnover_fraction, na.rm = TRUE),
+          mean_nestedness_fraction = mean(nestedness_fraction, na.rm = TRUE),
+          mean_elev_diff_m = mean(elev_diff_m, na.rm = TRUE),
+          .groups = "drop"
+        )
+    }
+  ),
+
+  tar_target(
+    name = beta_region_summary,
+    command = {
+      beta_adjacent_pairs |>
+        dplyr::group_by(region) |>
+        dplyr::summarise(
+          n_pairs = dplyr::n(),
+          n_gradients = dplyr::n_distinct(paste(country, gradient, sep = "__")),
+          mean_beta_sim = mean(beta_sim, na.rm = TRUE),
+          mean_beta_sne = mean(beta_sne, na.rm = TRUE),
+          mean_beta_sor = mean(beta_sor, na.rm = TRUE),
+          mean_turnover_fraction = mean(turnover_fraction, na.rm = TRUE),
+          se_turnover_fraction = sd(turnover_fraction, na.rm = TRUE) / sqrt(n_pairs),
+          mean_nestedness_fraction = mean(nestedness_fraction, na.rm = TRUE),
+          se_nestedness_fraction = sd(nestedness_fraction, na.rm = TRUE) / sqrt(n_pairs),
+          .groups = "drop"
+        ) |>
+        dplyr::mutate(
+          region = factor(region, levels = c(
+            "Svalbard", "Southern Scandes", "Rocky Mountains",
+            "Eastern Himalaya", "Central Andes", "Drakensberg"
+          ))
+        ) |>
+        dplyr::arrange(region)
+    }
+  ),
+
+  tar_target(
     name = diversity_model_checks,
     command = {
       diversity_model |>

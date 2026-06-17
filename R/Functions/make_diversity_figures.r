@@ -242,3 +242,77 @@ make_diversity_climate_five_panel_plot <- function(climate_predictions, lat_pred
       plot.margin = ggplot2::margin(4, 4, 4, 4)
     )
 }
+
+make_beta_turnover_nestedness_plot <- function(beta_adjacent_pairs, beta_region_summary) {
+  pair_long <- beta_adjacent_pairs |>
+    dplyr::select(region, gradient, elev_mid, turnover_fraction, nestedness_fraction) |>
+    tidyr::pivot_longer(
+      cols = c(turnover_fraction, nestedness_fraction),
+      names_to = "component",
+      values_to = "fraction"
+    ) |>
+    dplyr::mutate(
+      component = dplyr::recode(
+        component,
+        turnover_fraction = "Turnover",
+        nestedness_fraction = "Nestedness"
+      ),
+      region = factor(region, levels = climate_region_levels())
+    )
+
+  p_pairs <- pair_long |>
+    ggplot(aes(x = elev_mid, y = fraction, colour = component)) +
+    geom_point(alpha = 0.55, size = 1.5) +
+    geom_smooth(method = "loess", se = FALSE, linewidth = 0.7) +
+    facet_wrap(~region, ncol = 3) +
+    scale_color_manual(values = c("Turnover" = "#1b9e77", "Nestedness" = "#d95f02")) +
+    scale_y_continuous(limits = c(0, 1)) +
+    theme_bw() +
+    theme(
+      legend.position = "top",
+      strip.text = element_text(size = 10, face = "bold"),
+      axis.title = element_text(size = 11),
+      axis.text = element_text(size = 9)
+    ) +
+    labs(
+      x = "Elevation midpoint between adjacent plots (m)",
+      y = "Fraction of total beta diversity",
+      colour = "Component"
+    )
+
+  region_long <- beta_region_summary |>
+    dplyr::select(region, mean_turnover_fraction, mean_nestedness_fraction) |>
+    tidyr::pivot_longer(
+      cols = c(mean_turnover_fraction, mean_nestedness_fraction),
+      names_to = "component",
+      values_to = "fraction"
+    ) |>
+    dplyr::mutate(
+      component = dplyr::recode(
+        component,
+        mean_turnover_fraction = "Turnover",
+        mean_nestedness_fraction = "Nestedness"
+      ),
+      region = factor(region, levels = climate_region_levels())
+    )
+
+  p_region <- region_long |>
+    ggplot(aes(x = region, y = fraction, fill = component)) +
+    geom_col(position = "stack") +
+    coord_flip() +
+    scale_fill_manual(values = c("Turnover" = "#1b9e77", "Nestedness" = "#d95f02")) +
+    scale_y_continuous(limits = c(0, 1)) +
+    theme_bw() +
+    theme(
+      legend.position = "top",
+      axis.title = element_text(size = 11),
+      axis.text = element_text(size = 9)
+    ) +
+    labs(
+      x = "",
+      y = "Mean fraction across adjacent pairs",
+      fill = "Component"
+    )
+
+  patchwork::wrap_plots(p_pairs, p_region, ncol = 1, heights = c(2.6, 1.2), guides = "collect")
+}
