@@ -200,7 +200,7 @@ trait_pca_fig
 
 -   Leaf thickness, SLA, LDMC, leaf C, and N show no global or regional relationship with mean annual temperature
 
-Trait–climate relationships are shown below for each growing-season climate variable: first individual traits, then multivariate PCA axes (PC1 and PC2 from the all-country ordination).
+Trait–climate relationships are shown below for each growing-season climate variable: first community-weighted mean traits, then multivariate PCA axes (PC1 and PC2 from the all-country ordination).
 
 ```{r}
 #| label: load-trait-climate-figs

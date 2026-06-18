@@ -1,6 +1,6 @@
 ## Trait figures
 
-make_trait_region_climate_plot <- function(data, prediction_region, prediction_global, x_label) {
+make_trait_region_climate_plot <- function(data, prediction_region, prediction_global, x_label, y_label = "Trait value") {
   data <- data |>
     mutate(region = factor(region, levels = c(
       "Svalbard", "Southern Scandes", "Rocky Mountains",
@@ -48,7 +48,7 @@ make_trait_region_climate_plot <- function(data, prediction_region, prediction_g
       legend.position = "top",
       strip.text = element_text(size = 10, face = "bold")
     ) +
-    labs(x = x_label, y = "Trait Value")
+    labs(x = x_label, y = y_label)
 }
 
 make_pca_climate_plot <- function(data, prediction_region, prediction_global, x_label, variance_explained = NULL) {
@@ -135,7 +135,14 @@ make_pca_climate_comparison_plot <- function(region_output, global_output, raw_d
   )
 }
 
-make_trait_comparison_plot <- function(region_output, global_output, raw_data, climate_var, x_label) {
+make_trait_comparison_plot <- function(
+    region_output,
+    global_output,
+    raw_data,
+    climate_var,
+    x_label,
+    y_label = "Trait value"
+) {
   reg_data <- region_output %>%
     filter(climate_variable == climate_var) %>%
     select(trait_trans, is_significant, predictions) %>%
@@ -154,7 +161,8 @@ make_trait_comparison_plot <- function(region_output, global_output, raw_data, c
     data = points_data,
     prediction_region = reg_data,
     prediction_global = glob_data,
-    x_label = x_label
+    x_label = x_label,
+    y_label = y_label
   )
 }
 
