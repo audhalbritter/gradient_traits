@@ -7,7 +7,7 @@
 #'
 #' `site` strings match those built in [cleaning_functions.R] (e.g. `no_Liahovden`,
 #' `co_CBT`, `pe_B_ACJ`, `sv_C_2`). Svalbard N/B plots and Peru NB/BB bands are
-#' dropped (`site` is `NA`). Peru rows get `gradient` from [expand_pe_climate_seasons()].
+#' dropped (`site` is `NA`). Peru uses `gradient = "C"` like other regions.
 #'
 #' @return Input plus `area_raw`, `plot_id_raw`, `country`, `gradient`, `site`, `plot_id`.
 downscaled_climate_add_site_keys <- function(dat) {
@@ -28,7 +28,6 @@ downscaled_climate_add_site_keys <- function(dat) {
       site = pmap_chr(list(country, plot_id_raw), dc_trait_site_chr),
       gradient = pmap_chr(list(country, plot_id_raw), dc_trait_gradient_chr)
     ) |>
-    expand_pe_climate_seasons() |>
     mutate(
       plot_id = pmap_chr(
         list(country, site, gradient, plot_id_raw),
@@ -119,23 +118,6 @@ dc_trait_plot_id_chr <- function(cnt, site, grad, raw) {
   }
 
   NA_character_
-}
-
-
-#' Duplicate Peru climate rows to `wet_season` and `dry_season` (traits have no wet/dry in extract).
-#'
-#' Climate only encodes elevation band (B/C) in `plot_id`; community/traits use the same
-#' `site` for both seasons. Duplicating keeps joins on `country`, `gradient`, and `site`.
-expand_pe_climate_seasons <- function(dat) {
-  pe <- dat |>
-    filter(country == "pe", !is.na(site)) |>
-    select(-gradient) |>
-    tidyr::crossing(gradient = c("wet_season", "dry_season"))
-
-  bind_rows(
-    dat |> filter(country != "pe" | is.na(site)),
-    pe
-  )
 }
 
 
@@ -233,6 +215,7 @@ pe_trait_site_gradient_from_raw <- function(raw) {
   }
   sitecode <- str_flatten(parts[seq_len(n - 2L)], collapse = "_")
   out$site <- paste0("pe_", band, "_", sitecode)
+  out$gradient <- "C"
   out
 }
 

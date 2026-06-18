@@ -382,7 +382,7 @@ trait_coverage_fig
 #| echo: false
 #| warning: false
 #| fig-height: 6
-#| fig-cap: "Variance partitioning for different plant functional traits on raw observations, split into region, site, plot, between-species, and within-species components. Plot keys distinguish Peru and South Africa seasons that share the same plot_id."
+#| fig-cap: "Variance partitioning for different plant functional traits on raw observations, split into region, site, plot, between-species, and within-species components. South Africa plot keys distinguish east and west aspects that share the same plot_id."
 
 tar_load(itv_variance_plot)
 itv_variance_plot

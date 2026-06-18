@@ -188,10 +188,10 @@ trait_plot_key <- function(dat, scale_hierarchy) {
   apply(dat |> dplyr::select(dplyr::any_of(cols)), 1, paste, collapse = "_")
 }
 
-# Unique plot key for raw trait observations (Peru/SA reuse plot_id across seasons)
+# Unique plot key for raw trait observations (South Africa reuses plot_id across aspects)
 trait_observation_plot_key <- function(dat) {
   dplyr::if_else(
-    dat$country %in% c("pe", "sa"),
+    dat$country == "sa",
     paste(dat$gradient, dat$plot_id, sep = "/"),
     dat$plot_id
   )
@@ -245,7 +245,7 @@ make_trait_coverage_plot <- function(filled_traits) {
     dplyr::ungroup() |>
     dplyr::mutate(
       plot_axis = dplyr::if_else(
-        .data$country %in% c("pe", "sa"),
+        .data$country == "sa",
         paste(.data$gradient, .data$plot_id, sep = "/"),
         .data$plot_id
       ),

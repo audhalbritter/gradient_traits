@@ -42,7 +42,8 @@ clean_pe_community <- function(raw_community_pe) {
   raw_community_pe |>
     filter(
       !treatment %in% c("NB", "BB"),
-      site != "OCC"
+      site != "OCC",
+      season == "wet_season"
     ) |>
     mutate(
       country = "pe",
@@ -51,7 +52,7 @@ clean_pe_community <- function(raw_community_pe) {
       site = paste0(country, "_", treatment, "_", site),
       plot_id = paste0(treatment, "_", site, "_", plot_id),
       taxon = tolower(taxon),
-      gradient = season
+      gradient = "C"
     ) |>
     tidylog::select(country, region, year, season, month, treatment, gradient, site, plot_id, functional_group, family, taxon, cover, elevation_m = elevation, latitude_n = latitude, longitude_e = longitude, ecosystem)
 }
@@ -61,7 +62,8 @@ clean_pe_traits <- function(raw_traits_pe) {
   raw_traits_pe |>
     filter(
       !treatment %in% c("NB", "BB"),
-      site != "OCC"
+      site != "OCC",
+      season == "wet_season"
     ) |>
     mutate(
       country = "pe",
@@ -70,7 +72,7 @@ clean_pe_traits <- function(raw_traits_pe) {
       site = paste0(country, "_", treatment, "_", site),
       plot_id = paste0(treatment, "_", site, "_", plot_id),
       taxon = tolower(taxon),
-      gradient = season
+      gradient = "C"
     ) |>
     tidylog::select(country, region, year, season, month, treatment, gradient, site, plot_id, individual_nr, leaf_id = id, functional_group, family, taxon, trait, value, elevation_m = elevation, latitude_n = latitude, longitude_e = longitude, ecosystem)
 }
