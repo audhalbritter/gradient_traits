@@ -19,20 +19,22 @@ fancy_trait_name_dictionary <- function(dat){
                               p_percent = "P %",
                               sla_cm2_g = "SLA cm2/g",
                               thickness_mm_log = "Log(Thickness) mm")) |> 
-    mutate(figure_names = case_match(trait_trans,
-                                     "plant_height_cm_log" ~ "Size~-~Height~cm",
-                                     "dry_mass_g_log" ~ "Size~-~Dry~mass~g",
-                                     "leaf_area_cm2_log" ~ "Size~-~Area~cm^2",
-                                     "thickness_mm_log" ~ "Size~-~Thickness~mm",
-                                     "ldmc" ~ "LES~-~LDMC",
-                                     "sla_cm2_g" ~ "LES~-~SLA~cm^2*g^{-1}",
-                                     "c_percent" ~ "LES~-~C~'%'",
-                                     "n_percent" ~ "LES~-~N~'%'",
-                                     "cn_ratio" ~ "LES~-~CN",
-                                     "p_percent" ~ "LES~-~P~'%'",
-                                     "np_ratio" ~ "LES~-~NP",
-                                     "dc13_permil" ~ "I~-~δ^{13}~C~'‰'",
-                                     "dn15_permil" ~ "I~-~δ^{15}~N~'‰'")) |>
+    mutate(figure_names = recode_values(
+      trait_trans,
+      "plant_height_cm_log" ~ "Size~-~Height~cm",
+      "dry_mass_g_log" ~ "Size~-~Dry~mass~g",
+      "leaf_area_cm2_log" ~ "Size~-~Area~cm^2",
+      "thickness_mm_log" ~ "Size~-~Thickness~mm",
+      "ldmc" ~ "LES~-~LDMC",
+      "sla_cm2_g" ~ "LES~-~SLA~cm^2*g^{-1}",
+      "c_percent" ~ "LES~-~C~'%'",
+      "n_percent" ~ "LES~-~N~'%'",
+      "cn_ratio" ~ "LES~-~CN",
+      "p_percent" ~ "LES~-~P~'%'",
+      "np_ratio" ~ "LES~-~NP",
+      "dc13_permil" ~ "I~-~δ^{13}~C~'‰'",
+      "dn15_permil" ~ "I~-~δ^{15}~N~'‰'"
+    )) |>
 
     # add class
     mutate(class = case_when(trait_trans %in% c("plant_height_cm_log", "dry_mass_g_log", "leaf_area_cm2_log", "thickness_mm_log") ~ "Size",

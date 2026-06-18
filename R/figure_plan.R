@@ -12,9 +12,9 @@ figure_plan <- list(
     command = make_region_world_map(all_coordinates)
   ),
 
-  # Downscaled T2m vs site latitude (same region colours as diversity/trait figures)
+  # Growing-season climate variables vs site latitude (same region colours as other figures)
   tar_target(
-    name = downscaled_t2m_latitude_fig,
+    name = climate_latitude_fig,
     command = {
       site_lat <- community |>
         dplyr::filter(!is.na(site)) |>
@@ -26,24 +26,35 @@ figure_plan <- list(
           .groups = "drop"
         ) |>
         dplyr::inner_join(
-          downscaled_climate |> dplyr::select(country, gradient, site, T2m),
+          growing_season_climate_site,
           by = dplyr::join_by(country, gradient, site)
         ) |>
-        dplyr::filter(!is.na(T2m), !is.na(latitude_n))
-      make_downscaled_t2m_latitude_plot(site_lat)
+        dplyr::filter(!is.na(latitude_n))
+      make_climate_latitude_plot(site_lat)
     }
   ),
 
-  # Shannon diversity: latitude, downscaled T2m, VPD (single composite figure)
+  # Mean daily temperature seasonality per country, with the growing-season window
   tar_target(
-    name = diversity_three_panel_fig,
-    command = make_diversity_three_panel_plot(
-      lat_predictions = diversity_predictions,
+    name = climate_seasonality_fig,
+    command = make_climate_seasonality_plot(daily_climate, growing_season)
+  ),
+
+  # Shannon diversity vs latitude and all five growing-season climate variables
+  tar_target(
+    name = diversity_climate_five_panel_fig,
+    command = make_diversity_climate_five_panel_plot(
       climate_predictions = list(
         global = diversity_predictions_ds_climate,
         region = diversity_predictions_region_ds_climate
-      )
+      ),
+      lat_predictions = diversity_predictions
     )
+  ),
+
+  tar_target(
+    name = beta_turnover_nestedness_fig,
+    command = make_beta_turnover_nestedness_plot(beta_adjacent_pairs, beta_region_summary)
   ),
 
   # trait ordination
@@ -56,27 +67,53 @@ figure_plan <- list(
     command = make_pca_plot(trait_pca_full)
   ),
 
+  tar_target(
+    name = trait_pca_scree_fig,
+    command = make_pca_scree_plot(list(
+      "All countries (no P, N:P, height)" = trait_pca_full,
+      "P/N:P countries (no Norway, SA)" = trait_pca
+    ))
+  ),
+
+  # PCA axis vs growing-season climate — trait_pca_full sites, one figure per climate variable
+  tar_target(
+    name = trait_pca_full_climate_figs,
+    command = {
+      labels <- climate_variable_labels()
+      purrr::imap(labels, function(lab, var) {
+        make_pca_climate_comparison_plot(
+          trait_pca_full_climate_models_region_output,
+          trait_pca_full_climate_models_output,
+          trait_pca_full_long,
+          var,
+          lab,
+          trait_pca_full_variance
+        )
+      })
+    }
+  ),
+
   # Trait distribution ridgeline plot
   tar_target(
     name = trait_distribution_ridgeline_fig,
     command = make_trait_ridgeline_plot(trait_mean_long)
   ),
 
-  # Trait vs downscaled climate (mean traits only)
+  # Trait vs growing-season climate — one figure per climate variable (mean traits only)
   tar_target(
-    name = trait_climate_ds_t2m_fig,
-    command = make_trait_comparison_plot(
-      trait_models_region_output, trait_models_output, trait_mean_long,
-      "ds_t2m", "Mean annual temperature (°C)"
-    )
-  ),
-
-  tar_target(
-    name = trait_climate_ds_vpd_fig,
-    command = make_trait_comparison_plot(
-      trait_models_region_output, trait_models_output, trait_mean_long,
-      "ds_vpd", "Vapour pressure deficit"
-    )
+    name = trait_climate_figs,
+    command = {
+      labels <- climate_variable_labels()
+      purrr::imap(labels, function(lab, var) {
+        make_trait_comparison_plot(
+          trait_models_region_output,
+          trait_models_output,
+          trait_mean_long,
+          var,
+          lab
+        )
+      })
+    }
   ),
 
   # Trait sampling coverage diagnostic from traitstrap fill levels

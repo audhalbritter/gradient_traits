@@ -21,7 +21,7 @@ The main research questions are:
 The pipeline downloads, imports, cleans, and analyzes data from multiple sources and ecosystems, including:
 - Community composition
 - Functional leaf traits
-- Climate data (WorldClim bioclimatic variables)
+- Climate data (hourly climate extract, summarised to growing-season variables)
 
 ## Pipeline Structure
 
@@ -72,7 +72,6 @@ gradient_traits/
 ├── data/                # Raw and processed data (mostly gitignored)
 ├── results_files/       # Output files (gitignored)
 ├── results.qmd          # Quarto/Markdown results document
-├── get_bioclim.R        # Script for downloading bioclimatic data
 └── ...                  # Other supporting files
 ```
 
