@@ -10,17 +10,12 @@ transformation_plan <- list(
     command = bind_rows(community_sv, community_pe, community_ch, community_no, community_co, community_sa)
   ),
 
-  # Downscaled climate by site (T2m, VPD, …); completes missing SA/SV sites from community plot keys
+  # Hourly PFTC extract with trait/community keys (one row per plot x timestep)
   tar_target(
-    name = downscaled_climate,
-    command = downscaled_climate_raw |>
+    name = hourly_climate,
+    command = hourly_climate_raw |>
       downscaled_climate_add_site_keys() |>
-      summarise_downscaled_climate_by_site() |>
-      complete_downscaled_climate_sites(
-        community |>
-          distinct(country, gradient, site) |>
-          filter(!is.na(site))
-      )
+      filter(!is.na(site), !is.na(plot_id))
   ),
 
   # calculate diversity indices
@@ -36,13 +31,9 @@ transformation_plan <- list(
           .groups = "drop"
         )
 
-      # Downscaled climate (mean annual T at 2 m, VPD) joined by site
+      # Growing-season climate (plot-level, site-level fallback)
       community_agg |>
-        tidylog::left_join(
-          downscaled_climate |>
-            select(country, gradient, site, ds_t2m = T2m, ds_vpd = VPD),
-          by = join_by(country, gradient, site)
-        ) |>
+        join_growing_season_climate(growing_season_climate, growing_season_climate_site) |>
         pivot_longer(cols = c(diversity, sum_abundance), names_to = "diversity_index", values_to = "value") |>
         # Ensure region is ordered consistently (north to south)
         mutate(region = factor(region, levels = c(
@@ -62,11 +53,10 @@ transformation_plan <- list(
       # fix trait names
       mutate(
         trait = tolower(trait),
-        trait = case_match(trait,
+        trait = replace_values(trait,
           "d_c13_permil" ~ "dc13_permil",
           "d_n15_permil" ~ "dn15_permil",
-          "leaf_thickness_ave_mm" ~ "leaf_thickness_mm",
-          .default = trait
+          "leaf_thickness_ave_mm" ~ "leaf_thickness_mm"
         )
       ) |>
       # remove wet mass, correlated with dry mass
@@ -190,11 +180,8 @@ transformation_plan <- list(
             "dn15_permil"
           )
         )) |>
-        tidylog::left_join(
-          downscaled_climate |>
-            select(country, gradient, site, ds_t2m = T2m, ds_vpd = VPD),
-          by = join_by(country, gradient, site)
-        ) |>
+        # Growing-season climate (plot-level, site-level fallback)
+        join_growing_season_climate(growing_season_climate, growing_season_climate_site) |>
         # Ensure region is ordered consistently (north to south)
         mutate(region = factor(region, levels = c(
           "Svalbard", "Southern Scandes", "Rocky Mountains",
