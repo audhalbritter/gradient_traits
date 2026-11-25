@@ -30,6 +30,7 @@ combined_plan <- c(
   itv_plan,
   diversity_plan,
   trait_plan,
+  diaz_plan,
   figure_plan,
   output_plan
   # si_figures_plan#,

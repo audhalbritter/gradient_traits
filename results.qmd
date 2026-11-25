@@ -167,6 +167,21 @@ diversity_climate_five_panel_fig
 
 -   Carbon and nutrient show different patterns with elevation across the regions.
 
+To place our measured species in global trait space, we compared PFTC species means (leaf area, SLA, LDMC, and leaf N; plant height omitted so China can be included) with species means from the Díaz Global Spectrum dataset (TRY File Archive DOI 10.17871/TRY.81; Díaz et al. 2016; Scientific Data 2022). Both sides are species means of measured traits (not community-weighted means). PCA was fitted on Díaz complete cases only; PFTC species × region means were projected into that space with the Díaz loadings (`prcomp` / `predict`).
+
+```{r}
+#| label: fig-diaz-pftc-pca
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 6
+#| fig-cap: "Global trait space from Díaz species means (grey) with PFTC species × region means overlaid (coloured). PCA fitted on Díaz complete cases for leaf area, SLA, LDMC, and leaf N; PFTC points are projected into that space. Arrows show trait loadings."
+
+tar_load(diaz_pftc_pca_fig)
+diaz_pftc_pca_fig
+
+```
+
 The PCA across all regions (excluding leaf P and N:P, which are not available at every site) shows that size and leaf economic traits are largely perpendicular. Regions separate along the leaf economics axis, with colder sites tending toward higher SLA and lower LDMC, and warmer sites toward taller stature and more conservative leaf traits.
 
 ```{r}
