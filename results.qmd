@@ -104,6 +104,17 @@ climate_seasonality_fig
 
 ```
 
+```{r}
+#| label: tab-region-climate-summary
+#| echo: false
+#| warning: false
+#| message: false
+
+tar_load(region_climate_summary_table)
+region_climate_summary_table
+
+```
+
 ### Data analysis
 
 Shannon diversity was calcualted using the vegan pacakge (REF).

@@ -120,5 +120,11 @@ figure_plan <- list(
   tar_target(
     name = trait_coverage_fig,
     command = make_trait_coverage_plot(trait_imputed)
+  ),
+
+  # Whittaker biome diagram — one point per site, coloured by region
+  tar_target(
+    name = whittaker_fig,
+    command = make_whittaker_plot(annual_climate_site)
   )
 )

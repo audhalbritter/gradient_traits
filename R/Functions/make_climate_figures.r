@@ -164,3 +164,43 @@ make_climate_seasonality_plot <- function(daily, gs) {
       y = "Mean daily temperature (°C)"
     )
 }
+
+# Whittaker biome diagram with one point per site coloured by region.
+# x = mean annual temperature (°C from downscaled data),
+# y = annual precipitation in cm (WorldClim bio_12 / 10).
+make_whittaker_plot <- function(annual_climate) {
+  region_colors <- create_region_color_mapping()
+
+  plotbiomes::whittaker_base_plot() +
+    ggplot2::geom_point(
+      data        = annual_climate |> dplyr::filter(!is.na(precip_cm), !is.na(mat_c)),
+      ggplot2::aes(x = mat_c, y = precip_cm, colour = region),
+      size        = 3,
+      alpha       = 0.85,
+      inherit.aes = FALSE
+    ) +
+    ggplot2::scale_colour_manual(
+      values = region_colors,
+      name   = "Region",
+      breaks = climate_region_levels(),
+      guide  = ggplot2::guide_legend(nrow = 2, byrow = TRUE, order = 1)
+    ) +
+    ggplot2::guides(
+      fill = ggplot2::guide_legend(nrow = 5, byrow = TRUE, order = 2)
+    ) +
+    ggplot2::labs(
+      x = "Mean annual temperature (°C)",
+      y = "Annual precipitation (cm)"
+    ) +
+    ggplot2::theme_bw() +
+    ggplot2::theme(
+      legend.position  = "bottom",
+      legend.box       = "horizontal",
+      legend.title     = ggplot2::element_text(size = 9),
+      legend.text      = ggplot2::element_text(size = 8),
+      legend.key.size  = ggplot2::unit(0.4, "cm"),
+      legend.spacing.x = ggplot2::unit(0.15, "cm"),
+      axis.title       = ggplot2::element_text(size = 12),
+      axis.text        = ggplot2::element_text(size = 10)
+    )
+}
